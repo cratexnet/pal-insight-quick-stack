@@ -1,0 +1,25 @@
+{
+  "ModName": "Pal Insight: Quick Stack",
+  "PackageName": "PalInsightQuickStack",
+  "Thumbnail": "thumbnail.png",
+  "Version": "0.1.0-beta.1",
+  "DebugMode": false,
+  "MinRevision": 82182,
+  "Author": "cratexnet",
+  "Dependencies": [
+    "UE4SSExperimentalPW"
+  ],
+  "Tags": [
+    "UE4SS",
+    "Utilities",
+    "Quality of Life"
+  ],
+  "InstallRule": [
+    {
+      "Type": "Lua",
+      "Targets": [
+        "./Scripts"
+      ]
+    }
+  ]
+}

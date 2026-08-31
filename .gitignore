@@ -1,0 +1,7 @@
+dist/
+/release/
+*.log
+*.tmp
+.idea/
+.vscode/
+.playwright-cli/

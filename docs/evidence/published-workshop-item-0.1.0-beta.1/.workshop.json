@@ -1,0 +1,5 @@
+{
+  "publishedfileid": "3792968111",
+  "changenote": "[h1]Pal Insight: Quick Stack 0.1.0-beta.1[/h1]\n\n[list]\n[*]Press F5 inside the current base to store matching backpack items in compatible private storage.\n[*]Respects Inventory Tab \u003E R exclusions and never selects Guild Chests automatically.\n[*]Native-style progress and result cards support all 17 Palworld interface languages.\n[*]Standalone client-side mod. Pal Insight is optional; with Pal Insight 1.8.0\u002B, the shortcut can also be changed from F6 \u003E Controls.\n[*]Single-player tested. Multiplayer and dedicated-server client behavior remain unverified during Beta.\n[/list]",
+  "last_published_version": "0.1.0-beta.1"
+}

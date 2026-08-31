@@ -1,0 +1,33 @@
+{
+  "modName": "Pal Insight: Quick Stack",
+  "packageName": "PalInsightQuickStack",
+  "version": "0.2.0",
+  "author": "cratexnet",
+  "license": "All Rights Reserved",
+  "releaseType": "release",
+  "game": "Palworld",
+  "gameVersion": "1.0",
+  "platform": "Steam",
+  "runtime": "UE4SS Experimental (Palworld)",
+  "runtimePackage": "UE4SSExperimentalPW",
+  "languages": [
+    "en",
+    "zh-hans",
+    "zh-hant",
+    "ja",
+    "ko",
+    "de",
+    "fr",
+    "it",
+    "es",
+    "pt-br",
+    "ru",
+    "tr",
+    "pl",
+    "id",
+    "es-419",
+    "th",
+    "vi"
+  ],
+  "multiplayer": "unverified"
+}
