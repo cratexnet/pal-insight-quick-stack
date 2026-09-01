@@ -1,12 +1,73 @@
+-- UE4SS treats enabled.txt as an independent activation path, so an old
+-- marker can start this script even when Palworld wrote
+-- `PalInsightQuickStack : 0` to mods.txt. Respect that explicit user choice
+-- before loading modules or initializing any recurring work.
+do
+    local function explicitlyDisabledByModsTxt()
+        local inspected, info = pcall(function()
+            return debug.getinfo(1, "S")
+        end)
+        local source = inspected and info ~= nil and info.source or nil
+        if type(source) ~= "string" or source == ""
+            or source:sub(1, 1) == "=" then
+            return false
+        end
+        if source:sub(1, 1) == "@" then source = source:sub(2) end
+
+        local scriptsDirectory = source:match("^(.*)[/\\][^/\\]+$")
+        local modDirectory = scriptsDirectory ~= nil
+            and scriptsDirectory:match("^(.*)[/\\][^/\\]+$") or nil
+        local modsDirectory = modDirectory ~= nil
+            and modDirectory:match("^(.*)[/\\][^/\\]+$") or nil
+        if modsDirectory == nil or modsDirectory == "" then return false end
+
+        local opened, file = pcall(function()
+            return io.open(modsDirectory .. "/mods.txt", "r")
+        end)
+        if not opened or file == nil then return false end
+
+        local read, content = pcall(function() return file:read("*a") end)
+        pcall(function() file:close() end)
+        if not read or type(content) ~= "string" then return false end
+
+        local configured = nil
+        for line in content:gmatch("[^\r\n]+") do
+            line = line:gsub("^\239\187\191", "")
+            line = line:gsub("%s*[;#].*$", "")
+            local name, enabled = line:match(
+                "^%s*([^:]+)%s*:%s*([01])%s*$")
+            if name ~= nil then
+                name = name:match("^%s*(.-)%s*$")
+                if name:lower() == "palinsightquickstack" then
+                    configured = enabled
+                end
+            end
+        end
+        return configured == "0"
+    end
+
+    if explicitlyDisabledByModsTxt() then
+        print("[PalInsightQuickStack] runtime disabled by mods.txt; initialization skipped")
+        return
+    end
+end
+
 local Settings = require("settings")
+local SettingsUI = require("settings_ui")
 local QuickStack = require("quick_stack")
 local Palworld = require("palworld")
 
 local TAG = "[PalInsightQuickStack] "
-local VERSION = "0.2.0"
+local VERSION = "1.0.0"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
+local SETTINGS_HOST_PROTOCOL_VERSION = 1
+local SETTINGS_HOST_PREFIX = "PalInsightSettingsHost."
+local SETTINGS_HOST_LEASE_SECONDS = 1.5
 local SHARED_POLL_MS = 500
+local HOST_ACTIVITY_POLL_MS = 80
+local HOST_REQUEST_POLL_MS = 16
+local INTEGRATION_PERFORMANCE_SAMPLES = 40
 local SHARED_BOOLEAN_SETTINGS = {
     { shared = "IncludeExcludedItems", config = "IncludeExcludedItems" },
     { shared = "IncludeNewItems", config = "IncludeNewItems" },
@@ -25,13 +86,44 @@ local SHARED_NUMBER_SETTINGS = {
         validate = Settings.validateWorldTreeHolyWaterMinimum },
 }
 
+local runtimeIsSuperseded
+
 local state = {
     config = nil,
     configPath = nil,
     bindingSignature = nil,
+    registeredShortcutBindings = {},
+    shortcutConflictLoggedSignature = nil,
     inputDispatchPending = false,
+    inputDispatchCallback = nil,
+    settingsInputDispatchPending = false,
+    settingsInputDispatchCallback = nil,
     sharedRevision = nil,
     sharedPolling = false,
+    sharedPollHandle = nil,
+    sharedPollCallback = nil,
+    hostActivityPolling = false,
+    hostActivityPollHandle = nil,
+    hostActivityPollCallback = nil,
+    hostActivityLastProbeAt = 0.0,
+    hostActivityHostLive = false,
+    hostActivityHostSettingsOpen = false,
+    settingsShortcutRegistered = false,
+    settingsShortcutCallback = nil,
+    settingsHostOpenRevision = 0,
+    settingsHostCloseRevision = 0,
+    settingsSelfToggleRevision = 0,
+    settingsHostRequestSignalRevision = 0,
+    settingsHostGeneration = 0,
+    settingsHostLivenessRevision = 0,
+    settingsHostPanelRevision = nil,
+    settingsHostPanelHostGeneration = nil,
+    settingsPrewarmPending = false,
+    settingsPrewarmCallback = nil,
+    performanceCaptureEnabled = false,
+    integrationPerformance = nil,
+    superseded = false,
+    supersededLogged = false,
 }
 
 local function log(message)
@@ -44,18 +136,133 @@ local function debugLog(message)
     log("debug: " .. tostring(message))
 end
 
+local function configureIntegrationPerformance()
+    local enabled = state.config ~= nil
+        and state.config.PerformanceCapture == true
+    if enabled == state.performanceCaptureEnabled then return end
+    state.performanceCaptureEnabled = enabled
+    state.integrationPerformance = enabled and {
+        startedAt = os.clock(),
+        sharedSamples = 0,
+        sharedTotalMs = 0,
+        sharedMaxMs = 0,
+        hostTotalMs = 0,
+        hostMaxMs = 0,
+        settingsTotalMs = 0,
+        settingsMaxMs = 0,
+        activitySamples = 0,
+        activityTotalMs = 0,
+        activityMaxMs = 0,
+    } or nil
+end
+
+local function elapsedMs(startedAt)
+    if startedAt == nil then return 0 end
+    return math.max(0, (os.clock() - startedAt) * 1000)
+end
+
+local function recordHostActivityPerformance(capture, startedAt)
+    if type(capture) ~= "table" or startedAt == nil then return end
+    local duration = elapsedMs(startedAt)
+    capture.activitySamples = capture.activitySamples + 1
+    capture.activityTotalMs = capture.activityTotalMs + duration
+    capture.activityMaxMs = math.max(capture.activityMaxMs, duration)
+end
+
+local function recordSharedPollPerformance(capture, sharedMs, hostMs, settingsMs)
+    if type(capture) ~= "table" then return end
+    capture.sharedSamples = capture.sharedSamples + 1
+    capture.sharedTotalMs = capture.sharedTotalMs + sharedMs
+    capture.sharedMaxMs = math.max(capture.sharedMaxMs, sharedMs)
+    capture.hostTotalMs = capture.hostTotalMs + hostMs
+    capture.hostMaxMs = math.max(capture.hostMaxMs, hostMs)
+    capture.settingsTotalMs = capture.settingsTotalMs + settingsMs
+    capture.settingsMaxMs = math.max(capture.settingsMaxMs, settingsMs)
+    if capture.sharedSamples < INTEGRATION_PERFORMANCE_SAMPLES then return end
+    log(table.concat({
+        "perf_settings_heartbeat",
+        "samples=" .. tostring(capture.sharedSamples),
+        string.format("window_ms=%.3f", elapsedMs(capture.startedAt)),
+        string.format("work_ms=%.3f", capture.sharedTotalMs),
+        string.format("max_ms=%.3f", capture.sharedMaxMs),
+        string.format("host_ms=%.3f", capture.hostTotalMs),
+        string.format("host_max_ms=%.3f", capture.hostMaxMs),
+        string.format("settings_ms=%.3f", capture.settingsTotalMs),
+        string.format("settings_max_ms=%.3f", capture.settingsMaxMs),
+        "activity_samples=" .. tostring(capture.activitySamples),
+        string.format("activity_ms=%.3f", capture.activityTotalMs),
+        string.format("activity_max_ms=%.3f", capture.activityMaxMs),
+    }, "|"))
+    state.integrationPerformance = nil
+end
+
+local function scheduleSettingsPrewarm()
+    if state.settingsPrewarmPending
+        or type(ExecuteInGameThreadWithDelay) ~= "function" then return false end
+    state.settingsPrewarmPending = true
+    state.settingsPrewarmCallback = function()
+        state.settingsPrewarmPending = false
+        state.settingsPrewarmCallback = nil
+        local prepared, prepareError = pcall(SettingsUI.prepare)
+        if not prepared then
+            log("settings prewarm failed: " .. tostring(prepareError))
+        end
+    end
+    local scheduled = pcall(ExecuteInGameThreadWithDelay,
+        0, state.settingsPrewarmCallback)
+    if not scheduled then
+        state.settingsPrewarmPending = false
+        state.settingsPrewarmCallback = nil
+    end
+    return scheduled
+end
+
 local function dispatchConfiguredPress()
-    if state.inputDispatchPending then return end
+    if state.inputDispatchPending or SettingsUI.mode() ~= nil then return end
     state.inputDispatchPending = true
-    local scheduled = pcall(ExecuteInGameThread, function()
+    state.inputDispatchCallback = function()
+        state.inputDispatchCallback = nil
         state.inputDispatchPending = false
+        if runtimeIsSuperseded ~= nil and runtimeIsSuperseded() then return end
+        if SettingsUI.mode() ~= nil then return end
         local ok, errorMessage = pcall(QuickStack.begin)
         if not ok then log("input error: " .. tostring(errorMessage)) end
-    end)
+    end
+    local scheduled = pcall(ExecuteInGameThread, state.inputDispatchCallback)
     if not scheduled then
         state.inputDispatchPending = false
+        state.inputDispatchCallback = nil
         log("cannot dispatch shortcut to the game thread")
     end
+end
+
+local function shortcutConflictFor(config)
+    if type(config) ~= "table" or type(IsKeyBindRegistered) ~= "function" then
+        return false
+    end
+    local signature = Settings.chordSignature(config)
+    local owned = state.registeredShortcutBindings[signature]
+    if type(owned) == "table" then return owned.externalConflict == true end
+    if ModRef ~= nil then
+        local sharedSignature, sharedConflict
+        pcall(function()
+            sharedSignature = ModRef:GetSharedVariable(
+                SETTINGS_HOST_PREFIX .. "QuickStackShortcutSignature")
+            sharedConflict = ModRef:GetSharedVariable(
+                SETTINGS_HOST_PREFIX .. "QuickStackShortcutExternalConflict")
+        end)
+        if sharedSignature == signature then return sharedConflict == true end
+    end
+    local keyValue = Settings.keyValue(config.Key)
+    if keyValue == nil then return false end
+    local modifiers = Settings.modifierValues(config)
+    local ok, registered = pcall(function()
+        if #modifiers > 0 then
+            return IsKeyBindRegistered(keyValue, modifiers)
+        end
+        return IsKeyBindRegistered(keyValue)
+    end)
+    return ok and registered == true
 end
 
 local function registerConfiguredKey(config)
@@ -67,20 +274,49 @@ local function registerConfiguredKey(config)
     if keyValue == nil then return false, "configured key is unavailable" end
     local signature = Settings.chordSignature(config)
     if state.bindingSignature == signature then return true, nil end
-    local callback = function()
+    local existing = state.registeredShortcutBindings[signature]
+    if type(existing) == "table" and type(existing.callback) == "function" then
+        state.bindingSignature = signature
+        return true, nil
+    end
+    local externalConflict = shortcutConflictFor(config)
+    local binding = {
+        activeAfter = os.clock() + 0.35,
+        externalConflict = externalConflict,
+    }
+    binding.callback = function()
         if state.bindingSignature ~= signature then return end
+        -- A newly selected shortcut is registered while its capture press is
+        -- still unwinding. Keep that press owned by the selector instead of
+        -- immediately starting Quick Stack with the just-saved binding.
+        if os.clock() < binding.activeAfter then return end
         dispatchConfiguredPress()
     end
     local modifiers = Settings.modifierValues(config)
     local ok, errorMessage = pcall(function()
         if #modifiers > 0 then
-            RegisterKeyBind(keyValue, modifiers, callback)
+            RegisterKeyBind(keyValue, modifiers, binding.callback)
         else
-            RegisterKeyBind(keyValue, callback)
+            RegisterKeyBind(keyValue, binding.callback)
         end
     end)
     if not ok then return false, errorMessage end
+    state.registeredShortcutBindings[signature] = binding
     state.bindingSignature = signature
+    if ModRef ~= nil then
+        pcall(function()
+            ModRef:SetSharedVariable(
+                SETTINGS_HOST_PREFIX .. "QuickStackShortcutSignature", signature)
+            ModRef:SetSharedVariable(
+                SETTINGS_HOST_PREFIX .. "QuickStackShortcutExternalConflict",
+                externalConflict == true)
+        end)
+    end
+    if externalConflict and state.shortcutConflictLoggedSignature ~= signature then
+        state.shortcutConflictLoggedSignature = signature
+        log("WARNING: possible UE4SS shortcut conflict for " .. signature
+            .. "; both actions may run")
+    end
     return true, nil
 end
 
@@ -97,6 +333,171 @@ local function sharedWrite(name, value)
     return pcall(function()
         ModRef:SetSharedVariable(SHARED_PREFIX .. name, value)
     end)
+end
+
+local function settingsHostRead(name)
+    if ModRef == nil then return nil, false end
+    local ok, value = pcall(function()
+        return ModRef:GetSharedVariable(SETTINGS_HOST_PREFIX .. name)
+    end)
+    return value, ok
+end
+
+local function settingsHostWrite(name, value)
+    if ModRef == nil then return false end
+    return pcall(function()
+        ModRef:SetSharedVariable(SETTINGS_HOST_PREFIX .. name, value)
+    end)
+end
+
+runtimeIsSuperseded = function()
+    if state.superseded == true then return true end
+    if state.settingsHostGeneration <= 0 then return false end
+    local current = select(1, settingsHostRead("QuickStackGeneration"))
+    if type(current) ~= "number" or current < 0 or current % 1 ~= 0 then
+        current = nil
+    end
+    if current == nil or current <= state.settingsHostGeneration then return false end
+    state.superseded = true
+    if not state.supersededLogged then
+        state.supersededLogged = true
+        log("runtime superseded by Quick Stack generation " .. tostring(current))
+    end
+    return true
+end
+
+local function nonNegativeRevision(value)
+    if type(value) ~= "number" or value < 0 or value % 1 ~= 0 then return nil end
+    return value
+end
+
+local function initializeSettingsHostGeneration()
+    if state.settingsHostGeneration > 0 then return end
+    local previous = nonNegativeRevision(
+        select(1, settingsHostRead("QuickStackGeneration"))) or 0
+    state.settingsHostGeneration = previous + 1
+    state.settingsHostOpenRevision = nonNegativeRevision(select(1,
+        settingsHostRead("OpenExtensionSettingsRequestRevision"))) or 0
+    state.settingsHostCloseRevision = nonNegativeRevision(select(1,
+        settingsHostRead("CloseExtensionSettingsRequestRevision"))) or 0
+    state.settingsSelfToggleRevision = nonNegativeRevision(select(1,
+        settingsHostRead("QuickStackToggleRequestRevision"))) or 0
+    state.settingsHostRequestSignalRevision = nonNegativeRevision(select(1,
+        settingsHostRead("HostRequestSignalRevision"))) or 0
+end
+
+local function nextHostRevision(name)
+    local current = nonNegativeRevision(select(1, settingsHostRead(name))) or 0
+    return current + 1
+end
+
+local function signalSettingsHostRequest()
+    local revision = nextHostRevision("HostRequestSignalRevision")
+    return settingsHostWrite("HostRequestSignalRevision", revision)
+end
+
+local function livePalInsightHost()
+    local protocol = select(1, settingsHostRead("ProtocolVersion"))
+    local ready = select(1, settingsHostRead("HostReady"))
+    local heartbeat = tonumber((select(1, settingsHostRead("HostHeartbeat"))))
+    local generation = nonNegativeRevision(
+        select(1, settingsHostRead("HostGeneration")))
+    local runtimeVersion = select(1, settingsHostRead("HostRuntimeVersion"))
+    local live = protocol == SETTINGS_HOST_PROTOCOL_VERSION
+        and ready == true
+        and heartbeat ~= nil
+        and os.clock() - heartbeat <= SETTINGS_HOST_LEASE_SECONDS
+        and generation ~= nil and generation > 0
+        and type(runtimeVersion) == "string" and runtimeVersion ~= ""
+    return live, live and generation or nil
+end
+
+local function requestCurrentQuickStackToggle()
+    local generation = nonNegativeRevision(select(1,
+        settingsHostRead("QuickStackGeneration")))
+    if generation == nil or generation <= 0 then return false end
+    local revision = nextHostRevision("QuickStackToggleRequestRevision")
+    local committed = settingsHostWrite(
+            "QuickStackToggleRequestTargetGeneration", generation)
+        and settingsHostWrite("QuickStackToggleRequestRevision", revision)
+    if committed then signalSettingsHostRequest() end
+    return committed
+end
+
+local function toggleSettingsForCurrentRuntime()
+    local hostLive = livePalInsightHost()
+    if hostLive then
+        if SettingsUI.mode() == "standalone"
+            and not SettingsUI.close("host-takeover") then
+            return false, "standalone settings could not yield to Pal Insight"
+        end
+        -- Pal Insight owns the physical F6 binding while its host lease is
+        -- live. UE4SS cannot unregister this earlier Quick Stack callback, so
+        -- it must become inert instead of forwarding the same press and
+        -- toggling the host a second time.
+        return true, nil
+    end
+    local toggled, toggleError = SettingsUI.toggle("standalone")
+    return toggled == true, toggleError
+end
+
+local function dispatchSettingsShortcut()
+    if state.settingsInputDispatchPending then return end
+    state.settingsInputDispatchPending = true
+    state.settingsInputDispatchCallback = function()
+        state.settingsInputDispatchCallback = nil
+        state.settingsInputDispatchPending = false
+        local ok, errorMessage = pcall(function()
+            if runtimeIsSuperseded() then
+                if not requestCurrentQuickStackToggle() then
+                    error("current Quick Stack runtime request is unavailable")
+                end
+                return
+            end
+            local toggled, toggleError = toggleSettingsForCurrentRuntime()
+            if not toggled then error(toggleError or "settings toggle failed") end
+        end)
+        if not ok then log("settings input error: " .. tostring(errorMessage)) end
+    end
+    local scheduled = pcall(ExecuteInGameThread, state.settingsInputDispatchCallback)
+    if not scheduled then
+        state.settingsInputDispatchPending = false
+        state.settingsInputDispatchCallback = nil
+        log("cannot dispatch settings shortcut to the game thread")
+    end
+end
+
+local function registerSettingsShortcut()
+    if state.settingsShortcutRegistered then return true, nil end
+    initializeSettingsHostGeneration()
+    if type(RegisterKeyBind) ~= "function" or type(IsKeyBindRegistered) ~= "function"
+        or type(Key) ~= "table" then
+        return false, "UE4SS settings-key API is unavailable"
+    end
+    local keyValue = Settings.keyValue("F6")
+    if keyValue == nil then return false, "F6 is unavailable" end
+    local queried, registered = pcall(IsKeyBindRegistered, keyValue)
+    if not queried then return false, "F6 ownership cannot be queried" end
+    if registered == true then
+        local owner = select(1, settingsHostRead("F6Owner"))
+        if type(owner) ~= "string" or owner == "" then owner = "External" end
+        settingsHostWrite("F6Owner", owner)
+        return true, nil
+    end
+    state.settingsShortcutCallback = function()
+        dispatchSettingsShortcut()
+    end
+    local ok, errorMessage = pcall(
+        RegisterKeyBind, keyValue, state.settingsShortcutCallback)
+    if not ok then
+        state.settingsShortcutCallback = nil
+        return false, errorMessage
+    end
+    state.settingsShortcutRegistered = true
+    settingsHostWrite("F6Owner", "QuickStack")
+    settingsHostWrite("F6OwnerGeneration", state.settingsHostGeneration)
+    settingsHostWrite("F6BehaviorVersion", 2)
+    return true, nil
 end
 
 local function revisionValue(value)
@@ -216,59 +617,10 @@ local function reconcileSharedSettings()
         return
     end
 
-    local previous = {
-        Key = state.config.Key,
-        Shift = state.config.Shift,
-        Ctrl = state.config.Ctrl,
-        Alt = state.config.Alt,
-    }
-    for _, setting in ipairs(SHARED_BOOLEAN_SETTINGS) do
-        previous[setting.config] = state.config[setting.config]
-    end
-    for _, setting in ipairs(SHARED_STRING_SETTINGS) do
-        previous[setting.config] = state.config[setting.config]
-    end
-    for _, setting in ipairs(SHARED_NUMBER_SETTINGS) do
-        previous[setting.config] = state.config[setting.config]
-    end
-    local previousSignature = state.bindingSignature
-    state.config.Key = requested.Key
-    state.config.Shift = requested.Shift
-    state.config.Ctrl = requested.Ctrl
-    state.config.Alt = requested.Alt
-    for _, setting in ipairs(SHARED_BOOLEAN_SETTINGS) do
-        state.config[setting.config] = requested[setting.config]
-    end
-    for _, setting in ipairs(SHARED_STRING_SETTINGS) do
-        state.config[setting.config] = requested[setting.config]
-    end
-    for _, setting in ipairs(SHARED_NUMBER_SETTINGS) do
-        state.config[setting.config] = requested[setting.config]
-    end
-
-    local registered, registerError = true, nil
-    if shortcutChanged then
-        registered, registerError = registerConfiguredKey(state.config)
-    end
-    local saved, saveError = false, nil
-    if registered then saved, saveError = Settings.save(state.configPath, state.config) end
-    if not registered or not saved then
-        state.config.Key = previous.Key
-        state.config.Shift = previous.Shift
-        state.config.Ctrl = previous.Ctrl
-        state.config.Alt = previous.Alt
-        for _, setting in ipairs(SHARED_BOOLEAN_SETTINGS) do
-            state.config[setting.config] = previous[setting.config]
-        end
-        for _, setting in ipairs(SHARED_STRING_SETTINGS) do
-            state.config[setting.config] = previous[setting.config]
-        end
-        for _, setting in ipairs(SHARED_NUMBER_SETTINGS) do
-            state.config[setting.config] = previous[setting.config]
-        end
-        state.bindingSignature = previousSignature
+    local applied, applyError = SettingsUI.apply(requested, "legacy-bridge")
+    if not applied then
         log("Pal Insight settings request rejected: "
-            .. tostring(registerError or saveError or "cannot apply settings"))
+            .. tostring(applyError or "cannot apply settings"))
         publishCanonicalSettings(acknowledgement)
         return
     end
@@ -284,22 +636,299 @@ local function reconcileSharedSettings()
     publishCanonicalSettings(acknowledgement)
 end
 
-local function scheduleSharedPoll()
-    if state.sharedPolling or type(ExecuteWithDelay) ~= "function" then return false end
-    state.sharedPolling = true
-    local function poll()
-        state.sharedPolling = false
-        local ok, errorMessage = pcall(reconcileSharedSettings)
-        if not ok then log("settings integration error: " .. tostring(errorMessage)) end
-        scheduleSharedPoll()
+local function publishSettingsSurfaceCapability()
+    initializeSettingsHostGeneration()
+    if runtimeIsSuperseded() then return false, "superseded" end
+    state.settingsHostLivenessRevision = state.settingsHostLivenessRevision + 1
+    local values = {
+        { "ProtocolVersion", SETTINGS_HOST_PROTOCOL_VERSION },
+        { "QuickStackReady", true },
+        { "QuickStackRuntimeVersion", VERSION },
+        { "QuickStackGeneration", state.settingsHostGeneration },
+        { "QuickStackHeartbeat", os.clock() },
+        { "QuickStackLivenessRevision", state.settingsHostLivenessRevision },
+    }
+    for _, entry in ipairs(values) do
+        if not settingsHostWrite(entry[1], entry[2]) then return false, "write-failed" end
     end
-    local scheduled = pcall(ExecuteWithDelay, SHARED_POLL_MS, poll)
-    if not scheduled then state.sharedPolling = false end
-    return scheduled
+    return true, nil
+end
+
+local function publishHostedAcknowledgementContext(hostGeneration)
+    return settingsHostWrite(
+            "ExtensionSettingsAckHostGeneration", hostGeneration)
+        and settingsHostWrite(
+            "ExtensionSettingsAckQuickStackGeneration",
+            state.settingsHostGeneration)
+end
+
+local function acknowledgeHostedFailure(revision, code, hostGeneration)
+    publishHostedAcknowledgementContext(hostGeneration)
+    settingsHostWrite("ExtensionSettingsFailureCode", tostring(code or "open-failed"))
+    settingsHostWrite("ExtensionSettingsFailureRevision", revision)
+end
+
+local function reconcileSettingsHostRequests()
+    if runtimeIsSuperseded() then
+        if SettingsUI.mode() ~= nil
+            and not SettingsUI.close("runtime-superseded") then return true end
+        return false
+    end
+    local selfToggleRevision = nonNegativeRevision(select(1,
+        settingsHostRead("QuickStackToggleRequestRevision"))) or 0
+    if selfToggleRevision > state.settingsSelfToggleRevision then
+        state.settingsSelfToggleRevision = selfToggleRevision
+        local targetGeneration = nonNegativeRevision(select(1,
+            settingsHostRead("QuickStackToggleRequestTargetGeneration")))
+        if targetGeneration == state.settingsHostGeneration then
+            local toggled, toggleError = toggleSettingsForCurrentRuntime()
+            if not toggled then
+                log("forwarded settings input error: "
+                    .. tostring(toggleError or "settings toggle failed"))
+            end
+        end
+    end
+
+    if SettingsUI.mode() == "hosted" then
+        local hostLive, hostGeneration = livePalInsightHost()
+        if not hostLive
+            or hostGeneration ~= state.settingsHostPanelHostGeneration then
+            SettingsUI.close("host-unavailable")
+        end
+    end
+
+    local closeRevision = nonNegativeRevision(select(1,
+        settingsHostRead("CloseExtensionSettingsRequestRevision"))) or 0
+    if closeRevision > state.settingsHostCloseRevision then
+        local closeHostGeneration = nonNegativeRevision(select(1,
+            settingsHostRead("CloseExtensionSettingsHostGeneration")))
+        local closeTargetGeneration = nonNegativeRevision(select(1,
+            settingsHostRead("CloseExtensionSettingsTargetGeneration")))
+        if closeHostGeneration == state.settingsHostPanelHostGeneration
+            and closeTargetGeneration == state.settingsHostGeneration
+            and SettingsUI.mode() == "hosted" then
+            if SettingsUI.close("host-request") then
+                state.settingsHostCloseRevision = closeRevision
+            end
+        else
+            state.settingsHostCloseRevision = closeRevision
+        end
+    end
+
+    local openRevision = nonNegativeRevision(select(1,
+        settingsHostRead("OpenExtensionSettingsRequestRevision"))) or 0
+    if openRevision <= state.settingsHostOpenRevision then return true end
+    state.settingsHostOpenRevision = openRevision
+    local requestId = select(1,
+        settingsHostRead("OpenExtensionSettingsRequestId"))
+    local requestHostGeneration = nonNegativeRevision(select(1,
+        settingsHostRead("OpenExtensionSettingsHostGeneration")))
+    local requestTargetGeneration = nonNegativeRevision(select(1,
+        settingsHostRead("OpenExtensionSettingsTargetGeneration")))
+    local hostLive, liveHostGeneration = livePalInsightHost()
+    if select(1, settingsHostRead("ProtocolVersion"))
+            ~= SETTINGS_HOST_PROTOCOL_VERSION
+        or requestId ~= "quickStack"
+        or requestTargetGeneration ~= state.settingsHostGeneration
+        or requestHostGeneration ~= liveHostGeneration
+        or not hostLive then
+        acknowledgeHostedFailure(
+            openRevision, "host-unavailable", requestHostGeneration)
+        return true
+    end
+    state.settingsHostPanelRevision = openRevision
+    state.settingsHostPanelHostGeneration = requestHostGeneration
+    local opened, openError = SettingsUI.open("hosted", {
+        requestRevision = openRevision,
+    })
+    if opened then
+        publishHostedAcknowledgementContext(requestHostGeneration)
+        settingsHostWrite("ExtensionSettingsFailureCode", "")
+        settingsHostWrite("ExtensionSettingsOpenedRevision", openRevision)
+    else
+        state.settingsHostPanelRevision = nil
+        state.settingsHostPanelHostGeneration = nil
+        acknowledgeHostedFailure(openRevision,
+            openError or "open-failed", requestHostGeneration)
+    end
+    return true
+end
+
+local scheduleHostActivityPoll
+local stopHostActivityPoll
+
+local function reconcileSettingsHost()
+    if runtimeIsSuperseded() then return reconcileSettingsHostRequests() end
+    local published, publishReason = publishSettingsSurfaceCapability()
+    if not published and publishReason == "superseded" then return false end
+    local hostLive = livePalInsightHost()
+    local hostSettingsOpen = hostLive == true and select(1,
+        settingsHostRead("HostSettingsOpen")) == true
+    state.hostActivityHostLive = hostLive == true
+    state.hostActivityHostSettingsOpen = hostSettingsOpen
+    state.hostActivityLastProbeAt = os.clock()
+    if hostLive and (hostSettingsOpen or SettingsUI.mode() == "hosted")
+        and scheduleHostActivityPoll ~= nil then
+        scheduleHostActivityPoll(HOST_REQUEST_POLL_MS)
+    end
+    return reconcileSettingsHostRequests()
+end
+
+scheduleHostActivityPoll = function(delayMs)
+    if state.hostActivityPolling
+        or type(LoopInGameThreadWithDelay) ~= "function"
+        or state.superseded == true then return false end
+    state.hostActivityPolling = true
+    state.hostActivityPollCallback = state.hostActivityPollCallback or function()
+        local capture = state.integrationPerformance
+        local startedAt = type(capture) == "table" and os.clock() or nil
+        local keepPolling = false
+        local ok, errorMessage = pcall(function()
+            local now = os.clock()
+            if state.hostActivityLastProbeAt <= 0.0
+                or now - state.hostActivityLastProbeAt
+                    >= HOST_ACTIVITY_POLL_MS / 1000.0 then
+                state.hostActivityHostLive = livePalInsightHost() == true
+                state.hostActivityHostSettingsOpen = select(1,
+                    settingsHostRead("HostSettingsOpen")) == true
+                state.hostActivityLastProbeAt = now
+            end
+            keepPolling = state.hostActivityHostLive == true
+                and (state.hostActivityHostSettingsOpen
+                    or SettingsUI.mode() == "hosted")
+            if keepPolling then
+                local signalRevision = nonNegativeRevision(select(1,
+                    settingsHostRead("HostRequestSignalRevision"))) or 0
+                if signalRevision > state.settingsHostRequestSignalRevision then
+                    state.settingsHostRequestSignalRevision = signalRevision
+                    keepPolling = reconcileSettingsHostRequests() ~= false
+                end
+            end
+        end)
+        if not ok then
+            log("settings host request error: " .. tostring(errorMessage))
+        end
+        recordHostActivityPerformance(capture, startedAt)
+        if not keepPolling then stopHostActivityPoll() end
+    end
+    local started, handleOrError = pcall(LoopInGameThreadWithDelay,
+        tonumber(delayMs) or HOST_ACTIVITY_POLL_MS,
+        state.hostActivityPollCallback)
+    if not started or type(handleOrError) ~= "number" then
+        state.hostActivityPolling = false
+        state.hostActivityPollHandle = nil
+        return false
+    end
+    state.hostActivityPollHandle = handleOrError
+    return true
+end
+
+stopHostActivityPoll = function()
+    local handle = state.hostActivityPollHandle
+    local stopped = handle == nil
+    if not stopped and type(CancelDelayedAction) == "function" then
+        local cancelled, result = pcall(CancelDelayedAction, handle)
+        stopped = cancelled and result == true
+    end
+    if not stopped and type(IsValidDelayedActionHandle) == "function" then
+        local checked, valid = pcall(IsValidDelayedActionHandle, handle)
+        stopped = checked and valid == false
+    end
+    if stopped then
+        state.hostActivityPollHandle = nil
+        state.hostActivityPolling = false
+    end
+    return stopped
+end
+
+local stopSharedPoll
+
+local function scheduleSharedPoll()
+    if state.sharedPolling
+        or type(LoopInGameThreadWithDelay) ~= "function" then return false end
+    state.sharedPolling = true
+    state.sharedPollCallback = state.sharedPollCallback or function()
+        local capture = state.integrationPerformance
+        local sharedStarted = type(capture) == "table" and os.clock() or nil
+        local hostMs = 0
+        local settingsMs = 0
+        local keepPolling = true
+        local ok, errorMessage = pcall(function()
+            local hostStarted = type(capture) == "table" and os.clock() or nil
+            keepPolling = reconcileSettingsHost() ~= false
+            hostMs = elapsedMs(hostStarted)
+            if keepPolling then
+                local settingsStarted = type(capture) == "table"
+                    and os.clock() or nil
+                reconcileSharedSettings()
+                settingsMs = elapsedMs(settingsStarted)
+            end
+        end)
+        if not ok then log("settings integration error: " .. tostring(errorMessage)) end
+        recordSharedPollPerformance(
+            capture, elapsedMs(sharedStarted), hostMs, settingsMs)
+        if not keepPolling or (state.superseded == true
+                and SettingsUI.mode() == nil) then stopSharedPoll() end
+    end
+    local started, handleOrError = pcall(LoopInGameThreadWithDelay,
+        SHARED_POLL_MS, state.sharedPollCallback)
+    if not started or type(handleOrError) ~= "number" then
+        state.sharedPolling = false
+        state.sharedPollHandle = nil
+        return false
+    end
+    state.sharedPollHandle = handleOrError
+    return true
+end
+
+stopSharedPoll = function()
+    local handle = state.sharedPollHandle
+    local stopped = handle == nil
+    if not stopped and type(CancelDelayedAction) == "function" then
+        local cancelled, result = pcall(CancelDelayedAction, handle)
+        stopped = cancelled and result == true
+    end
+    if not stopped and type(IsValidDelayedActionHandle) == "function" then
+        local checked, valid = pcall(IsValidDelayedActionHandle, handle)
+        stopped = checked and valid == false
+    end
+    if stopped then
+        state.sharedPollHandle = nil
+        state.sharedPolling = false
+    end
+    return stopped
 end
 
 state.config, state.configPath = Settings.load(log)
+configureIntegrationPerformance()
+SettingsUI.configure({
+    version = VERSION,
+    config = state.config,
+    configPath = state.configPath,
+    registerShortcut = registerConfiguredKey,
+    shortcutConflict = shortcutConflictFor,
+    log = log,
+    onApplied = function()
+        QuickStack.configure(state.config, log, debugLog)
+        configureIntegrationPerformance()
+        local revision = (state.sharedRevision or 0) + 1
+        publishCanonicalSettings(revision)
+    end,
+    onClosed = function(mode)
+        if mode == "hosted" and state.settingsHostPanelRevision ~= nil then
+            publishHostedAcknowledgementContext(
+                state.settingsHostPanelHostGeneration)
+            settingsHostWrite("ExtensionSettingsClosedRevision",
+                state.settingsHostPanelRevision)
+            state.settingsHostPanelRevision = nil
+            state.settingsHostPanelHostGeneration = nil
+        end
+    end,
+})
 QuickStack.configure(state.config, log, debugLog)
+if not scheduleSettingsPrewarm() then
+    log("settings prewarm could not reach the game thread")
+end
 
 local inputTrackingReady, inputTrackingError = Palworld.installInputUiTracking()
 if not inputTrackingReady then
@@ -314,10 +943,16 @@ else
         .. " quick-stacks inside the current base")
 end
 
+local settingsRegistered, settingsRegisterError = registerSettingsShortcut()
+if not settingsRegistered then
+    log("settings shortcut unavailable: " .. tostring(settingsRegisterError))
+end
+
 if registered then
     local existingRevision = revisionValue(
         select(1, sharedRead("SettingsRevision"))) or 0
-    if publishCanonicalSettings(existingRevision + 1) then
+    if publishCanonicalSettings(existingRevision + 1)
+        and publishSettingsSurfaceCapability() then
         scheduleSharedPoll()
     end
 end

@@ -17,10 +17,10 @@ return {
     IncludeNewItems = true,
 
     -- "IncubatorOnly" or "IncubatorThenStorage".
-    PalEggRouting = "IncubatorThenStorage",
+    PalEggRouting = "IncubatorOnly",
 
     -- "RecyclerOnly" or "RecyclerThenStorage".
-    RelicRouting = "RecyclerThenStorage",
+    RelicRouting = "RecyclerOnly",
 
     -- Keep this many World Tree Holy Water in each Ancient Relic Recycler.
     -- Integer from 1 to 100.

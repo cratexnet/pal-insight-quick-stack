@@ -8,8 +8,8 @@ local DEFAULTS = {
     ResultDisplay = "Default",
     IncludeExcludedItems = false,
     IncludeNewItems = true,
-    PalEggRouting = "IncubatorThenStorage",
-    RelicRouting = "RecyclerThenStorage",
+    PalEggRouting = "IncubatorOnly",
+    RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
     PerformanceCapture = false,
     Debug = false,
@@ -299,7 +299,7 @@ local function normalizeConfig(candidate, log)
             and "IncubatorOnly" or "IncubatorThenStorage"
     else
         log("invalid PalEggRouting '" .. tostring(candidate.PalEggRouting)
-            .. "'; using IncubatorThenStorage: " .. tostring(palEggRoutingError))
+            .. "'; using IncubatorOnly: " .. tostring(palEggRoutingError))
     end
     local relicRouting, relicRoutingError =
         Settings.validateRelicRouting(candidate.RelicRouting)
@@ -312,7 +312,7 @@ local function normalizeConfig(candidate, log)
         out.RelicRouting = "RecyclerThenStorage"
     else
         log("invalid RelicRouting '" .. tostring(candidate.RelicRouting)
-            .. "'; using RecyclerThenStorage: " .. tostring(relicRoutingError))
+            .. "'; using RecyclerOnly: " .. tostring(relicRoutingError))
     end
     local holyWaterMinimum, holyWaterMinimumError =
         Settings.validateWorldTreeHolyWaterMinimum(
@@ -397,6 +397,10 @@ function Settings.validateShortcut(candidate)
     end
     local _, canonicalKey = Settings.keyValue(candidate.Key)
     if canonicalKey == nil then return nil, "Key is unavailable" end
+    if canonicalKey == "F6" or canonicalKey == "Escape"
+        or canonicalKey == "LeftMouseButton" then
+        return nil, canonicalKey .. " is reserved for the settings surface"
+    end
     return {
         Key = canonicalKey,
         Shift = candidate.Shift,

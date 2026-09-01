@@ -6,9 +6,10 @@
 
 - Palworld Steam build：`24575825`
 - UE4SS：Workshop `3.0.1`
-- 候选版本：`0.1.0-beta.1`
-- 候选当前状态：已安装并完成多轮单人普通物品收纳、性能与结果卡迭代；
-  以下仅把对话中有明确实机结果的项目记为已观察或通过，未单独复现的条件仍为未测。
+- 候选版本：`1.0.0` 开发工作区（单人核心流程已完成本轮实机迭代）
+- 候选当前状态：开发工作区已经完成设置面板输入、缓存和宿主交接整改。以下仅把
+  对话中有明确实机结果的项目记为
+  已观察或通过，静态契约不能代替实机结果。
 
 ## 功能矩阵
 
@@ -49,9 +50,68 @@
 
 ## 可选 Pal Insight 桥接
 
-- 英文实机截图确认 Pal Insight `v1.8.0` 可在 `F6 → Controls` 显示
-  `Pal Insight: Quick Stack` 和 `Quick Stack shortcut = F5`。
-- Pal Insight 与 Quick Stack 的两种加载顺序仍未单独复测。
+本轮设置面板的验收状态单独记录如下；只有“静态证据”和“实机证据”都满足才可
+宣布通过：
+
+| 目标 | 静态证据 | 实机证据 |
+|---|---|---|
+| 数字输入不进入输入法、不接受字母 | 已具备：无 `EditableTextBox`，根节点托管整数缓冲 | 待同步候选后验证 |
+| 重复打开无卡顿 | 已具备：窗口树与 cooked bridge 按世界/控制器缓存并预热 | 待连续十次计时验证 |
+| 面板打开时不穿透游戏或下层 UI | 已具备：`UIOnly`、全屏命中遮罩、Handled press/release、move/look lease | 待键鼠和手柄验证 |
+| Pal Insight 与 Quick Stack 不争夺输入 | 已具备：宿主暂停 native/cooked 当前路由和父面板焦点维护，返回时重新声明自身 UIOnly、路由与焦点 | 待两种加载顺序、后加载扩展与 fallback 验证 |
+| 关闭失败不留下透明锁或丢失原上下文 | 已具备：释放失败保留可见面板并回滚同一输入事务 | 待故障注入/日志验证 |
+| 两个特殊物品 Select 的默认项正确 | 已具备：新配置与恢复默认均为第一项；已有显式配置不被覆盖 | 待点击恢复默认后核对两行 |
+| 快捷键保护与冲突提示 | 已具备：拒绝 F6、Escape、左键；外部 UE4SS 冲突显示警告且自身保留回调不误报 | 待分别录入保护键与已占用组合验证 |
+| 标题栏操作与 Pal Insight 一致 | 已具备：独立点赞、关于、恢复默认、关闭位于固定 Header；可见层复用 Pal Insight 原生 Button brush、20×20 图标画布、语义状态色与精确投票色；透明兼容层只负责独立运行输入；疾旋鼬首次预热过早时在低频 prepare 重试 | 待核对布局、首次/重复打开资源及键鼠/手柄交互 |
+| 底部操作指南与 Pal Insight 等价 | 已具备：112 高固定 Footer、两行三组 GridPanel、Palworld 原生键盘/XInput/DualSense KeyGuide、输入设备与 Quick Stack 快捷键动态刷新；托管模式继续明确 Esc/Back 与 F6 的不同结果 | 待核对键鼠、Xbox、DualSense 三种图标、对齐与设备切换 |
+| About 内容完整且归 Quick Stack 所有 | 已具备：17 语言产品简介、独立/Pal Insight 集成说明、作者、CrateX.app、Nexus、Steam、X、Discord 与支持入口；链接由 Quick Stack 自己打开，弹窗保持模态与焦点序列 | 待核对长语言换行、滚动、平台链接及键鼠/手柄交互 |
+| 从 Pal Insight 点击打开无 500 ms 等待感 | 已具备：500 ms 路径只做低频工作；宿主设置打开时 16 ms 路径只读请求信号，变化后才接收完整事务 | 待连续点击开关并观察帧时间 |
+
+- 单独安装 Quick Stack：`F6` 打开 Quick Stack 自有设置面板，修改、保存、重置和
+  关闭均不需要 Pal Insight。
+- 同时安装两者：`F6` 只打开 Pal Insight；`Extensions → Quick Stack` 打开独立的
+  Quick Stack 面板，不在 Pal Insight 页面内复制设置项。
+- Quick Stack 面板按 Escape 或手柄 Back：只关闭 Quick Stack，返回 Pal Insight
+  的原 Extension 行；按 `F6`：关闭整个设置栈。
+- Footer 必须与 Pal Insight 使用同一固定高度、两行三组列结构、字体层级、间距和
+  Palworld 原生 KeyGuide；只展示面板当前可执行的操作，不得把游戏内 Quick Stack
+  快捷键当成面板操作，也不得以纯文本快捷键、字符方框或包内自绘键帽代替。
+  托管模式下 Escape / Back 标为返回 Pal Insight，F6 标为关闭全部设置；独立模式
+  下两者均标为关闭或开关当前设置。
+  键盘/鼠标、Xbox 与 DualSense 之间切换后，应在下一次输入事件内刷新设备名称和
+  图标；切换托管或独立模式后，Footer 中的动作名称必须与实际关闭范围一致。
+- 鼠标、`W/S`、方向键、Enter/Space、手柄方向与 Accept/Back 共用同一个焦点
+  顺序；选择弹窗打开后只在弹窗内导航，关闭后恢复原行并滚动到可见区域。
+- 新打开面板后不接触任何其他控件，恢复默认与关闭必须立即可用；先打开任一
+  Select、取消或提交后，两按钮及全部导航仍然可用。
+- 同一世界内先冷打开一次，再连续关闭/打开十次：十次热打开必须全部命中窗口树
+  和 cooked input bridge 缓存，打开事务内不得执行 `LoadAsset`、`RegisterHook`、
+  `CreateWidget`、`AddToViewport` 或整树构建；每次同步打开耗时均不得超过
+  16.7 ms。分辨率、语言、世界或本地控制器变化后才允许重建。
+- 激活世界树圣水数字输入后，焦点始终留在设置根节点。数字、小键盘数字、
+  Backspace/Delete 修改整数缓冲；Left/Right、A/D 调整数值；Enter/Space 提交，
+  Escape 取消编辑。任何操作均不得创建原生文本输入会话、写入字母或唤起输入法。
+- 面板打开期间，`W/A/S/D`、方向键、鼠标点击、手柄 D-pad/左摇杆/Accept/Back
+  只作用于 Quick Stack；角色移动、视角、游戏动作与下层 Pal Insight/游戏菜单
+  均不得响应。关闭后必须恢复打开前的输入模式、焦点、光标、移动与视角状态。
+- 任意顺序操作数字输入、Select、鼠标与手柄摇杆后，键盘和手柄导航必须继续
+  有效；日志不得出现输入处理异常、hook 被移除或 input queue overflow。
+- 连续完成 50 次混合操作（数字编辑、Select 开关、鼠标、键盘、手柄、关闭/重开）
+  后，上述输入与性能条件仍成立，且日志无 handler exception、hook removal、
+  input queue overflow 或输入恢复失败。
+- 快捷键录入时按 Escape 只取消录入，不关闭 Quick Stack，也不穿透关闭 Pal
+  Insight。录入 `W/A/S/D/Enter` 后，本次捕获按键不得继续触发导航、确认或刚注册
+  的 Quick Stack 动作；快捷键从 A 改到 B、再改回 A 必须能够重新启用旧注册而不
+  报冲突。输入恢复失败不得发布成功关闭确认或留下不可操作的透明遮罩。
+- 分别验证 Pal Insight 先加载、Quick Stack 先加载、其中一方热重载；每次物理
+  `F6` 只执行一次，旧 generation 的请求不被消费。
+- Nexus、Workshop、CurseForge 未安装行分别打开对应平台；Game Pass 显示不可用，
+  不提供尚不存在的下载链接。
+- About 顶部固定展示 Pal Insight 推荐卡；作者卡固定为 CrateX.app、作者简介、
+  “特别感谢 / 支持者”三栏。两个人员入口不得因名单为空而隐藏或改变布局。
+- 鼠标、键盘或手柄打开“特别感谢 / 支持者”后，只能操作最上层名单弹层；空名单
+  必须显示明确空状态，Esc / Back / Accept 或关闭按钮返回 About，且不得穿透游戏。
+- 上述新宿主链路仍待实机复测；旧 `v1.8.0` Controls 内嵌设置截图只作为历史证据。
 
 ## 截图证据
 

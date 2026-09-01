@@ -2,7 +2,7 @@
 
 面向 Palworld 1.0 的独立 UE4SS Lua 模组。默认在基地内按 `F5`，把玩家普通背包中符合条件的物品归入当前基地的对应容器。
 
-> 当前开发版本：`0.2.0`。独立核心已完成单人实机迭代，普通物品移动、
+> 当前开发版本：`1.0.0`。独立核心已完成单人实机迭代，普通物品移动、
 > 中央状态通知和宽屏结果卡已验证；多人、专服、完整帕鲁蛋矩阵、满箱失败卡、
 > 窄屏/超高滚动及 Pal Insight 双加载顺序仍待验收。
 
@@ -113,8 +113,8 @@ return {
     ResultDisplay = "Default",
     IncludeExcludedItems = false,
     IncludeNewItems = true,
-    PalEggRouting = "IncubatorThenStorage",
-    RelicRouting = "RecyclerThenStorage",
+    PalEggRouting = "IncubatorOnly",
+    RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
     Debug = false,
 }
@@ -147,8 +147,10 @@ Tab 页面判定也不扫描 Widget：模组在主菜单实例创建时保存一
 库存、基地对象、容器槽位和提交前复核都分成有上限的游戏线程切片；
 物品路由使用“已有物品”和“接受类别”索引，不执行全世界扫描或瞬间
 RPC 连发。提交后的确认只按 120 ms 间隔复核本次实际提交涉及的背包槽位，
-最多 3 秒，不存在常驻 UObject Tick 或全局对象轮询。可选 F6 集成只在后台每
-500 ms 读取一个共享修订号；仅当修订号改变时才读取并应用完整设置。
+最多 3 秒，不存在常驻 UObject Tick 或全局对象轮询。可选 F6 集成继续以 500 ms
+低频处理能力发布、预热和兼容设置；检测到 Pal Insight 设置已打开后，16 ms
+快速路径每次只读一个请求信号，只有信号变化才接收完整打开／关闭事务，
+不执行仓库扫描或界面重建。
 遗物转换器及其世界树圣水专用槽只复用本轮当前基地对象枚举，不增加全世界扫描；
 遗物资格继续以实时容器权限为准。
 结果统计复用同一次任务快照与确认数据，不为通知重新扫描背包或箱子；结果卡

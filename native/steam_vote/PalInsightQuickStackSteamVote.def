@@ -1,0 +1,10 @@
+LIBRARY PalInsightQuickStackSteamVote
+EXPORTS
+    pal_quick_stack_steam_vote_initialize
+    pal_quick_stack_steam_vote_refresh
+    pal_quick_stack_steam_vote_status
+    pal_quick_stack_steam_vote_set_up
+    pal_quick_stack_steam_vote_error_kind
+    pal_quick_stack_steam_vote_error_result_low
+    pal_quick_stack_steam_vote_error_result_high
+    pal_quick_stack_steam_vote_clear_error

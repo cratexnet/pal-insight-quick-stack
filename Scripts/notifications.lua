@@ -146,38 +146,34 @@ local scheduleStaticObjectWarmup
 scheduleStaticObjectWarmup = function(delayMs)
     if state.staticWarmupScheduled
         or state.staticWarmupIndex > STATIC_WARMUP_TASK_COUNT
-        or type(ExecuteWithDelay) ~= "function"
-        or type(ExecuteInGameThread) ~= "function" then return false end
+        or type(ExecuteInGameThreadWithDelay) ~= "function" then return false end
     state.staticWarmupScheduled = true
-    local scheduled = pcall(ExecuteWithDelay, delayMs or 0, function()
-        local dispatched = pcall(ExecuteInGameThread, function()
-            state.staticWarmupScheduled = false
-            local startedAt = state.performanceCapture and os.clock() or nil
-            if state.staticWarmupIndex <= #STATIC_WARMUP_PATHS then
-                cachedStaticObject(STATIC_WARMUP_PATHS[state.staticWarmupIndex])
-            else
-                Localization.warmup()
-            end
-            if startedAt ~= nil then
-                local duration = math.max(0, (os.clock() - startedAt) * 1000)
-                state.staticWarmupSlices = state.staticWarmupSlices + 1
-                state.staticWarmupTotalMs = state.staticWarmupTotalMs + duration
-                state.staticWarmupMaxMs = math.max(
-                    state.staticWarmupMaxMs, duration)
-            end
-            state.staticWarmupIndex = state.staticWarmupIndex + 1
-            if state.staticWarmupIndex <= STATIC_WARMUP_TASK_COUNT then
-                scheduleStaticObjectWarmup(DETAIL_BUILD_SLICE_MS)
-            elseif state.performanceCapture and type(state.log) == "function" then
-                state.log(string.format(
-                    "perf_notification_warmup|tasks=%d|slices=%d|work_ms=%.3f|max_slice_ms=%.3f",
-                    STATIC_WARMUP_TASK_COUNT,
-                    state.staticWarmupSlices,
-                    state.staticWarmupTotalMs,
-                    state.staticWarmupMaxMs))
-            end
-        end)
-        if not dispatched then state.staticWarmupScheduled = false end
+    local scheduled = pcall(ExecuteInGameThreadWithDelay, delayMs or 0, function()
+        state.staticWarmupScheduled = false
+        local startedAt = state.performanceCapture and os.clock() or nil
+        if state.staticWarmupIndex <= #STATIC_WARMUP_PATHS then
+            cachedStaticObject(STATIC_WARMUP_PATHS[state.staticWarmupIndex])
+        else
+            Localization.warmup()
+        end
+        if startedAt ~= nil then
+            local duration = math.max(0, (os.clock() - startedAt) * 1000)
+            state.staticWarmupSlices = state.staticWarmupSlices + 1
+            state.staticWarmupTotalMs = state.staticWarmupTotalMs + duration
+            state.staticWarmupMaxMs = math.max(
+                state.staticWarmupMaxMs, duration)
+        end
+        state.staticWarmupIndex = state.staticWarmupIndex + 1
+        if state.staticWarmupIndex <= STATIC_WARMUP_TASK_COUNT then
+            scheduleStaticObjectWarmup(DETAIL_BUILD_SLICE_MS)
+        elseif state.performanceCapture and type(state.log) == "function" then
+            state.log(string.format(
+                "perf_notification_warmup|tasks=%d|slices=%d|work_ms=%.3f|max_slice_ms=%.3f",
+                STATIC_WARMUP_TASK_COUNT,
+                state.staticWarmupSlices,
+                state.staticWarmupTotalMs,
+                state.staticWarmupMaxMs))
+        end
     end)
     if not scheduled then state.staticWarmupScheduled = false end
     return scheduled
@@ -881,15 +877,12 @@ local function detailedFallbackMessage(outcome, details, strings)
 end
 
 local function scheduleClear(token, durationMs)
-    if type(ExecuteWithDelay) ~= "function"
-        or type(ExecuteInGameThread) ~= "function" then
+    if type(ExecuteInGameThreadWithDelay) ~= "function" then
         clear()
         return
     end
-    local scheduled = pcall(ExecuteWithDelay, durationMs, function()
-        ExecuteInGameThread(function()
-            if token == state.token then clear() end
-        end)
+    local scheduled = pcall(ExecuteInGameThreadWithDelay, durationMs, function()
+        if token == state.token then clear() end
     end)
     if not scheduled and token == state.token then clear() end
 end
@@ -1130,11 +1123,9 @@ local runDetailedBuildSlice
 
 local function scheduleDetailedBuildSlice(build)
     if build.originToken ~= state.token then return false end
-    if type(ExecuteWithDelay) ~= "function"
-        or type(ExecuteInGameThread) ~= "function" then return false end
-    local scheduled = pcall(ExecuteWithDelay, DETAIL_BUILD_SLICE_MS, function()
-        ExecuteInGameThread(function() runDetailedBuildSlice(build) end)
-    end)
+    if type(ExecuteInGameThreadWithDelay) ~= "function" then return false end
+    local scheduled = pcall(ExecuteInGameThreadWithDelay,
+        DETAIL_BUILD_SLICE_MS, function() runDetailedBuildSlice(build) end)
     return scheduled
 end
 
@@ -1165,8 +1156,7 @@ runDetailedBuildSlice = function(build)
 end
 
 local function startDetailedBuild(controller, outcome, details, strings)
-    if type(ExecuteWithDelay) ~= "function"
-        or type(ExecuteInGameThread) ~= "function" then return false end
+    if type(ExecuteInGameThreadWithDelay) ~= "function" then return false end
     local build = {
         controller = controller,
         outcome = outcome,

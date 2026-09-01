@@ -108,21 +108,86 @@ items are reported only when at least one permission/filter-compatible ordinary
 storage destination existed; absence of any matching destination is not
 misreported as full storage.
 
-## Optional Pal Insight Settings Contract
+## Optional Pal Insight Settings Host Contract
 
-Quick Stack publishes API version `1`, its runtime version, the canonical FKey
-name, three modifier booleans, and an integer settings revision through the
-`PalInsightQuickStack.*` scalar shared variables documented in `SPEC.md`.
-Pal Insight submits a shortcut by writing the four requested values and then
-advancing the revision. Quick Stack polls only that revision every 500 ms.
+Quick Stack owns one settings implementation in `Scripts/settings_ui.lua`.
+Standalone `F6` and Pal Insight's hosted Extensions action both open that same
+surface. Pal Insight does not copy Quick Stack controls or write its Saved
+configuration.
 
-On a new revision, Quick Stack strictly validates the complete request,
-registers the replacement keybind, and writes its own Saved configuration. Old
-process-lifetime callbacks remain registered but become inert because only the
-current signature may dispatch. Quick Stack then republishes its canonical
-values with a newer acknowledgement revision. Registration or persistence
-failure restores the previous runtime shortcut and republishes that value.
-Pal Insight never writes Quick Stack's configuration file or owns its action.
+The private `PalInsightSettingsHost.*` scalar protocol publishes protocol
+version, runtime version, generation, readiness, and heartbeat for both sides.
+Every open/close transaction is scoped to both live generations, and its
+revision is written last. Stale requests, stale acknowledgements, expired
+heartbeats, and incompatible protocol versions fail closed. The existing 500 ms
+Quick Stack reconciliation cadence carries capability and legacy settings using
+only scalar shared state. It performs no widget preparation, viewport walk, or
+window-cache validation. Once that heartbeat observes an open Pal Insight
+settings stack, a 16 ms loop reads only
+`HostRequestSignalRevision` and consumes the full open/close/toggle transaction
+after that scalar advances. The fast path performs no widget preparation,
+capability publication, legacy reconciliation, or storage work and stops when
+the settings stack closes or the host lease expires. Host liveness and the open
+flag are refreshed every 80 ms only while this fast path is active; there is no
+80 ms watcher while both settings surfaces are closed.
+
+While Pal Insight is live, its callback is the sole physical `F6` action owner.
+If Quick Stack registered first, that unavoidable process-lifetime callback
+publishes its cooperative behavior version and becomes inert after observing a
+live Pal Insight lease; it does not forward the same press. Without a live host,
+it opens standalone Quick Stack or forwards only to the newest Quick Stack
+generation after a hot reload. If Pal Insight registered first, Quick Stack does
+not add another callback. Thus two retained callbacks may exist after the
+Quick-Stack-first load order, but only one may perform an action for a press.
+Quick Stack is the only Escape/controller-Back action owner while its hosted
+surface is open. Pal Insight keeps its underlying routes consumed but does not
+dispatch another close. Escape/Back first cancels an active selector or choice;
+otherwise it closes only Quick Stack. `F6` asks the host to close the complete
+settings stack. Open/closed acknowledgements are transactional with the Quick
+Stack input lease: no success is published before acquisition or restoration.
+
+The surface uses one ordered focus model for pointer, keyboard, and controller
+input. The recurring open-only pump is only an idempotent pointer and standalone
+controller fallback; reflected failures are isolated per phase and cannot stop
+subsequent Close, Reset, selection, focus, or visual updates.
+
+The complete UMG tree is retained across close/open only for the same live
+world, local controller, locale, and logical viewport size. The cooked input
+bridge is retained for the same live world and local controller. Close collapses
+a valid cached tree after restoring input; any relevant identity or geometry
+mismatch while open first closes the old input transaction, then removes and
+rebuilds that cache for the new context. Keyboard navigation is owned by the focused
+`UUserWidget:OnPreviewKeyDown` route. Integer editing never transfers focus to
+an `EditableTextBox`: the root consumes digits and editing keys into a bounded
+integer buffer, so Slate and the desktop IME never own that session. The cooked
+bridge dispatches normalized axis values synchronously and contains handler failures.
+Off-thread global keybind fallbacks use a bounded game-thread queue whose wake is
+also drained by the existing open-panel pump, so a lost wake cannot permanently
+block later keys; a short ownership window removes Preview/cooked duplicates.
+Process-lifetime input hooks and the optional cooked bridge class are prepared
+once through the game-thread delayed-action queue during startup. If the world
+is not ready, the actual open transaction retries only the missing work; idle
+host reconciliation never retries the full preparation path.
+
+The active panel applies `SetInputMode_UIOnlyEx`, owns a full-viewport hit-test
+shield, and holds composable move/look ignore leases. Preview key-down and
+key-up handlers consume every panel-owned keyboard/controller event. In
+standalone mode a single Escape transaction also guards Palworld's native
+`CanOpenAnyUI`, `OnTriggerEscape`, and radial-menu query routes until the same
+physical release settles, so closing Quick Stack cannot open the system Escape
+menu underneath it. Release is
+transactional: the previously observed input mode, focus, cursor, and only the
+move/look layers acquired by this session are restored before close succeeds.
+
+With an unchanged world/controller/locale/viewport, a warm open performs no
+asset load, hook registration, widget creation, viewport mount, or full-tree
+construction. The existing developer-only `PerformanceCapture` switch may emit
+phase timings and cache-hit identities for local acceptance; every one of ten
+warm-open samples must complete its synchronous transaction within 16.7 ms.
+The switch remains `false` in source, Saved defaults, and release artifacts.
+
+The older `PalInsightQuickStack.*` value bridge remains as a compatibility path
+for earlier Pal Insight builds. It is not the new settings surface contract.
 
 ## Native UI Semantics
 

@@ -5,3 +5,5 @@ dist/
 .idea/
 .vscode/
 .playwright-cli/
+/native/steam_vote/build/
+/native/steam_vote/bin/

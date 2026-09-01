@@ -214,21 +214,21 @@ end
 
 local function scheduleJobStep(job, delayMs, step, phase)
     if state.job ~= job or type(step) ~= "function" then return false end
-    local scheduled = pcall(ExecuteWithDelay, delayMs or NEXT_SLICE_MS, function()
-        ExecuteInGameThread(function()
-            if state.job ~= job then return end
-            if os.time() - job.startedAt > JOB_TIMEOUT_SECONDS then
-                finishJob(job, false, "job timed out")
-                return
-            end
-            beginPerformanceSlice(job, phase)
-            local ok, errorMessage = pcall(step, job)
-            if not ok then
-                finishJob(job, false, errorMessage)
-            else
-                recordPerformanceSlice(job)
-            end
-        end)
+    local scheduled = type(ExecuteInGameThreadWithDelay) == "function"
+        and pcall(ExecuteInGameThreadWithDelay,
+            delayMs or NEXT_SLICE_MS, function()
+        if state.job ~= job then return end
+        if os.time() - job.startedAt > JOB_TIMEOUT_SECONDS then
+            finishJob(job, false, "job timed out")
+            return
+        end
+        beginPerformanceSlice(job, phase)
+        local ok, errorMessage = pcall(step, job)
+        if not ok then
+            finishJob(job, false, errorMessage)
+        else
+            recordPerformanceSlice(job)
+        end
     end)
     if not scheduled then finishJob(job, false, "cannot schedule game-thread step") end
     return scheduled == true

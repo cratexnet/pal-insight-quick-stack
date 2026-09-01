@@ -13,8 +13,23 @@ local BRIDGE_PRESSED_FUNCTION = BRIDGE_CLASS_PATH
     .. ":PalInsightInputBridgePressed"
 local BRIDGE_RELEASED_FUNCTION = BRIDGE_CLASS_PATH
     .. ":PalInsightInputBridgeReleased"
+local BRIDGE_AXIS_X_FUNCTION = BRIDGE_CLASS_PATH
+    .. ":PalInsightInputBridgeAxisX"
+local BRIDGE_AXIS_Y_FUNCTION = BRIDGE_CLASS_PATH
+    .. ":PalInsightInputBridgeAxisY"
 local BRIDGE_CLICKED_FUNCTION = BRIDGE_CLASS_PATH
     .. ":PalInsightSearchClearClicked"
+local RETURN_LISTENER_CLASS =
+    "/Game/Pal/Blueprint/UI/WBP_PalHUD_InGame_InputListener.WBP_PalHUD_InGame_InputListener_C"
+local RETURN_GATE_FUNCTION_CANDIDATES = {
+    RETURN_LISTENER_CLASS .. ":CanOpenAnyUI",
+    RETURN_LISTENER_CLASS .. ":Can_Open_Any_UI",
+    RETURN_LISTENER_CLASS .. ":Can Open Any UI",
+}
+local NATIVE_ESCAPE_FUNCTION = RETURN_LISTENER_CLASS .. ":OnTriggerEscape"
+local MENU_QUERY_FUNCTION =
+    "/Game/Pal/Blueprint/UI/PlayerRadialMenu/WBP_PlayerRadialMenu.WBP_PlayerRadialMenu_C:IsAnyMenuOpened"
+local KEYBOARD_QUEUE_LIMIT = 64
 local INPUT_MODE_FUNCTIONS = {
     GameOnly = "/Script/UMG.WidgetBlueprintLibrary:SetInputMode_GameOnly",
     UIOnly = "/Script/UMG.WidgetBlueprintLibrary:SetInputMode_UIOnlyEx",
@@ -24,11 +39,17 @@ local INPUT_MODE_FUNCTIONS = {
 local state = {
     log = nil,
     keyboardBindingsReady = false,
-    keyboardBindingsAttempted = false,
+    keyboardBindingCallbacks = {},
     keyboardWarningLogged = false,
     bridgeHooksReady = false,
     inputModeHooksReady = false,
+    escapePriorityHooksReady = false,
+    returnGateReady = false,
+    nativeEscapeHookReady = false,
+    menuQueryHookReady = false,
+    returnGatePath = nil,
     hookRecords = {},
+    bridgeCache = nil,
     bridge = nil,
     bridgeAddress = nil,
     ownerWidget = nil,
@@ -37,21 +58,33 @@ local state = {
     controllerAddress = nil,
     closeButton = nil,
     closeButtonAddress = nil,
-    onClose = nil,
+    handlers = nil,
+    modalUIOnly = false,
+    hostedParent = false,
+    cookedInputActive = false,
     active = false,
     closePending = false,
     reclaimPending = false,
     applyingInputMode = false,
     inputContext = nil,
+    hostedFallbackContext = nil,
     externalInputContext = nil,
     lastObservedInputContext = nil,
     inputIsolation = nil,
     generation = 0,
+    keyboardQueue = {},
+    keyboardWakePending = false,
+    keyboardWakeCallback = nil,
+    closeDispatchCallback = nil,
+    reclaimCallback = nil,
+    lastAcquireDiagnostics = nil,
+    escapeCloseSequence = 0,
+    escapeCloseGuard = nil,
 }
 
 local function log(message)
     if type(state.log) == "function" then
-        state.log("Pal Insight result-dialog bridge: " .. tostring(message))
+        state.log("Pal Insight modal input bridge: " .. tostring(message))
     end
 end
 
@@ -78,18 +111,94 @@ local function ownsController(controller)
         and sameObject(controller, state.controllerAddress)
 end
 
+local function escapeCloseGuardBlocksNativeUI()
+    local record = state.escapeCloseGuard
+    if type(record) ~= "table" then return false end
+    local now = os.clock()
+    if now >= (tonumber(record.expiresAt) or 0.0) then
+        state.escapeCloseGuard = nil
+        return false
+    end
+    if record.windowClosed == true and record.released == true
+        and now >= (tonumber(record.settleUntil) or math.huge) then
+        state.escapeCloseGuard = nil
+        return false
+    end
+    return true
+end
+
+local function ownsUnderlyingInput()
+    return state.active == true or escapeCloseGuardBlocksNativeUI()
+end
+
+local function dispatchEvent(kind, value, source)
+    if state.active ~= true then return false end
+    local handlers = state.handlers
+    local callback = type(handlers) == "table" and handlers[kind] or nil
+    if type(callback) ~= "function" then return true end
+    local ok, errorMessage = pcall(callback, value, source)
+    if not ok then log("input handler failed: " .. tostring(errorMessage)) end
+    return ok
+end
+
+local wakeKeyboardQueue
+
+local function drainKeyboardQueue()
+    state.keyboardWakePending = false
+    local queue = state.keyboardQueue
+    state.keyboardQueue = {}
+    for _, item in ipairs(queue) do
+        if state.active == true and item.generation == state.generation then
+            dispatchEvent("onPressed", item.keyName, "global")
+        end
+    end
+    if #state.keyboardQueue > 0 then wakeKeyboardQueue() end
+    return true
+end
+
+state.keyboardWakeCallback = drainKeyboardQueue
+
+wakeKeyboardQueue = function()
+    if #state.keyboardQueue == 0 or state.keyboardWakePending then return true end
+    if type(ExecuteInGameThread) ~= "function" then return false end
+    state.keyboardWakePending = true
+    local scheduled = pcall(ExecuteInGameThread, state.keyboardWakeCallback)
+    if not scheduled then state.keyboardWakePending = false end
+    return scheduled == true
+end
+
+local function queueKeyboardPress(keyName)
+    if state.active ~= true or type(keyName) ~= "string" then return false end
+    if #state.keyboardQueue >= KEYBOARD_QUEUE_LIMIT then
+        table.remove(state.keyboardQueue, 1)
+    end
+    state.keyboardQueue[#state.keyboardQueue + 1] = {
+        keyName = keyName,
+        generation = state.generation,
+    }
+    wakeKeyboardQueue()
+    return true
+end
+
 local function requestClose(source)
-    if state.active ~= true or state.closePending
-        or type(state.onClose) ~= "function" then return false end
+    if state.active ~= true or state.closePending then return false end
+    local handlers = state.handlers
+    if type(handlers) ~= "table" or type(handlers.onClose) ~= "function" then
+        return false
+    end
     state.closePending = true
     local generation = state.generation
-    local scheduled = pcall(ExecuteInGameThread, function()
+    state.closeDispatchCallback = function()
+        state.closeDispatchCallback = nil
         if state.active ~= true or state.generation ~= generation then return end
         state.closePending = false
-        local callback = state.onClose
-        if type(callback) == "function" then callback(source) end
-    end)
-    if not scheduled then state.closePending = false end
+        dispatchEvent("onClose", source)
+    end
+    local scheduled = pcall(ExecuteInGameThread, state.closeDispatchCallback)
+    if not scheduled then
+        state.closePending = false
+        state.closeDispatchCallback = nil
+    end
     return scheduled == true
 end
 
@@ -101,21 +210,45 @@ local function bridgeKeyName(keyParam)
     return P.nameString(keyName)
 end
 
-local function pressedHook(context, _keyParam)
+local function pressedHook(context, keyParam)
     if not ownsBridge(context) then return end
+    local keyName = bridgeKeyName(keyParam)
+    if type(keyName) == "string" and keyName:find("Gamepad_", 1, true) == 1 then
+        dispatchEvent("onPressed", keyName, "actor")
+    end
 end
 
 local function releasedHook(context, keyParam)
     if not ownsBridge(context) then return end
     local keyName = bridgeKeyName(keyParam)
-    if keyName == "Gamepad_FaceButton_Bottom"
-        or keyName == "Gamepad_FaceButton_Right" then
-        requestClose(keyName)
+    if type(keyName) == "string" and keyName:find("Gamepad_", 1, true) == 1 then
+        dispatchEvent("onReleased", keyName, "actor")
     end
 end
 
 local function clickedHook(context)
-    if ownsBridge(context) then requestClose("mouse") end
+    if ownsBridge(context) then dispatchEvent("onClicked", "mouse") end
+end
+
+local function axisValue(valueParam)
+    if valueParam == nil then return nil end
+    local value
+    local ok = pcall(function() value = valueParam:get() end)
+    if not ok then value = valueParam end
+    value = P.unwrap(value)
+    return tonumber(value)
+end
+
+local function axisXHook(context, valueParam)
+    if not ownsBridge(context) then return end
+    local value = axisValue(valueParam)
+    if type(value) == "number" then dispatchEvent("onAxisX", value) end
+end
+
+local function axisYHook(context, valueParam)
+    if not ownsBridge(context) then return end
+    local value = axisValue(valueParam)
+    if type(value) == "number" then dispatchEvent("onAxisY", value) end
 end
 
 local function hookValue(param)
@@ -142,8 +275,12 @@ local function applyModalInput()
         or library == nil then return false end
     state.applyingInputMode = true
     local modeApplied = pcall(function()
-        library:SetInputMode_GameAndUIEx(
-            controller, ownerWidget, 0, false, false)
+        if state.modalUIOnly then
+            library:SetInputMode_UIOnlyEx(controller, ownerWidget, 0, false)
+        else
+            library:SetInputMode_GameAndUIEx(
+                controller, ownerWidget, 0, false, false)
+        end
     end)
     state.applyingInputMode = false
     local cursorApplied, cursorVisible = pcall(function()
@@ -159,29 +296,27 @@ local function scheduleModalReclaim()
     if state.active ~= true or state.reclaimPending then return end
     state.reclaimPending = true
     local generation = state.generation
-    local function reclaim()
-        if state.active ~= true or state.generation ~= generation then return end
+    state.reclaimCallback = function()
+        state.reclaimCallback = nil
+        if state.active ~= true or state.generation ~= generation then
+            state.reclaimPending = false
+            return
+        end
         state.reclaimPending = false
         if not applyModalInput() then
             log("cannot reclaim modal input after an external mode change")
             requestClose("input-ownership-failed")
         end
     end
-    local function dispatchReclaim()
-        local dispatched = pcall(ExecuteInGameThread, reclaim)
-        if not dispatched and state.active and state.generation == generation then
-            state.reclaimPending = false
-            requestClose("input-ownership-dispatch-failed")
-        end
-    end
     -- The game often assigns bShowMouseCursor immediately after calling an
     -- input-mode helper. Defer one event turn so the modal reclaim wins after
     -- the complete external transition rather than racing its remaining code.
-    local scheduled = type(ExecuteWithDelay) == "function"
-        and pcall(ExecuteWithDelay, 0, dispatchReclaim)
-        or pcall(ExecuteInGameThread, reclaim)
+    local scheduled = type(ExecuteInGameThreadWithDelay) == "function"
+        and pcall(ExecuteInGameThreadWithDelay, 0, state.reclaimCallback)
+        or false
     if not scheduled then
         state.reclaimPending = false
+        state.reclaimCallback = nil
         requestClose("input-ownership-dispatch-failed")
     end
 end
@@ -221,6 +356,23 @@ local function gameAndUiHook(_context, controllerParam, focusParam,
         mouseLockParam, hideCursorParam)
 end
 
+local function canOpenAnyUiHook(_context, canOpenParam)
+    if not ownsUnderlyingInput() then return end
+    pcall(function() canOpenParam:set(false) end)
+end
+
+local function nativeEscapeHook()
+    local record = state.escapeCloseGuard
+    if type(record) ~= "table" then return end
+    record.released = true
+    if record.windowClosed == true then record.settleUntil = os.clock() + 0.08 end
+end
+
+local function menuQueryGuardHook(_context, valueParam)
+    if not ownsUnderlyingInput() then return end
+    pcall(function() valueParam:set(false) end)
+end
+
 local function installHook(path, callback)
     if state.hookRecords[path] ~= nil then return true end
     if type(RegisterHook) ~= "function" or P.staticObject(path) == nil then
@@ -243,10 +395,61 @@ local function installInputModeHooks()
     return true
 end
 
+local function installEscapePriorityHooks()
+    if state.escapePriorityHooksReady then return true end
+    if type(RegisterHook) ~= "function" then return false end
+
+    if not state.returnGateReady then
+        for _, path in ipairs(RETURN_GATE_FUNCTION_CANDIDATES) do
+            if P.staticObject(path) ~= nil then
+                local ok, preId, postId = pcall(
+                    RegisterHook, path, canOpenAnyUiHook)
+                if ok and type(preId) == "number" then
+                    state.hookRecords[path] = {
+                        preId = preId, postId = postId,
+                        callback = canOpenAnyUiHook,
+                    }
+                    state.returnGatePath = path
+                    state.returnGateReady = true
+                    break
+                end
+            end
+        end
+    end
+    if not state.returnGateReady then return false end
+
+    if not state.nativeEscapeHookReady then
+        if P.staticObject(NATIVE_ESCAPE_FUNCTION) == nil then return false end
+        local escapeOk, escapePreId, escapePostId = pcall(
+            RegisterHook, NATIVE_ESCAPE_FUNCTION, nativeEscapeHook)
+        if not escapeOk or type(escapePreId) ~= "number" then return false end
+        state.hookRecords[NATIVE_ESCAPE_FUNCTION] = {
+            preId = escapePreId, postId = escapePostId,
+            callback = nativeEscapeHook,
+        }
+        state.nativeEscapeHookReady = true
+    end
+    if not state.menuQueryHookReady then
+        if P.staticObject(MENU_QUERY_FUNCTION) == nil then return false end
+        local queryOk, queryPreId, queryPostId = pcall(RegisterHook,
+            MENU_QUERY_FUNCTION, menuQueryGuardHook, menuQueryGuardHook)
+        if not queryOk or type(queryPreId) ~= "number" then return false end
+        state.hookRecords[MENU_QUERY_FUNCTION] = {
+            preId = queryPreId, postId = queryPostId,
+            callback = menuQueryGuardHook,
+        }
+        state.menuQueryHookReady = true
+    end
+    state.escapePriorityHooksReady = true
+    return true
+end
+
 local function installBridgeHooks()
     if state.bridgeHooksReady then return true end
     if not installHook(BRIDGE_PRESSED_FUNCTION, pressedHook)
         or not installHook(BRIDGE_RELEASED_FUNCTION, releasedHook)
+        or not installHook(BRIDGE_AXIS_X_FUNCTION, axisXHook)
+        or not installHook(BRIDGE_AXIS_Y_FUNCTION, axisYHook)
         or not installHook(BRIDGE_CLICKED_FUNCTION, clickedHook) then
         return false
     end
@@ -255,22 +458,36 @@ local function installBridgeHooks()
 end
 
 local function registerKeyboardBindings()
-    if state.keyboardBindingsAttempted then return state.keyboardBindingsReady end
-    state.keyboardBindingsAttempted = true
+    if state.keyboardBindingsReady then return true end
     if type(RegisterKeyBind) ~= "function" or type(Key) ~= "table" then
         return false
     end
     for _, spec in ipairs({
+        { name = "W", value = Key.W },
+        { name = "S", value = Key.S },
+        { name = "A", value = Key.A },
+        { name = "D", value = Key.D },
+        { name = "Up", value = Key.UP_ARROW },
+        { name = "Down", value = Key.DOWN_ARROW },
+        { name = "Left", value = Key.LEFT_ARROW },
+        { name = "Right", value = Key.RIGHT_ARROW },
         { name = "Enter", value = Key.RETURN },
         { name = "SpaceBar", value = Key.SPACE },
         { name = "Escape", value = Key.ESCAPE },
+        { name = "Tab", value = Key.TAB },
     }) do
-        if spec.value == nil then return false end
-        local name = spec.name
-        local ok = pcall(RegisterKeyBind, spec.value, function()
-            requestClose(name)
-        end)
-        if not ok then return false end
+        if spec.value ~= nil and state.keyboardBindingCallbacks[spec.name] == nil then
+            local name = spec.name
+            local callback = function()
+                queueKeyboardPress(name)
+            end
+            local ok = pcall(RegisterKeyBind, spec.value, callback)
+            if not ok then return false end
+            -- UE4SS does not own a Lua callback strongly enough for us to rely
+            -- on it surviving collection. Keep every process-lifetime binding
+            -- reachable; losing one here makes navigation appear to die later.
+            state.keyboardBindingCallbacks[name] = callback
+        end
     end
     state.keyboardBindingsReady = true
     return true
@@ -295,21 +512,85 @@ end
 
 local function releaseInputIsolation()
     local isolation = state.inputIsolation
-    state.inputIsolation = nil
     if type(isolation) ~= "table"
         or not sameObject(isolation.controller, isolation.controllerAddress) then
+        state.inputIsolation = nil
         return true
     end
     local ok = true
     if isolation.look then
-        ok = pcall(function() isolation.controller:SetIgnoreLookInput(false) end)
-            and ok
+        local released = pcall(function()
+            isolation.controller:SetIgnoreLookInput(false)
+        end)
+        if released then isolation.look = false else ok = false end
     end
     if isolation.move then
-        ok = pcall(function() isolation.controller:SetIgnoreMoveInput(false) end)
-            and ok
+        local released = pcall(function()
+            isolation.controller:SetIgnoreMoveInput(false)
+        end)
+        if released then isolation.move = false else ok = false end
+    end
+    if isolation.look ~= true and isolation.move ~= true then
+        state.inputIsolation = nil
     end
     return ok
+end
+
+local function reclaimInputIsolation(isolation)
+    if type(isolation) ~= "table"
+        or not sameObject(isolation.controller, isolation.controllerAddress) then
+        return false
+    end
+    state.inputIsolation = isolation
+    local ok = true
+    if isolation.move ~= true then
+        local acquired = pcall(function()
+            isolation.controller:SetIgnoreMoveInput(true)
+        end)
+        if acquired then isolation.move = true else ok = false end
+    end
+    if isolation.look ~= true then
+        local acquired = pcall(function()
+            isolation.controller:SetIgnoreLookInput(true)
+        end)
+        if acquired then isolation.look = true else ok = false end
+    end
+    return ok and isolation.move == true and isolation.look == true
+end
+
+local function setCookedBridgeActive(bridge, active)
+    if not P.isValid(bridge) then return active ~= true end
+    return pcall(function()
+        bridge:UnregisterInputComponent()
+        bridge:SetInputActionPriority(BRIDGE_PRIORITY)
+        bridge:SetInputActionBlocking(active == true)
+        if active == true then bridge:RegisterInputComponent() end
+    end) == true
+end
+
+local function restoreInputContext(controller, controllerAddress, context)
+    if not sameObject(controller, controllerAddress) then return true end
+    if type(context) ~= "table" then return false end
+    local library = widgetLibrary()
+    local focusWidget = focusIfAlive(context.focusWidget)
+    if library == nil then return false end
+    state.applyingInputMode = true
+    local restored, cursorMatches = pcall(function()
+        if context.mode == "UIOnly" then
+            library:SetInputMode_UIOnlyEx(controller, focusWidget,
+                tonumber(context.mouseLockMode) or 0, false)
+        elseif context.mode == "GameAndUI" then
+            library:SetInputMode_GameAndUIEx(controller, focusWidget,
+                tonumber(context.mouseLockMode) or 0,
+                context.hideCursorDuringCapture == true, false)
+        else
+            library:SetInputMode_GameOnly(controller, true)
+        end
+        controller.bShowMouseCursor = context.showMouseCursor == true
+        return controller.bShowMouseCursor == (context.showMouseCursor == true)
+    end)
+    state.applyingInputMode = false
+    return restored == true and cursorMatches == true
 end
 
 local function captureInputContext(controller)
@@ -358,21 +639,126 @@ function Bridge.available()
     return false
 end
 
-function Bridge.acquire(controller, ownerWidget, onClose)
-    if state.active then return false, "bridge is already active" end
-    if not Bridge.available() then return false, "compatible Pal Insight is absent" end
-    if not P.isValid(controller) or not P.isValid(ownerWidget)
-        or type(onClose) ~= "function" then
-        return false, "result-dialog owner is unavailable"
+function Bridge.prepare()
+    if type(ExecuteInGameThread) ~= "function"
+        or not installInputModeHooks() or not registerKeyboardBindings() then
+        return false
     end
-
+    local version, readable = sharedRead(CAPABILITY_NAME)
+    if not readable or version ~= CAPABILITY_VERSION then return false end
+    if state.bridgeHooksReady then return true end
     local bridgeClass = P.staticObject(BRIDGE_CLASS_PATH)
     if bridgeClass == nil and type(LoadAsset) == "function" then
         pcall(LoadAsset, BRIDGE_ASSET_PATH)
         bridgeClass = P.staticObject(BRIDGE_CLASS_PATH)
     end
-    if bridgeClass == nil or not installBridgeHooks() then
-        return false, "cooked bridge contract is unavailable"
+    return bridgeClass ~= nil and installBridgeHooks()
+end
+
+local function discardBridgeCache()
+    local cache = state.bridgeCache
+    local bridge = type(cache) == "table" and cache.bridge or nil
+    if P.isValid(bridge) then
+        pcall(function() bridge:UnregisterInputComponent() end)
+        pcall(function() bridge:SetInputActionBlocking(false) end)
+        pcall(function() bridge:RemoveFromParent() end)
+    end
+    state.bridgeCache = nil
+end
+
+local function prepareBridgeCache(controller)
+    if not Bridge.prepare() or not P.isValid(controller) then return nil, false end
+    local world
+    local ok = pcall(function() world = controller:GetWorld() end)
+    local worldAddress = ok and P.objectAddress(world) or nil
+    local controllerAddress = P.objectAddress(controller)
+    local cache = state.bridgeCache
+    if type(cache) == "table" and P.isValid(cache.bridge)
+        and cache.worldAddress == worldAddress
+        and cache.controllerAddress == controllerAddress
+        and P.objectAddress(cache.bridge) == cache.bridgeAddress then
+        return cache.bridge, true
+    end
+    if state.active then return nil, false end
+    if cache ~= nil then discardBridgeCache() end
+    if worldAddress == nil or controllerAddress == nil then return nil, false end
+    local library = widgetLibrary()
+    local bridgeClass = P.staticObject(BRIDGE_CLASS_PATH)
+    if library == nil or bridgeClass == nil then return nil, false end
+    local bridge
+    ok = pcall(function() bridge = library:Create(world, bridgeClass, controller) end)
+    if not ok or not P.isValid(bridge) then return nil, false end
+    local prepared = pcall(function()
+        -- Mount once. Open/close only registers its already-created input
+        -- component; the hot path never reconstructs the cooked widget.
+        bridge.bIsFocusable = false
+        bridge:SetRenderOpacity(0.0)
+        bridge:SetVisibility(3)
+        bridge:UnregisterInputComponent()
+        bridge:SetInputActionPriority(BRIDGE_PRIORITY)
+        bridge:SetInputActionBlocking(false)
+        bridge:AddToViewport(99)
+    end)
+    local bridgeAddress = prepared and P.objectAddress(bridge) or nil
+    if bridgeAddress == nil then
+        pcall(function() bridge:UnregisterInputComponent() end)
+        pcall(function() bridge:SetInputActionBlocking(false) end)
+        pcall(function() bridge:RemoveFromParent() end)
+        return nil, false
+    end
+    state.bridgeCache = {
+        bridge = bridge,
+        bridgeAddress = bridgeAddress,
+        worldAddress = worldAddress,
+        controllerAddress = controllerAddress,
+    }
+    return bridge, false
+end
+
+function Bridge.prepareForController(controller)
+    local bridge, cacheHit = prepareBridgeCache(controller)
+    return P.isValid(bridge), cacheHit == true
+end
+
+local function handlersFor(options)
+    if type(options) == "function" then
+        local close = options
+        return {
+            onPressed = function(keyName)
+                if keyName == "Enter" or keyName == "SpaceBar"
+                    or keyName == "Escape" then close(keyName) end
+            end,
+            onReleased = function(keyName)
+                if keyName == "Gamepad_FaceButton_Bottom"
+                    or keyName == "Gamepad_FaceButton_Right" then close(keyName) end
+            end,
+            onClicked = function() close("mouse") end,
+            onClose = close,
+        }, false
+    end
+    options = type(options) == "table" and options or {}
+    return options, options.allowWithoutBridge == true
+end
+
+function Bridge.acquire(controller, ownerWidget, options)
+    if state.active then return false, "bridge is already active" end
+    local handlers, allowWithoutBridge = handlersFor(options)
+    local modalUIOnly = type(options) == "table" and options.modalUIOnly == true
+    local hostedParent = type(options) == "table" and options.hostedParent == true
+    if not hostedParent and not installEscapePriorityHooks() then
+        log("native Escape priority hooks are unavailable")
+    end
+    local cookedAvailable = Bridge.prepare()
+    if not cookedAvailable and not allowWithoutBridge then
+        return false, "compatible Pal Insight is absent"
+    end
+    if type(ExecuteInGameThread) ~= "function"
+        or not installInputModeHooks() or not registerKeyboardBindings() then
+        return false, "modal input callbacks are unavailable"
+    end
+    if not P.isValid(controller) or not P.isValid(ownerWidget)
+        or type(handlers) ~= "table" then
+        return false, "modal input owner is unavailable"
     end
 
     local world
@@ -381,31 +767,41 @@ function Bridge.acquire(controller, ownerWidget, onClose)
     if not ok or not P.isValid(world) or library == nil then
         return false, "bridge creation roots are unavailable"
     end
-    local bridge
-    ok = pcall(function() bridge = library:Create(world, bridgeClass, controller) end)
-    if not ok or not P.isValid(bridge) then
-        return false, "bridge widget cannot be created"
+    local bridge, bridgeAddress, bridgeCacheHit
+    if cookedAvailable then
+        bridge, bridgeCacheHit = prepareBridgeCache(controller)
+        if not P.isValid(bridge) then return false, "bridge widget cannot be prepared" end
+        local prepared = pcall(function()
+            bridge:UnregisterInputComponent()
+            bridge:SetInputActionPriority(BRIDGE_PRIORITY)
+            bridge:SetInputActionBlocking(true)
+            bridge:RegisterInputComponent()
+        end)
+        bridgeAddress = prepared and P.objectAddress(bridge) or nil
     end
-
-    local prepared = pcall(function()
-        bridge.bIsFocusable = false
-        bridge:SetRenderOpacity(0.0)
-        bridge:SetVisibility(3)
-        bridge:UnregisterInputComponent()
-        bridge:SetInputActionPriority(BRIDGE_PRIORITY)
-        bridge:SetInputActionBlocking(true)
-        bridge:RegisterInputComponent()
-        bridge:AddToViewport(99)
-    end)
-    local bridgeAddress = prepared and P.objectAddress(bridge) or nil
     local controllerAddress = P.objectAddress(controller)
     local ownerWidgetAddress = P.objectAddress(ownerWidget)
     local inputContext = captureInputContext(controller)
-    if bridgeAddress == nil or controllerAddress == nil
+    local hostedFallbackContext
+    if hostedParent and type(inputContext) == "table" then
+        hostedFallbackContext = {
+            mode = inputContext.mode,
+            focusWidget = inputContext.focusWidget,
+            mouseLockMode = inputContext.mouseLockMode,
+            hideCursorDuringCapture = inputContext.hideCursorDuringCapture,
+            showMouseCursor = inputContext.showMouseCursor,
+        }
+        -- Pal Insight is a UIOnly modal owner. A late-loaded extension may have
+        -- missed the parent's original reflected transition and otherwise infer
+        -- GameAndUI from the visible cursor. Preserve UI isolation throughout
+        -- the close acknowledgement; the host restores its exact root focus.
+        inputContext.mode = "UIOnly"
+        inputContext.hideCursorDuringCapture = false
+        inputContext.showMouseCursor = true
+    end
+    if (cookedAvailable and bridgeAddress == nil) or controllerAddress == nil
         or ownerWidgetAddress == nil or inputContext == nil then
-        pcall(function() bridge:UnregisterInputComponent() end)
-        pcall(function() bridge:SetInputActionBlocking(false) end)
-        pcall(function() bridge:RemoveFromParent() end)
+        if cookedAvailable then discardBridgeCache() end
         return false, "bridge input ownership cannot be prepared"
     end
 
@@ -417,17 +813,91 @@ function Bridge.acquire(controller, ownerWidget, onClose)
     state.controller = controller
     state.controllerAddress = controllerAddress
     state.inputContext = inputContext
+    state.hostedFallbackContext = hostedFallbackContext
     state.externalInputContext = nil
-    state.onClose = onClose
+    state.handlers = handlers
+    state.modalUIOnly = modalUIOnly
+    state.hostedParent = hostedParent
+    state.cookedInputActive = cookedAvailable == true
     state.active = true
     state.closePending = false
     state.reclaimPending = false
+    state.lastAcquireDiagnostics = {
+        bridgeAvailable = cookedAvailable == true,
+        bridgeCacheHit = bridgeCacheHit == true,
+        bridgeCreated = cookedAvailable == true and bridgeCacheHit ~= true,
+        bridgeMounted = cookedAvailable == true and bridgeCacheHit ~= true,
+    }
 
     if not acquireInputIsolation(controller) or not applyModalInput() then
-        Bridge.release()
-        return false, "independent result-dialog input ownership cannot be acquired"
+        local released = Bridge.release()
+        return false, "settings input ownership cannot be acquired",
+            released ~= true and state.active == true
     end
     return true, nil
+end
+
+function Bridge.cookedInputActive()
+    return state.active == true and state.cookedInputActive == true
+end
+
+function Bridge.lastAcquireDiagnostics()
+    return state.lastAcquireDiagnostics
+end
+
+function Bridge.drainPendingInput()
+    return drainKeyboardQueue()
+end
+
+function Bridge.armEscapeClose(source)
+    if state.active ~= true then return false end
+    escapeCloseGuardBlocksNativeUI()
+    local existing = state.escapeCloseGuard
+    if type(existing) == "table" then return true end
+    state.escapeCloseSequence = state.escapeCloseSequence + 1
+    state.escapeCloseGuard = {
+        id = state.escapeCloseSequence,
+        generation = state.generation,
+        source = tostring(source or "escape"),
+        released = false,
+        windowClosed = false,
+        settleUntil = nil,
+        expiresAt = os.clock() + 3.0,
+    }
+    return true
+end
+
+function Bridge.releaseEscapeClose(source)
+    local record = state.escapeCloseGuard
+    if type(record) ~= "table" then return false end
+    record.releaseSource = tostring(source or "release")
+    record.released = true
+    if record.windowClosed == true then record.settleUntil = os.clock() + 0.08 end
+    return true
+end
+
+function Bridge.noteEscapeWindowClosed()
+    local record = state.escapeCloseGuard
+    if type(record) ~= "table" then return false end
+    record.windowClosed = true
+    record.expiresAt = os.clock() + 3.0
+    if record.released == true then record.settleUntil = os.clock() + 0.08 end
+    return true
+end
+
+function Bridge.cancelEscapeClose()
+    state.escapeCloseGuard = nil
+    return true
+end
+
+function Bridge.discardPendingKey(keyName)
+    if type(keyName) ~= "string" then return false end
+    local retained = {}
+    for _, item in ipairs(state.keyboardQueue) do
+        if item.keyName ~= keyName then retained[#retained + 1] = item end
+    end
+    state.keyboardQueue = retained
+    return true
 end
 
 function Bridge.bindCloseButton(button)
@@ -451,21 +921,58 @@ function Bridge.focusCloseButton()
     return ok
 end
 
-function Bridge.release()
+function Bridge.release(options)
+    if state.active ~= true then return true end
     local bridge = state.bridge
     local button = state.closeButton
     local buttonAddress = state.closeButtonAddress
-    local restoreContext = state.externalInputContext or state.inputContext
+    local hostUnavailable = type(options) == "table"
+        and options.hostUnavailable == true
+    local restoreContext = state.hostedParent == true and not hostUnavailable
+        and state.inputContext
+        or state.externalInputContext or state.hostedFallbackContext
+        or state.inputContext
+    if hostUnavailable and type(restoreContext) == "table"
+        and restoreContext.mode == "UIOnly" then
+        -- A vanished host can no longer own the UI-only context captured under
+        -- its parent panel. Fall back to an interactive game/UI context instead
+        -- of hiding the child and leaving the player trapped behind no owner.
+        restoreContext = {
+            mode = "GameAndUI",
+            focusWidget = nil,
+            mouseLockMode = restoreContext.mouseLockMode,
+            hideCursorDuringCapture = false,
+            showMouseCursor = true,
+        }
+    end
     local controller = state.controller
     local controllerAddress = state.controllerAddress
+    local isolation = state.inputIsolation
+    local cookedWasActive = state.cookedInputActive == true
 
-    state.active = false
-    state.generation = state.generation + 1
-    state.closePending = false
-    state.reclaimPending = false
-    state.onClose = nil
-    state.closeButton = nil
-    state.closeButtonAddress = nil
+    -- Closing is a transaction. Do not discard ownership records until the
+    -- blocking component, movement/look lease, and prior input context have all
+    -- been released. A failed stage rolls the same visible panel back to modal.
+    if cookedWasActive and not setCookedBridgeActive(bridge, false) then
+        setCookedBridgeActive(bridge, true)
+        log("cooked input bridge could not be detached")
+        return false
+    end
+    local isolationReleased = releaseInputIsolation()
+    local inputRestored = isolationReleased
+        and restoreInputContext(controller, controllerAddress, restoreContext)
+
+    if not isolationReleased or not inputRestored then
+        local isolationReclaimed = reclaimInputIsolation(isolation)
+        local bridgeReclaimed = not cookedWasActive
+            or setCookedBridgeActive(bridge, true)
+        local modalReclaimed = applyModalInput()
+        log("input restore failed; modal rollback isolation="
+            .. tostring(isolationReclaimed) .. " bridge="
+            .. tostring(bridgeReclaimed) .. " mode="
+            .. tostring(modalReclaimed))
+        return false
+    end
 
     if P.isValid(bridge) and P.isValid(button)
         and P.objectAddress(button) == buttonAddress then
@@ -473,33 +980,21 @@ function Bridge.release()
             button.OnClicked:Remove(bridge, "PalInsightSearchClearClicked")
         end)
     end
-    if P.isValid(bridge) then
-        pcall(function() bridge:UnregisterInputComponent() end)
-        pcall(function() bridge:SetInputActionBlocking(false) end)
-        pcall(function() bridge:RemoveFromParent() end)
-    end
 
-    local isolationReleased = releaseInputIsolation()
-    local inputRestored = true
-    if sameObject(controller, controllerAddress) and type(restoreContext) == "table" then
-        local library = widgetLibrary()
-        local focusWidget = focusIfAlive(restoreContext.focusWidget)
-        state.applyingInputMode = true
-        inputRestored = library ~= nil and pcall(function()
-            if restoreContext.mode == "UIOnly" then
-                library:SetInputMode_UIOnlyEx(controller, focusWidget,
-                    tonumber(restoreContext.mouseLockMode) or 0, false)
-            elseif restoreContext.mode == "GameAndUI" then
-                library:SetInputMode_GameAndUIEx(controller, focusWidget,
-                    tonumber(restoreContext.mouseLockMode) or 0,
-                    restoreContext.hideCursorDuringCapture == true, false)
-            else
-                library:SetInputMode_GameOnly(controller, true)
-            end
-            controller.bShowMouseCursor = restoreContext.showMouseCursor == true
-        end)
-        state.applyingInputMode = false
-    end
+    state.active = false
+    state.generation = state.generation + 1
+    state.closePending = false
+    state.reclaimPending = false
+    state.closeDispatchCallback = nil
+    state.reclaimCallback = nil
+    state.handlers = nil
+    state.modalUIOnly = false
+    state.hostedParent = false
+    state.cookedInputActive = false
+    state.keyboardQueue = {}
+    state.keyboardWakePending = false
+    state.closeButton = nil
+    state.closeButtonAddress = nil
 
     state.bridge = nil
     state.bridgeAddress = nil
@@ -508,11 +1003,9 @@ function Bridge.release()
     state.controller = nil
     state.controllerAddress = nil
     state.inputContext = nil
+    state.hostedFallbackContext = nil
     state.externalInputContext = nil
-    if not isolationReleased or not inputRestored then
-        log("input ownership was released with an incomplete restore")
-    end
-    return isolationReleased == true and inputRestored == true
+    return true
 end
 
 return Bridge
