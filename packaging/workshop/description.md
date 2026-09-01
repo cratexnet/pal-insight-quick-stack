@@ -78,8 +78,8 @@ Existing [code]PalInsightQuickStack-config.lua[/code] settings from 0.1.x are im
 
 [list]
 [*]Inventory [b]Tab > R[/b] ignored items unless [code]IncludeExcludedItems[/code] is enabled / [b]Tab > R[/b] 忽略项（除非启用包含已忽略物品）
-[*]Pal Eggs use incubators first; [code]PalEggRouting[/code] controls ordinary-storage fallback / 帕鲁蛋先进入孵蛋器，由 [code]PalEggRouting[/code] 决定是否回退普通仓库
-[*]Ancient Civilization Relics use Ancient Relic Recyclers first; [code]RelicRouting[/code] controls ordinary-storage fallback / 古代文明的遗物先进入古代遗物转换器，由 [code]RelicRouting[/code] 决定是否回退普通仓库
+[*][code]PalEggRouting[/code] can keep Pal Eggs in inventory, fall back from incubators to storage, or leave every egg for manual placement / [code]PalEggRouting[/code] 可让帕鲁蛋留在背包、从孵蛋器回退普通仓库，或全部交由玩家手动放置
+[*][code]RelicRouting[/code] can keep relics in inventory, fall back from Recyclers to storage, or leave every relic for manual placement / [code]RelicRouting[/code] 可让古代文明遗物留在背包、从转换器回退普通仓库，或全部交由玩家手动放置
 [*]Each recycler is topped up to [code]WorldTreeHolyWaterMinimum[/code] World Tree Holy Water (default 10, range 1-100); the remainder follows ordinary-storage rules / 每台转换器的世界树圣水补到 [code]WorldTreeHolyWaterMinimum[/code]（默认 10，范围 1-100），剩余圣水按普通仓库规则收纳
 [*][code]IncludeNewItems = false[/code] only restricts ordinary storage / 关闭 [code]IncludeNewItems[/code] 只限制普通仓库，不影响空孵蛋器或转换器槽位
 [/list]

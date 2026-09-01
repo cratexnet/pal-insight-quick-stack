@@ -126,11 +126,13 @@ local RESULT_DISPLAY_VALUES = {
 local PAL_EGG_ROUTING_VALUES = {
     IncubatorOnly = true,
     IncubatorThenStorage = true,
+    ManualPlacement = true,
 }
 
 local RELIC_ROUTING_VALUES = {
     RecyclerOnly = true,
     RecyclerThenStorage = true,
+    ManualPlacement = true,
 }
 
 function Settings.validateResultDisplay(value)
@@ -142,14 +144,14 @@ end
 
 function Settings.validatePalEggRouting(value)
     if type(value) ~= "string" or not PAL_EGG_ROUTING_VALUES[value] then
-        return nil, "PalEggRouting must be IncubatorOnly or IncubatorThenStorage"
+        return nil, "PalEggRouting must be IncubatorOnly, IncubatorThenStorage, or ManualPlacement"
     end
     return value, nil
 end
 
 function Settings.validateRelicRouting(value)
     if type(value) ~= "string" or not RELIC_ROUTING_VALUES[value] then
-        return nil, "RelicRouting must be RecyclerOnly or RecyclerThenStorage"
+        return nil, "RelicRouting must be RecyclerOnly, RecyclerThenStorage, or ManualPlacement"
     end
     return value, nil
 end
@@ -342,9 +344,9 @@ local function configText(config)
         "    -- IncludeExcludedItems never modifies the game's ignored-item list.",
         "    IncludeExcludedItems = " .. tostring(config.IncludeExcludedItems) .. ",",
         "    IncludeNewItems = " .. tostring(config.IncludeNewItems) .. ",",
-        "    -- IncubatorOnly or IncubatorThenStorage.",
+        "    -- IncubatorOnly, IncubatorThenStorage, or ManualPlacement.",
         string.format("    PalEggRouting = %q,", config.PalEggRouting),
-        "    -- RecyclerOnly or RecyclerThenStorage.",
+        "    -- RecyclerOnly, RecyclerThenStorage, or ManualPlacement.",
         string.format("    RelicRouting = %q,", config.RelicRouting),
         "    -- Minimum World Tree Holy Water per Ancient Relic Recycler (1-100).",
         "    WorldTreeHolyWaterMinimum = "

@@ -126,16 +126,18 @@ return {
 - `IncludeExcludedItems`：也收纳通过 `Tab → R` 忽略的物品，但不修改忽略列表。
 - `IncludeNewItems`：也使用尚未存有同种物品、但筛选允许的普通仓库空位。
 - `PalEggRouting`：`IncubatorOnly` 只使用孵化器；`IncubatorThenStorage` 在孵化器
-  不存在或已满时继续使用兼容的普通仓库。
+  不存在或已满时继续使用兼容的普通仓库；`ManualPlacement` 完全跳过帕鲁蛋，留给
+  玩家手动放置。
 - `RelicRouting`：`RecyclerOnly` 只使用古代遗物转换器；
-  `RecyclerThenStorage` 在转换器不存在或已满时继续使用兼容的普通仓库。
+  `RecyclerThenStorage` 在转换器不存在或已满时继续使用兼容的普通仓库；
+  `ManualPlacement` 完全跳过古代文明遗物，留给玩家手动放置。
 - `WorldTreeHolyWaterMinimum`：把当前基地每台古代遗物转换器中的世界树圣水补到
   指定数量，范围 `1–100`、默认 `10`；剩余圣水继续按普通仓库规则收纳。
 - `Debug`：开发日志；公开发布版本必须保持 `false`。
 
 旧配置中的 `ShowDetailedResults`、`OnlyExistingItems`、`IncludePalEggs`、
 `ExcludePalEggs`、`AltEggSorting`、`IncubatorsFirst` 和 `FillByChestFilter` 会自动
-迁移或移除。短期测试版的旧 `RelicRouting` 值也会迁移为新的两种路由。迁移后
+迁移或移除。短期测试版的旧 `RelicRouting` 值也会迁移为当前路由。迁移后
 Saved 配置会改写为新格式，旧版独立配置文件仍保持不变。
 
 ## 性能设计

@@ -16,10 +16,10 @@ return {
     -- Also stack items that do not yet exist in ordinary storage.
     IncludeNewItems = true,
 
-    -- "IncubatorOnly" or "IncubatorThenStorage".
+    -- "IncubatorOnly", "IncubatorThenStorage", or "ManualPlacement".
     PalEggRouting = "IncubatorOnly",
 
-    -- "RecyclerOnly" or "RecyclerThenStorage".
+    -- "RecyclerOnly", "RecyclerThenStorage", or "ManualPlacement".
     RelicRouting = "RecyclerOnly",
 
     -- Keep this many World Tree Holy Water in each Ancient Relic Recycler.

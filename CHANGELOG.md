@@ -2,103 +2,56 @@
 
 ## 1.0.0 - Unreleased
 
-Pal Insight: Quick Stack 1.0.0 是首个正式版本。它在最初的 F5 一键归箱
-基础上加入完整的收纳规则、专用设施路由、可操作的结果窗和游戏内设置，并进一步
-降低收纳时的掉帧和等待时间。
+Quick Stack 1.0.0 is the first stable release, adding configurable storage
+rules, a full settings panel, clearer results, and smoother storage runs.
 
-### 收纳规则
+### Storage rules
 
-- 在当前基地按 `F5`，即可把普通背包中的物品收纳到合适的仓库；装备、食物栏和
-  重要物品栏不会被处理，工会箱也永远不会成为自动收纳目标。
-- 默认遵循玩家通过 `Tab → R` 设置的忽略物品，同时允许把仓库中尚未出现过、但
-  符合仓库筛选规则的物品放入空位。两项行为均可独立调整。
-- 优先使用已经存有同种物品的仓库，再考虑筛选规则允许的其他仓库；找不到可用
-  空间时，物品会安全留在背包。
+- Press `F5` inside the current base to store eligible backpack items. Items
+  ignored through Inventory `Tab → R` stay in the backpack by default, and
+  Guild Chests are never used.
+- Choose whether `F5` also stores ignored items and item types not already
+  present in storage.
+- Pal Eggs use Incubators only by default, while Ancient Civilization Relics
+  use Ancient Relic Recyclers only. Either route can fall back to regular
+  storage or be set to manual placement so Quick Stack leaves that item type in
+  the backpack. Each Recycler keeps `10` World Tree Holy Water by default
+  (`1–100`).
 
-### 帕鲁蛋与古代文明的遗物
+### Results and settings
 
-- 帕鲁蛋默认只进入当前基地的空闲孵蛋器；也可选择在孵蛋器不存在或已满时继续
-  尝试普通仓库。
-- 古代文明的遗物默认只进入古代遗物转换器；也可选择在转换器不存在或已满时
-  继续尝试普通仓库。多个转换器会依次使用可用空间。
-- Quick Stack 会优先把当前基地每台古代遗物转换器中的世界树圣水补到 `10` 个；
-  该数量可在 `1–100` 之间调整，超出最低保留量的圣水仍按普通仓库规则收纳。
+- Choose Automatic, Text only, or Result window. Detailed results show stored,
+  ignored, and unstored items, and can be closed with mouse, keyboard, or
+  controller.
+- Press `F6` to open Quick Stack settings. With a compatible Pal Insight
+  version, the same panel opens inside Pal Insight. All 17 Palworld interface
+  languages are supported, and `0.1.0-beta.1` settings migrate automatically.
 
-### 提示与结果窗
+### Performance
 
-- 新增“自动”“仅文字”和“仅结果窗”三种提示方式。独立运行时会安全使用文字
-  提示；安装兼容版本的 Pal Insight 后，自动模式会在从背包页触发时显示详细结果，
-  在场景中直接触发时使用简洁文字提示。
-- 详细结果窗会分别列出已收纳、已忽略和未能收纳的物品，并显示原生图标、名称、
-  数量和汇总；未能收纳时会提示检查仓库空间、筛选或权限设置。
-- 结果窗支持鼠标、回车、空格、`Esc` 以及手柄确认/取消键关闭。关闭背包不会再
-  让结果窗失去光标或无法操作。
-- 结果列表会根据屏幕宽度自动调整列数，长物品名称不会覆盖数量；内容超过高度时
-  只滚动物品区域，标题和确认按钮保持可见。
+- Shortened storage stutter and waiting time while keeping destination checks
+  before every move. If a detailed result window cannot open safely, Quick
+  Stack falls back to a text notification.
 
-### 设置与兼容
-
-- Quick Stack 仍可完全独立运行，并通过
-  `%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua` 修改所有设置。
-  安装兼容版本的 Pal Insight 后，也可在
-  `F6 → Controls → Pal Insight: Quick Stack` 中直接调整。
-- 快捷键、设置界面、状态提示和结果窗均支持 Palworld 的全部 17 种界面语言；
-  默认快捷键仍为 `F5`。
-- 从 `0.1.0-beta.1` 升级时会自动导入旧配置并迁移已废弃的设置；原配置文件不会
-  被删除或覆盖。
-- 单人环境的核心收纳流程已经过实机迭代；多人游戏及专用服务器客户端仍未完成
-  完整验证，本版本不会把这些环境标记为已验证兼容。
-
-### 性能与可靠性
-
-- 缩短背包读取、物品分类和收纳规划之间不必要的逐帧等待，并复用同一轮已经确认
-  可用的目标仓库，减少收纳过程中的掉帧持续时间和重复请求。
-- 基地对象和仓库槽位仍按帧预算分批检查；提交前会再次确认玩家、物品和目标状态，
-  避免界面或仓库状态变化后把物品送往过期目标。
-- 同一时间只允许一个收纳任务运行，结果只统计已经确认从背包移出的物品；兼容桥
-  不可用或无法安全接管输入时，会自动退回为非交互式文字提示。
+The core single-player storage flow has been tested. Multiplayer and
+dedicated-server clients remain unverified.
 
 ## 0.1.0-beta.1 - 2026-08-30
 
-- 建立独立 Quick Stack 项目与运行时契约。
-- 默认快捷键改为 F5，并加入 `Shift`、`Ctrl`、`Alt` 手动配置。
-- 把用户配置放到 `%LOCALAPPDATA%\Pal\Saved`，避免创意工坊更新覆盖。
-- 使用当前基地复制列表和目标索引替代全局 UObject 扫描。
-- 支持 `Tab` → `R` 排除项、孵化器优先、已有物品优先和容器筛选。
-- 把库存、基地对象、槽位扫描和提交复核拆成有上限的游戏线程切片。
-- 将目标 RPC 串行化为每次一个目标，提交前重新检查状态。
-- 优先使用 `FindFirstOf` 解析本地 Controller，并用 UObject 地址复核目标，
-  避免首次全量枚举和 `GetFullName()` 热点。
-- 加入独立的游戏内“收纳中 / 收纳完成 / 请求已发送 / 已停止”通知；
-  “完成”只在来源背包槽位已复制出预期变化后显示。
-- 通知由 Palworld 侧边日志改为与 Pal Insight F7 相同的中央轻量状态条；
-  进行中文案持续显示，无操作和错误等短结果显示两秒。
-- F5 现在可在 `Tab` 的背包/装备页使用，同一套菜单中的其他页面仍会拦截；
-  判定使用缓存的当前内容指针，不扫描全局 Widget。
-- 加入可选的 Pal Insight F6 改键桥接；Quick Stack 继续独立校验、注册并把
-  新快捷键保存到自己的 Saved 配置，Pal Insight 未安装时不受影响。
-- 默认硬排除工会箱；工会箱类不可解析时安全停止，不回退为通用储存箱。
-- 成功收纳或兼容普通箱容量已满时显示 3 秒的详细结果卡；使用游戏原生
-  图标和本地化名称展示已收纳、`Tab` → `R` 已排除及未能收纳的物品数量，
-  只有排除项时仍保留短提示。
-- 详细结果卡改为 3 秒逐秒倒计时，并加入可立即关闭卡片的“确定”按钮；按钮
-  不抢夺键盘焦点，也不会改变游戏输入模式。
-- 详细结果卡改用 Pal Insight F6 的宽幅扁平层级；常规宽度每行四项、较窄窗口
-  每行三项，数量改为条目右侧的普通文本，避免和长物品名称重叠。
-- 存储空间已满时改用“部分物品未能收纳/未能收纳”标题，并把未成功分区置顶，
-  明确显示仍留在背包中的种类与件数；已收纳和已排除降为后续信息。
-- 按原生物品行的 `360 x 34` 布局宽度选择四列、三列或窄屏两列；隐藏原生行
-  装饰，将名称结构性裁切在固定数量列之前，修复长名称穿透、虚线分隔及内容
-  刚好放得下时仍出现滚动条的问题。
-- 图标、名称和数量改为共用同一物品格背景，取消数量的独立深色块，并采用
-  横向 `12`、纵向 `4` 的间距，避免数量在视觉上被误归到下一件物品。
-- 修正中央短提示的槽位对齐，使文字在框内水平、垂直居中。
-- 中央短提示改为在视口安全范围内自适应宽度；达到最大宽度后按确定预算换行并
-  自动增加高度，修复英文及其他长语言文字越出边框的问题。
-- 新增独立的 17 语言运行时文案，自动跟随 Palworld 当前界面语言并以英文
-  安全回退；同步补齐 Pal Insight F6 中 Quick Stack 快捷键行的 17 语言标签。
+### Initial beta
 
-Beta 验收边界：普通物品收纳、最新结果卡和短时任务链已完成单人实机迭代；
-帕鲁蛋完整矩阵、满箱失败结果、窄屏/超高滚动、Pal Insight 双加载顺序、
-量化性能 A/B、多人及专用服务器客户端仍待验收。发布文案不得把这些项目写成
-已验证能力。
+- Introduced standalone F5 quick storage for the normal backpack and current
+  base.
+- Added `Tab → R` ignored-item support, existing-stack priority, storage-filter
+  checks, Incubator priority for Pal Eggs, and a permanent Guild Chest block.
+- Added central progress notifications and a detailed result card for stored,
+  ignored, and unstored items.
+- Added Saved-directory shortcut configuration and an optional Pal Insight F6
+  shortcut editor.
+- Added all 17 Palworld interface languages.
+- Split storage scans into bounded steps and serialized destination requests to
+  reduce one-frame stalls and recheck state before each move.
+
+Beta validation covered the core single-player ordinary-item flow. Full Pal Egg
+coverage, narrow and tall result layouts, load-order combinations, multiplayer,
+and dedicated-server clients remained unverified.

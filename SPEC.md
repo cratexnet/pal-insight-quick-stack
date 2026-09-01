@@ -84,10 +84,14 @@ inventory item:
 
 1. A `Tab` -> `R` ignored item stays in the player inventory unless
    `IncludeExcludedItems = true`.
-2. An eligible Pal Egg uses available incubators first. `IncubatorOnly` leaves
-   any remainder in the inventory; `IncubatorThenStorage` continues through
+2. `PalEggRouting = "ManualPlacement"` leaves every eligible Pal Egg in the
+   inventory without scanning metadata or planning a destination. Otherwise an
+   eligible Pal Egg uses available incubators first. `IncubatorOnly` leaves any
+   remainder in the inventory; `IncubatorThenStorage` continues through
    ordinary-storage routing.
-3. An eligible Ancient Civilization Relic uses all compatible Ancient Relic
+3. `RelicRouting = "ManualPlacement"` leaves every eligible Ancient
+   Civilization Relic in the inventory without scanning metadata or planning a
+   destination. Otherwise an eligible relic uses all compatible Ancient Relic
    Recyclers in stable current-base discovery order. `RecyclerOnly` leaves any
    remainder in the inventory; `RecyclerThenStorage` continues through
    ordinary-storage routing.
@@ -109,11 +113,13 @@ accepted stack is split at the plan boundary: the accepted quantity is sent to
 the recycler and the remainder continues through ordinary-storage routing.
 
 `WorldTreeHolyWater` uses each recycler's dedicated `BoostItemContainer` before
-ordinary storage. Quick Stack tops up every Ancient Relic Recycler in stable
-current-base order to `WorldTreeHolyWaterMinimum` (default `10`, integer range
-`1..100`). If the backpack cannot satisfy every recycler, earlier recyclers are
-filled first. Water above the configured minimum continues through the ordinary
-storage route; ignored-item and ordinary-storage settings still apply.
+ordinary storage. This independent boost-item rule is unchanged by
+`RelicRouting = "ManualPlacement"`. Quick Stack tops up every Ancient Relic
+Recycler in stable current-base order to `WorldTreeHolyWaterMinimum` (default
+`10`, integer range `1..100`). If the backpack cannot satisfy every recycler,
+earlier recyclers are filled first. Water above the configured minimum
+continues through the ordinary storage route; ignored-item and ordinary-storage
+settings still apply.
 
 Guild Chests are excluded before any generic storage-class match and cannot
 become a destination under any setting combination.
@@ -262,6 +268,10 @@ fields is migrated or removed and rewritten canonically. Experimental
 `RelicRouting` values are migrated to `RecyclerOnly` or
 `RecyclerThenStorage`.
 
+`PalEggRouting` accepts `IncubatorOnly`, `IncubatorThenStorage`, or
+`ManualPlacement`. `RelicRouting` accepts `RecyclerOnly`,
+`RecyclerThenStorage`, or `ManualPlacement`.
+
 Manual edits made while the game is running are not required to hot-reload.
 Users should close the game, edit the writable file, and restart. Modifier
 examples must be documented; `Ctrl+S` is represented by `Key = "S"` and
@@ -271,7 +281,11 @@ examples must be documented; `Ctrl+S` is represented by `Key = "S"` and
 defaults for a fresh writable configuration and for Restore Defaults. An
 existing valid writable choice remains authoritative during an update; the
 runtime must not reinterpret or silently migrate an explicit
-`IncubatorThenStorage` or `RecyclerThenStorage` preference.
+`IncubatorThenStorage`, `RecyclerThenStorage`, or `ManualPlacement` preference.
+`ManualPlacement` is the third displayed choice for both routes. It takes
+priority over dedicated-facility and ordinary-storage routing, but does not
+change `Tab` -> `R` exclusion reporting or the independent World Tree Holy Water
+top-up rule.
 
 The shortcut selector rejects `F6`, `Escape`, and `LeftMouseButton`, because
 those inputs are owned by the settings surface itself. A chord already owned by

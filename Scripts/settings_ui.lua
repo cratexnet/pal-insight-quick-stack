@@ -1275,6 +1275,7 @@ currentStrings = function()
         eggRouting = "Pal Egg routing",
         eggOnly = "Incubators only",
         eggStorage = "Incubators, then storage",
+        manualPlacement = "Manual placement",
         relicRouting = "Ancient Relic routing",
         relicOnly = "Relic Recyclers only",
         relicStorage = "Relic Recyclers, then storage",
@@ -4360,12 +4361,14 @@ local function buildSettingsWindow(controller, mode)
             or not addSection(tree, body, strings.sectionSpecial, 16)
             or not addChoiceRow(tree, body, "PalEggRouting",
                 strings.eggRouting,
-                { "IncubatorOnly", "IncubatorThenStorage" },
-                { strings.eggOnly, strings.eggStorage }, false)
+                { "IncubatorOnly", "IncubatorThenStorage", "ManualPlacement" },
+                { strings.eggOnly, strings.eggStorage,
+                    strings.manualPlacement }, false)
             or not addChoiceRow(tree, body, "RelicRouting",
                 strings.relicRouting,
-                { "RecyclerOnly", "RecyclerThenStorage" },
-                { strings.relicOnly, strings.relicStorage }, true)
+                { "RecyclerOnly", "RecyclerThenStorage", "ManualPlacement" },
+                { strings.relicOnly, strings.relicStorage,
+                    strings.manualPlacement }, true)
             or not addNumberRow(tree, body, "WorldTreeHolyWaterMinimum",
                 strings.holyWater, 1, 100, false) then
             error("settings rows cannot be created")

@@ -426,14 +426,19 @@ local function scanInventorySlice(job)
             stackCount = math.floor(stackCount)
             local ignoredByUser = job.exclusions[staticId] == true
             local isEgg = isEggId(staticId)
+            local isRelic = isRelicId(staticId)
             local excludedByUser = ignoredByUser
                 and not job.config.IncludeExcludedItems
+            local manualPlacement =
+                (isEgg and job.config.PalEggRouting == "ManualPlacement")
+                or (isRelic
+                    and job.config.RelicRouting == "ManualPlacement")
             if excludedByUser then
                 addItemCount(job.excludedItems, job.excludedById,
                     staticId, rawStaticId, stackCount)
                 job.excludedTotal = job.excludedTotal + stackCount
             end
-            if not excludedByUser then
+            if not excludedByUser and not manualPlacement then
                 local slotIndex
                 local slotOk = pcall(function() slotIndex = tonumber(slot.SlotIndex) end)
                 if not slotOk or slotIndex == nil then
@@ -452,7 +457,7 @@ local function scanInventorySlice(job)
                     staticId = rawStaticId,
                     num = stackCount,
                     isEgg = isEgg,
-                    isRelic = isRelicId(staticId),
+                    isRelic = isRelic,
                     isHolyWater = staticId == WORLD_TREE_HOLY_WATER_ID,
                 }
                 job.items[#job.items + 1] = item

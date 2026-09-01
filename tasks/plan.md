@@ -120,7 +120,8 @@ Runtime contract proof
 
 ## Phase 6: Dedicated Facility Routing
 
-- [x] Define two-value Pal Egg and Ancient Civilization Relic routing contracts.
+- [x] Define Pal Egg and Ancient Civilization Relic routing contracts, including
+  an explicit third `ManualPlacement` choice that performs no automatic move.
 - [x] Prove the current-build recycler container and item-eligibility contracts;
   destination movement remains part of the representative in-game matrix.
 - [x] Add current-base recycler discovery without `FindAllOf` or a second base

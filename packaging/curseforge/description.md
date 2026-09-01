@@ -55,8 +55,8 @@ With a compatible [Pal Insight](https://www.curseforge.com/palworld/blueprint-co
 **Storage routing**
 
 - Inventory **Tab > R** ignored items are respected unless `IncludeExcludedItems` is enabled.
-- Pal Eggs use incubators first; `PalEggRouting` chooses whether any remainder stays in the inventory or falls back to ordinary storage.
-- Ancient Civilization Relics use Ancient Relic Recyclers first; `RelicRouting` chooses whether any remainder stays in the inventory or falls back to ordinary storage.
+- Pal Eggs use incubators first; `PalEggRouting` can keep any remainder in the inventory, fall back to ordinary storage, or leave all Pal Eggs for manual placement.
+- Ancient Civilization Relics use Ancient Relic Recyclers first; `RelicRouting` can keep any remainder in the inventory, fall back to ordinary storage, or leave all relics for manual placement.
 - Each Ancient Relic Recycler is topped up to `WorldTreeHolyWaterMinimum` World Tree Holy Water (default 10, range 1-100); the remainder follows ordinary-storage rules.
 - `IncludeNewItems = false` restricts ordinary storage to containers that already hold the same item; it does not disable empty incubators or recycler slots.
 

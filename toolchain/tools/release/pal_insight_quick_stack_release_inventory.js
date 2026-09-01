@@ -177,6 +177,12 @@ function assertQuickStackSettings(root) {
     /job\.config\.RelicRouting\s*==\s*"RecyclerThenStorage"/,
     'relic ordinary-storage fallback must honor RelicRouting');
   assert.match(quickStack,
+    /isEgg\s+and\s+job\.config\.PalEggRouting\s*==\s*"ManualPlacement"/,
+    'manual Pal Egg routing must skip automatic placement');
+  assert.match(quickStack,
+    /isRelic[\s\S]*?job\.config\.RelicRouting\s*==\s*"ManualPlacement"/,
+    'manual relic routing must skip automatic placement');
+  assert.match(quickStack,
     /not\s+job\.config\.IncludeNewItems\s+and\s+not\s+recheck\.entry\.isRecycler\s+and\s+not\s+recheck\.entry\.isRecyclerBoost\s+and\s+not\s+recheck\.containsNeeded/,
     'IncludeNewItems must be rechecked before submission');
   assert.match(quickStack,
@@ -223,8 +229,9 @@ function assertQuickStackSettings(root) {
   assert.match(settings,
     /parsed\.PalEggRouting\s*=\s*legacyExcludePalEggs[\s\S]*?"IncubatorOnly"\s+or\s+"IncubatorThenStorage"/,
   'legacy ExcludePalEggs must migrate to PalEggRouting');
-  assert.match(settings, /RecyclerOnly or RecyclerThenStorage/,
-    'writable configuration must document relic routing values');
+  assert.match(settings,
+    /RecyclerOnly, RecyclerThenStorage, or ManualPlacement/,
+    'writable configuration must document all relic routing values');
   assert.match(settings,
     /WorldTreeHolyWaterMinimum must be an integer from 1 to 100/,
     'writable configuration must validate the Holy Water minimum range');
@@ -238,6 +245,12 @@ function assertQuickStackSettings(root) {
     'Quick Stack must retain validation and persistence ownership');
   assert.doesNotMatch(settingsUi, /SetIsSelectingKey/,
     'settings UI must not call an unavailable selector-state setter');
+  assert.match(settingsUi,
+    /\{ "IncubatorOnly", "IncubatorThenStorage", "ManualPlacement" \}/,
+    'settings UI must expose manual Pal Egg placement as the third choice');
+  assert.match(settingsUi,
+    /\{ "RecyclerOnly", "RecyclerThenStorage", "ManualPlacement" \}/,
+    'settings UI must expose manual relic placement as the third choice');
   const topLevelLocalCount = settingsUi.split(/\r?\n/)
     .filter((line) => /^local\s+/.test(line)).reduce((count, line) => {
       if (/^local\s+function\s+/.test(line)) return count + 1;
@@ -422,6 +435,17 @@ function assertLocalizationCoverage(root) {
       assert.deepEqual(actualFormats, expectedFormats,
         `localization ${locale}.${key} format fields differ from English`);
     }
+  }
+  const settingsRows = localeRows(source, 'local SETTINGS_STRINGS =');
+  assert.deepEqual([...settingsRows.keys()].sort(), [...SUPPORTED_LOCALES].sort(),
+    'settings localization must define every supported Palworld locale');
+  const englishSettingsKeys = [...settingsRows.get('en').keys()].sort();
+  assert.ok(englishSettingsKeys.includes('manualPlacement'),
+    'settings localization must include the manual-placement choice');
+  for (const locale of SUPPORTED_LOCALES) {
+    assert.deepEqual([...settingsRows.get(locale).keys()].sort(),
+      englishSettingsKeys,
+      `settings localization ${locale} fields differ from English`);
   }
   const aboutRosterRows = localeRows(source,
     'local ABOUT_ROSTER_STRINGS =');

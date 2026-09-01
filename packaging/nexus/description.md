@@ -58,8 +58,8 @@ With a compatible [url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight[
 
 [list]
 [*]Inventory [b]Tab > R[/b] ignored items, unless [code]IncludeExcludedItems[/code] is enabled
-[*]Pal Eggs use incubators first; [code]PalEggRouting[/code] chooses whether any remainder stays in the inventory or falls back to ordinary storage
-[*]Ancient Civilization Relics use Ancient Relic Recyclers first; [code]RelicRouting[/code] chooses whether any remainder stays in the inventory or falls back to ordinary storage
+[*]Pal Eggs use incubators first; [code]PalEggRouting[/code] can keep any remainder in the inventory, fall back to ordinary storage, or leave all Pal Eggs for manual placement
+[*]Ancient Civilization Relics use Ancient Relic Recyclers first; [code]RelicRouting[/code] can keep any remainder in the inventory, fall back to ordinary storage, or leave all relics for manual placement
 [*]Each Ancient Relic Recycler is topped up to [code]WorldTreeHolyWaterMinimum[/code] World Tree Holy Water (default 10, range 1-100); the remainder follows ordinary-storage rules
 [*][code]IncludeNewItems = false[/code] restricts ordinary storage to containers that already hold the same item; it does not disable empty incubators or recycler slots
 [/list]
