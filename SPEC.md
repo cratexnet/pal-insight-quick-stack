@@ -240,6 +240,13 @@ truth:
 
 Workshop updates must not overwrite this file.
 
+Each configuration write first completes and closes a sibling `.tmp` file.
+When an authoritative file already exists, Quick Stack preserves it as `.bak`
+before promoting the temporary file and attempts to restore that backup if
+promotion fails. If the authoritative file is absent on startup, a
+structurally valid `.bak` file is loaded and restoration is attempted before
+legacy import or package defaults. A `.tmp` file is never authoritative.
+
 For compatibility with `0.1.x`, if the new file is absent and
 `PalInsightQuickStack-config.lua` exists, Quick Stack imports the validated
 legacy values into `PalInsightQuickStackSettings.lua`. The legacy file is not

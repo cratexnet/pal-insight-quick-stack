@@ -229,10 +229,6 @@ local function parseConfig(text)
     end
     local validatedRelicRouting = relicRouting ~= nil
         and select(1, Settings.validateRelicRouting(relicRouting)) or nil
-    if validatedRelicRouting == nil and relicRouting ~= nil then
-        parsed.RelicRouting = relicRouting == "KeepWhenFull"
-            and "RecyclerOnly" or "RecyclerThenStorage"
-    end
     local validatedResultDisplay = resultDisplay ~= nil
         and select(1, Settings.validateResultDisplay(resultDisplay)) or nil
     local needsRewrite = validatedResultDisplay == nil
@@ -358,16 +354,89 @@ local function configText(config)
     return table.concat(lines, "\n") .. "\n"
 end
 
-local function writeNewConfig(path, config)
-    local opened, file, openError = pcall(function() return io.open(path, "w") end)
-    if not opened or file == nil then return false, openError or "cannot open config" end
-    local payload = configText(config)
-    local wrote, writeResult = pcall(function() return file:write(payload) end)
-    local closed, closeResult = pcall(function() return file:close() end)
-    if not wrote or writeResult == nil or not closed or closeResult == nil then
-        return false, "cannot write config"
-    end
+local function removeFile(path)
+    local called, removed, removeError = pcall(function() return os.remove(path) end)
+    if not called then return false, removed end
+    if removed == nil then return false, removeError or "cannot remove file" end
     return true, nil
+end
+
+local function renameFile(source, destination)
+    local called, renamed, renameError = pcall(function()
+        return os.rename(source, destination)
+    end)
+    if not called then return false, renamed end
+    if renamed == nil then return false, renameError or "cannot rename file" end
+    return true, nil
+end
+
+local function writeFile(path, payload)
+    local opened, file, openError = pcall(function() return io.open(path, "w") end)
+    if not opened then return false, file or "cannot open config" end
+    if file == nil then return false, openError or "cannot open config" end
+    local wrote, writeResult, writeError = pcall(function() return file:write(payload) end)
+    local closed, closeResult, closeError = pcall(function() return file:close() end)
+    if not wrote then return false, writeResult or "cannot write config" end
+    if writeResult == nil then return false, writeError or "cannot write config" end
+    if not closed then return false, closeResult or "cannot close config" end
+    if closeResult == nil then return false, closeError or "cannot close config" end
+    return true, nil
+end
+
+local function writeNewConfig(path, config)
+    local temporaryPath = path .. ".tmp"
+    local backupPath = path .. ".bak"
+    removeFile(temporaryPath)
+    local wrote, writeError = writeFile(temporaryPath, configText(config))
+    if not wrote then
+        removeFile(temporaryPath)
+        return false, writeError
+    end
+
+    local currentText = readFile(path)
+    local preserved = currentText ~= nil
+    if preserved then
+        removeFile(backupPath)
+        local preservedOk, preserveError = renameFile(path, backupPath)
+        if not preservedOk then
+            removeFile(temporaryPath)
+            return false, "cannot preserve config: " .. tostring(preserveError)
+        end
+    end
+
+    local promoted, promoteError = renameFile(temporaryPath, path)
+    if not promoted then
+        local restored, restoreError = true, nil
+        if preserved then restored, restoreError = renameFile(backupPath, path) end
+        removeFile(temporaryPath)
+        if not restored then
+            return false, "cannot replace config: " .. tostring(promoteError)
+                .. "; backup restore failed: " .. tostring(restoreError)
+        end
+        return false, "cannot replace config: " .. tostring(promoteError)
+    end
+
+    removeFile(backupPath)
+    return true, nil
+end
+
+local function recoverConfigBackup(path, log)
+    local backupPath = path .. ".bak"
+    local backupText = readFile(backupPath)
+    if backupText == nil then return nil end
+    local parsed, parseError = parseConfig(backupText)
+    if parsed == nil then
+        log("writable config backup rejected: " .. tostring(parseError))
+        return nil
+    end
+    local restored, restoreError = renameFile(backupPath, path)
+    if restored then
+        removeFile(path .. ".tmp")
+        log("restored writable config backup: " .. path)
+    else
+        log("cannot restore writable config backup: " .. tostring(restoreError))
+    end
+    return backupText
 end
 
 function Settings.keyValue(keyName)
@@ -434,6 +503,7 @@ function Settings.load(log)
     local path = root .. "/Pal/Saved/PalInsightQuickStackSettings.lua"
     local legacyPath = root .. "/Pal/Saved/PalInsightQuickStack-config.lua"
     local text, readError = readFile(path)
+    if text == nil then text = recoverConfigBackup(path, log) end
     if text == nil then
         local legacyText = readFile(legacyPath)
         if legacyText ~= nil then
