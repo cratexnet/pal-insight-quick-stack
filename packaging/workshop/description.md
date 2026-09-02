@@ -40,9 +40,9 @@ Press [b]F5[/b] while standing inside your current base. Quick Stack moves match
 [*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight[/url] 是可选模组，不安装也可以正常使用 Quick Stack。
 [/list]
 
-The current Beta has been tested in single-player. Multiplayer and dedicated-server client behavior have not yet been verified.
+Quick Stack 1.0.0 has been tested in single-player. Multiplayer and dedicated-server client behavior have not yet been verified.
 
-当前 Beta 已完成单人测试；多人及专用服务器客户端行为尚未验证。
+Quick Stack 1.0.0 已完成单人测试；多人及专用服务器客户端行为尚未验证。
 
 [b]Do not combine Steam Workshop, Nexus, and CurseForge copies.[/b]
 
@@ -52,27 +52,25 @@ The current Beta has been tested in single-player. Multiplayer and dedicated-ser
 
 The default shortcut is [b]F5[/b]. / 默认快捷键为 [b]F5[/b]。
 
-[b]Standalone | 独立使用[/b]
+Press [b]F6[/b] to open Quick Stack's own settings panel. Change the shortcut,
+notification style, storage rules, special-item routing, and World Tree Holy
+Water minimum without editing files.
 
-Close the game and open the following file. / 关闭游戏后打开：
+按 [b]F6[/b] 打开 Quick Stack 自己的设置面板，无需手动修改文件即可调整快捷键、提示方式、收纳规则、特殊物品路由及每台转换器保留的世界树圣水数量。
 
-[code]%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua[/code]
+[b]With [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight 2.0.0 or later[/url] | 与 [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight 2.0.0 或更高版本[/url] 配合[/b]
 
-Change [b]Key[/b], [b]Shift[/b], [b]Ctrl[/b], [b]Alt[/b], [b]ResultDisplay[/b], [b]IncludeExcludedItems[/b], [b]IncludeNewItems[/b], [b]PalEggRouting[/b], [b]RelicRouting[/b], or [b]WorldTreeHolyWaterMinimum[/b], save the file, then restart the game. [code]ResultDisplay[/code] accepts [code]Default[/code] (automatic), [code]TextOnly[/code], or [code]ResultWindow[/code]. The result window requires a compatible Pal Insight and otherwise falls back safely to center-screen text. Workshop updates do not overwrite it.
+[b]F6 > Extensions > Pal Insight: Quick Stack[/b]
 
-修改 [b]Key[/b]、[b]Shift[/b]、[b]Ctrl[/b]、[b]Alt[/b]、[b]ResultDisplay[/b]、[b]IncludeExcludedItems[/b]、[b]IncludeNewItems[/b]、[b]PalEggRouting[/b]、[b]RelicRouting[/b] 或 [b]WorldTreeHolyWaterMinimum[/b]，保存后重新启动游戏。[code]ResultDisplay[/code] 可设为 [code]Default[/code]（自动）、[code]TextOnly[/code]（仅文字）或 [code]ResultWindow[/code]（仅结果窗）；结果窗需要兼容版本的 Pal Insight，否则会安全降级为中央短提示。创意工坊更新不会覆盖此文件。
+The same Quick Stack panel opens from Pal Insight's Extensions page. Quick
+Stack remains fully functional without Pal Insight; if Pal Insight is installed
+but disabled, [b]F6[/b] opens the standalone panel.
 
-Existing [code]PalInsightQuickStack-config.lua[/code] settings from 0.1.x are imported automatically and the old file is left unchanged.
+可从 Pal Insight 的“扩展”页面打开同一套 Quick Stack 设置。未安装 Pal Insight 时 Quick Stack 仍可独立使用；即使已经安装但没有启用 Pal Insight，[b]F6[/b] 也会打开独立设置面板。
 
-从 0.1.x 升级时会自动导入旧的 [code]PalInsightQuickStack-config.lua[/code]，旧文件保持不变。
+Settings are stored in [code]%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua[/code], so Workshop updates do not overwrite them. Existing [code]PalInsightQuickStack-config.lua[/code] settings from 0.1.x are imported automatically and the old file is left unchanged.
 
-[b]With a compatible [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight[/url] version | 与兼容版 [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight[/url] 配合[/b]
-
-[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]F6 > Controls > Pal Insight: Quick Stack[/b][/url]
-
-[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight[/url] lets you change the shortcut and all six Quick Stack settings in game. Quick Stack remains fully functional without it.
-
-[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight[/url] 可在游戏内修改快捷键和六项 Quick Stack 设置；未安装时，Quick Stack 仍可独立使用。
+设置保存在 [code]%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua[/code]，创意工坊更新不会覆盖。升级时会自动导入 0.1.x 的 [code]PalInsightQuickStack-config.lua[/code]，旧文件保持不变。
 
 [b]Storage routing | 收纳路由[/b]
 

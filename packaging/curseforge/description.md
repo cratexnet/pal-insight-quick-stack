@@ -42,20 +42,21 @@ unverified.
 
 The default shortcut is **F5**.
 
-For standalone use, close the game and open:
+Press **F6** to open Quick Stack's own settings panel. You can change the
+shortcut, notification style, storage rules, special-item routing, and World
+Tree Holy Water minimum without editing files.
 
-```text
-%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua
-```
+With **[Pal Insight 2.0.0 or later](https://www.curseforge.com/palworld/blueprint-code-mods/pal-insight)**
+active, open the same panel from:
 
-Change **Key**, **Shift**, **Ctrl**, **Alt**, **ResultDisplay**, **IncludeExcludedItems**, **IncludeNewItems**, **PalEggRouting**, **RelicRouting**, or **WorldTreeHolyWaterMinimum**, save the file, then restart the game. `ResultDisplay` accepts `Default` (automatic), `TextOnly`, or `ResultWindow`. The result window requires a compatible Pal Insight and otherwise falls back safely to center-screen text. Mod updates do not overwrite this Saved-directory configuration.
-Existing `PalInsightQuickStack-config.lua` settings from 0.1.x are imported automatically and the old file is left unchanged.
+**F6 > Extensions > Pal Insight: Quick Stack**
 
-With a compatible [Pal Insight](https://www.curseforge.com/palworld/blueprint-code-mods/pal-insight) version installed, press **F6** and open:
-
-**[Controls > Pal Insight: Quick Stack](https://www.curseforge.com/palworld/blueprint-code-mods/pal-insight)**
-
-[Pal Insight](https://www.curseforge.com/palworld/blueprint-code-mods/pal-insight) lets you change the shortcut and all six Quick Stack settings in game. Quick Stack remains fully functional without it.
+Quick Stack remains fully functional without Pal Insight. If Pal Insight is
+installed but disabled, **F6** correctly opens the standalone Quick Stack
+panel. Settings are stored in
+`%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua`, so mod updates do
+not overwrite them. Existing `PalInsightQuickStack-config.lua` settings from
+0.1.x are imported automatically and the old file is left unchanged.
 
 **Storage routing**
 

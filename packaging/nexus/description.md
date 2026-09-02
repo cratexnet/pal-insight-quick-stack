@@ -46,18 +46,22 @@ still unverified.
 
 The default shortcut is [b]F5[/b].
 
-For standalone use, close the game and open:
+Press [b]F6[/b] to open Quick Stack's own settings panel. You can change the
+shortcut, notification style, storage rules, special-item routing, and World
+Tree Holy Water minimum without editing files.
 
-[code]%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua[/code]
+With [url=https://www.nexusmods.com/palworld/mods/4638][b]Pal Insight 2.0.0 or later[/b][/url]
+active, open the same panel from:
 
-Change [b]Key[/b], [b]Shift[/b], [b]Ctrl[/b], [b]Alt[/b], [b]ResultDisplay[/b], [b]IncludeExcludedItems[/b], [b]IncludeNewItems[/b], [b]PalEggRouting[/b], [b]RelicRouting[/b], or [b]WorldTreeHolyWaterMinimum[/b], save the file, then restart the game. [code]ResultDisplay[/code] accepts [code]Default[/code] (automatic), [code]TextOnly[/code], or [code]ResultWindow[/code]. The result window requires a compatible Pal Insight and otherwise falls back safely to center-screen text. Mod updates do not overwrite this Saved-directory configuration.
-Existing [code]PalInsightQuickStack-config.lua[/code] settings from 0.1.x are imported automatically and the old file is left unchanged.
+[b]F6 > Extensions > Pal Insight: Quick Stack[/b]
 
-With a compatible [url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight[/url] version installed, press [b]F6[/b] and open:
-
-[url=https://www.nexusmods.com/palworld/mods/4638][b]Controls > Pal Insight: Quick Stack[/b][/url]
-
-[url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight[/url] lets you change the shortcut and all six Quick Stack settings in game. Quick Stack remains fully functional without it.
+Quick Stack remains fully functional without Pal Insight. If Pal Insight is
+installed but disabled, [b]F6[/b] correctly opens the standalone Quick Stack
+panel. Settings are stored in
+[code]%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua[/code], so mod
+updates do not overwrite them. Existing [code]PalInsightQuickStack-config.lua[/code]
+settings from 0.1.x are imported automatically and the old file is left
+unchanged.
 
 [b]Storage routing[/b]
 
