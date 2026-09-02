@@ -17,6 +17,7 @@ local RECYCLER_CLASS_PATH = "/Script/Pal.PalMapObjectRecyclerModel"
 
 local MAIN_MENU_CLASS_PATH =
     "/Game/Pal/Blueprint/UI/InGameMainMenu/WBP_InGameMainMenu.WBP_InGameMainMenu_C"
+local MAIN_MENU_CLASS_NAME = "WBP_InGameMainMenu_C"
 local INVENTORY_DISPLAY_CLASS_PATH =
     "/Game/Pal/Blueprint/UI/Inventory/WBP_InventoryEquipment_ForDisplay.WBP_InventoryEquipment_ForDisplay_C"
 
@@ -226,24 +227,41 @@ local function inventoryMenuIsActive()
     return typed and isInventory == true
 end
 
+local function rememberMainMenu(value)
+    local menu = Palworld.unwrap(value)
+    local address = Palworld.objectAddress(menu)
+    if address == nil then return false end
+    inputUi.mainMenu = menu
+    inputUi.mainMenuAddress = address
+    return true
+end
+
+local function backfillMainMenu()
+    if Palworld.isValid(inputUi.mainMenu) then return true end
+    if type(FindFirstOf) ~= "function" then return false end
+    local found, menu = pcall(FindFirstOf, MAIN_MENU_CLASS_NAME)
+    return found and rememberMainMenu(menu) or false
+end
+
 function Palworld.installInputUiTracking()
-    if inputUi.trackingReady then return true, nil end
+    if inputUi.trackingReady then
+        backfillMainMenu()
+        return true, nil
+    end
     if type(NotifyOnNewObject) ~= "function" then
         return false, "UE4SS object lifecycle API is unavailable"
     end
 
     local ok, errorMessage = pcall(NotifyOnNewObject,
         MAIN_MENU_CLASS_PATH, function(context)
-            local menu = Palworld.unwrap(context)
-            local address = Palworld.objectAddress(menu)
-            if address ~= nil then
-                inputUi.mainMenu = menu
-                inputUi.mainMenuAddress = address
-            end
+            rememberMainMenu(context)
             return false
         end)
     if not ok then return false, errorMessage end
     inputUi.trackingReady = true
+    -- NotifyOnNewObject 只观察后续构造；晚加载或热重载时补录现有菜单。
+    -- 查找只属于安装路径，不进入 F5 热路径。
+    backfillMainMenu()
     return true, nil
 end
 

@@ -319,6 +319,8 @@ local state = {
     shortcutFocusRestoreCallback = nil,
     toggleEventsSuppressed = false,
     synchronousNavigationUntil = {},
+    shortcutCaptureCancelKey = nil,
+    shortcutCaptureCancelUntil = 0.0,
     numberEdit = nil,
     lastPrepareDiagnostics = nil,
     trailingReleaseUntil = {},
@@ -2528,16 +2530,20 @@ local function activateFocused(source)
     return activateControl(control, source, nil)
 end
 
-selectorCapturing = function()
+local function activeShortcutCapture()
     for _, control in ipairs(state.controls or {}) do
         if control.kind == "shortcut" and P.isValid(control.widget) then
             local ok, selecting = pcall(function()
                 return control.widget:GetIsSelectingKey()
             end)
-            if ok and selecting == true then return true end
+            if ok and selecting == true then return control end
         end
     end
-    return false
+    return nil
+end
+
+selectorCapturing = function()
+    return activeShortcutCapture() ~= nil
 end
 
 local function shortcutControlForSelector(selector)
@@ -2573,6 +2579,31 @@ local function selectorSelectedKeyHook(context, chordParam)
     state.synchronousNavigationUntil[keyName] = os.clock() + 0.30
 end
 
+local function cancelShortcutCapture(keyName)
+    local control = activeShortcutCapture()
+    if control == nil then return false end
+    local persisted = {
+        Key = state.config.Key,
+        Shift = state.config.Shift,
+        Ctrl = state.config.Ctrl,
+        Alt = state.config.Alt,
+    }
+    keyName = tostring(keyName or "")
+    if keyName ~= "" then
+        InputOwner.discardPendingKey(keyName)
+        state.synchronousNavigationUntil[keyName] = os.clock() + 0.30
+        state.shortcutCaptureCancelKey = keyName
+        state.shortcutCaptureCancelUntil = os.clock() + 0.50
+    end
+    setSelectorChord(control.widget, persisted)
+    control.last = chordSignature(persisted)
+    control.selecting = false
+    scheduleShortcutFocusRestore(control)
+    refreshShortcutDisplay(control, false)
+    refreshShortcutConflictWarning()
+    return true
+end
+
 local function claimSynchronousNavigation(keyName, source)
     if type(keyName) ~= "string" then return false end
     local now = os.clock()
@@ -2594,7 +2625,19 @@ local function handlePressed(keyName, device, source, shiftDown)
             or inputKeyDown(state.controller, "RightShift") == true
     end
     FooterGuide.markInputDevice(device)
-    if selectorCapturing() then return true end
+    if state.shortcutCaptureCancelKey == keyName then
+        if os.clock() < (tonumber(state.shortcutCaptureCancelUntil) or 0.0) then
+            return true
+        end
+        state.shortcutCaptureCancelKey = nil
+        state.shortcutCaptureCancelUntil = 0.0
+    end
+    if selectorCapturing() then
+        if keyName == "Gamepad_FaceButton_Right" then
+            return cancelShortcutCapture(keyName)
+        end
+        return true
+    end
     local navigationAxis = state.navigationDirection(keyName)
     if navigationAxis == nil then cancelNavigationRepeat() end
     if navigationAxis ~= nil and navigationRepeatOwnsPress(keyName) then return true end
@@ -2771,6 +2814,12 @@ local function handleReleased(keyName)
     if type(keyName) == "string" then
         state.synchronousNavigationUntil[keyName] = nil
         cancelNavigationRepeat(keyName)
+    end
+    if state.shortcutCaptureCancelKey == keyName then
+        state.shortcutCaptureCancelKey = nil
+        state.shortcutCaptureCancelUntil = 0.0
+        state.gamepadBackDown = false
+        return true
     end
     if state.aboutOpen == true then
         if keyName == "Gamepad_FaceButton_Bottom" then
@@ -3491,7 +3540,13 @@ local function mouseLeaveHook(context)
     state.pointerAction = nil
     local changedDevice = FooterGuide.markInputDevice("mouse")
     ensureSettingsCursor()
-    focusNavigationRoot()
+    local edit = state.numberEdit
+    if type(edit) == "table" and edit.mode == "mouse"
+        and type(edit.control) == "table" then
+        commitNumberEditor(edit.control, "number-pointer-leave", true)
+    else
+        focusNavigationRoot()
+    end
     if changedDevice then refreshInputFocusVisuals() end
     return nil
 end
@@ -6403,6 +6458,8 @@ function SettingsUI.open(mode, options)
     state.pendingAboutPointerClose = nil
     cancelNavigationRepeat()
     state.synchronousNavigationUntil = {}
+    state.shortcutCaptureCancelKey = nil
+    state.shortcutCaptureCancelUntil = 0.0
     state.trailingReleaseUntil = {}
     if not prepareWindowForOpen(mode) then
         state.open = false
@@ -6502,6 +6559,8 @@ completeClose = function(closedMode, reason, widget, controller, escapeClose)
     state.pointerAction = nil
     state.pendingAboutPointerClose = nil
     state.synchronousNavigationUntil = {}
+    state.shortcutCaptureCancelKey = nil
+    state.shortcutCaptureCancelUntil = 0.0
     if preserveWindow and P.isValid(widget) then
         local hidden = pcall(function()
             widget.bIsFocusable = false
