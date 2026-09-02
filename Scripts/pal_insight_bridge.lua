@@ -754,12 +754,14 @@ end
 local function discardBridgeCache()
     local cache = state.bridgeCache
     local bridge = type(cache) == "table" and cache.bridge or nil
-    if P.isValid(bridge) then
-        pcall(function() bridge:UnregisterInputComponent() end)
-        pcall(function() bridge:SetInputActionBlocking(false) end)
-        pcall(function() bridge:RemoveFromParent() end)
+    if not P.isValid(bridge) then
+        state.bridgeCache = nil
+        return true
     end
+    if not setCookedBridgeActive(bridge, false) then return false end
+    if pcall(function() bridge:RemoveFromParent() end) ~= true then return false end
     state.bridgeCache = nil
+    return true
 end
 
 local function prepareBridgeCache(controller)
@@ -776,7 +778,7 @@ local function prepareBridgeCache(controller)
         return cache.bridge, true
     end
     if state.active then return nil, false end
-    if cache ~= nil then discardBridgeCache() end
+    if cache ~= nil and not discardBridgeCache() then return nil, false end
     if worldAddress == nil or controllerAddress == nil then return nil, false end
     local library = widgetLibrary()
     local bridgeClass = P.staticObject(BRIDGE_CLASS_PATH)
@@ -869,13 +871,7 @@ function Bridge.acquire(controller, ownerWidget, options)
     if cookedAvailable then
         bridge, bridgeCacheHit = prepareBridgeCache(controller)
         if not P.isValid(bridge) then return false, "bridge widget cannot be prepared" end
-        local prepared = pcall(function()
-            bridge:UnregisterInputComponent()
-            bridge:SetInputActionPriority(BRIDGE_PRIORITY)
-            bridge:SetInputActionBlocking(true)
-            bridge:RegisterInputComponent()
-        end)
-        bridgeAddress = prepared and P.objectAddress(bridge) or nil
+        bridgeAddress = P.objectAddress(bridge)
     end
     local controllerAddress = P.objectAddress(controller)
     local ownerWidgetAddress = P.objectAddress(ownerWidget)
@@ -905,15 +901,6 @@ function Bridge.acquire(controller, ownerWidget, options)
         return false, "bridge input ownership cannot be prepared"
     end
 
-    local nativeInputActive = false
-    if exclusiveController and not hostedParent then
-        local nativeAcquired, nativeError = NativeSettingsInput.acquire()
-        if not nativeAcquired then
-            if P.isValid(bridge) then setCookedBridgeActive(bridge, false) end
-            return false, nativeError or "native controller isolation is unavailable"
-        end
-        nativeInputActive = true
-    end
 
     state.generation = state.generation + 1
     state.bridge = bridge
@@ -928,17 +915,41 @@ function Bridge.acquire(controller, ownerWidget, options)
     state.handlers = handlers
     state.modalUIOnly = modalUIOnly
     state.hostedParent = hostedParent
-    state.cookedInputActive = cookedAvailable == true
-    state.nativeInputActive = nativeInputActive
+    state.cookedInputActive = false
+    state.nativeInputActive = false
     state.active = true
     state.closePending = false
     state.reclaimPending = false
+
+    if cookedAvailable then
+        -- Record the conservative lease before the first fallible mutation. A
+        -- partial activation must remain visible to the normal/watchdog release
+        -- transaction instead of becoming an ownerless blocking component.
+        state.cookedInputActive = true
+        if not setCookedBridgeActive(bridge, true) then
+            local released = Bridge.release()
+            return false, "cooked input bridge cannot be activated",
+                released ~= true and state.active == true
+        end
+    end
+
+    if exclusiveController and not hostedParent then
+        local nativeAcquired, nativeError = NativeSettingsInput.acquire()
+        state.nativeInputActive = nativeAcquired == true
+            or NativeSettingsInput.active()
+        if not nativeAcquired then
+            local released = Bridge.release()
+            return false, nativeError or "native controller isolation is unavailable",
+                released ~= true and state.active == true
+        end
+    end
+
     state.lastAcquireDiagnostics = {
         bridgeAvailable = cookedAvailable == true,
         bridgeCacheHit = bridgeCacheHit == true,
         bridgeCreated = cookedAvailable == true and bridgeCacheHit ~= true,
         bridgeMounted = cookedAvailable == true and bridgeCacheHit ~= true,
-        nativeInputActive = nativeInputActive,
+        nativeInputActive = state.nativeInputActive == true,
     }
 
     if not acquireInputIsolation(controller) or not applyModalInput() then

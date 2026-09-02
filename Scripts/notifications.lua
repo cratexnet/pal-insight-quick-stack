@@ -90,6 +90,7 @@ local state = {
     widget = nil,
     buildWidget = nil,
     detailVisible = false,
+    inputOwned = false,
     closeButton = nil,
     itemRowClass = nil,
     itemRowLoadAttempts = 0,
@@ -224,8 +225,16 @@ local function styleActionButton(button)
 end
 
 local function clear()
+    if state.inputOwned and not ResultDialogBridge.release() then
+        if P.isValid(state.widget) then
+            pcall(function() state.widget:SetRenderOpacity(1.0) end)
+        end
+        ResultDialogBridge.focusCloseButton()
+        logWarning("result dialog input release failed: ",
+            "modal transaction retained")
+        return false
+    end
     state.token = state.token + 1
-    ResultDialogBridge.release()
     if P.isValid(state.widget) then
         pcall(function() state.widget:RemoveFromParent() end)
     end
@@ -235,7 +244,9 @@ local function clear()
     state.widget = nil
     state.buildWidget = nil
     state.detailVisible = false
+    state.inputOwned = false
     state.closeButton = nil
+    return true
 end
 
 local function creationRoots(controller)
@@ -786,7 +797,7 @@ local function createResultFooter(tree, strings)
 end
 
 local function showCompact(controller, message, color)
-    clear()
+    if not clear() then return nil end
     local widget, tree, _, _, createError = createOwnerWidget(controller)
     if widget == nil then warnOnce(createError); return nil end
     local valueText = makeText(tree, message, 13, COLORS.text,
@@ -1047,17 +1058,32 @@ local function mountDetailedBuild(build)
         build.widget, build.tree, build.layout,
         build.metrics.width, build.height)
     if not framed then error(frameError) end
-    clear()
+    if not clear() then
+        error("existing result input ownership cannot be released")
+    end
     state.widget = build.widget
     state.detailVisible = true
     state.closeButton = build.closeButton
     local dialogToken = state.token
-    local acquired, acquireError = ResultDialogBridge.acquire(
+    local acquired, acquireError, retainedTransaction = ResultDialogBridge.acquire(
         build.controller, build.widget, function()
             if state.token == dialogToken and state.detailVisible then clear() end
         end)
-    if not acquired or not ResultDialogBridge.bindCloseButton(state.closeButton) then
-        clear()
+    state.inputOwned = acquired == true or retainedTransaction == true
+    local closeBound = acquired
+        and ResultDialogBridge.bindCloseButton(state.closeButton)
+    if not acquired or not closeBound then
+        if retainedTransaction ~= true then
+            retainedTransaction = clear() ~= true
+        end
+        if retainedTransaction == true then
+            build.widget = nil
+            ResultDialogBridge.focusCloseButton()
+            logWarning("result dialog input acquisition failed: ",
+                tostring(acquireError or "close-button bridge is unavailable")
+                    .. "; modal transaction retained")
+            return true
+        end
         -- Keep the compact fallback eligible after the mounted candidate and
         -- its partial input lease have been rolled back.
         build.originToken = state.token
