@@ -1084,11 +1084,6 @@ local function refreshTriggerSurfaces()
         if P.isValid(record.widget) and P.isValid(record.surface) then
             local focused = false
             local hovered = false
-            if state.lastInputDevice ~= "mouse" then
-                pcall(function()
-                    focused = record.widget:HasKeyboardFocus() == true
-                end)
-            end
             pcall(function() hovered = record.widget:IsHovered() == true end)
             -- Match Pal Insight: the virtual selection survives device changes;
             -- mouse hover is only a transient visual on another control.
@@ -1308,13 +1303,6 @@ local function refreshShortcutDisplay(control, selecting)
     end
     local focused = selecting == true
     local hovered = false
-    if P.isValid(control.widget) and not focused
-        and state.lastInputDevice ~= "mouse" then
-        local ok, value = pcall(function()
-            return control.widget:HasKeyboardFocus()
-        end)
-        focused = ok and value == true
-    end
     if P.isValid(control.widget) then
         pcall(function() hovered = control.widget:IsHovered() == true end)
     end
@@ -1336,9 +1324,6 @@ end
 local function refreshToggleDisplay(control)
     if type(control) ~= "table" or not P.isValid(control.widget) then return end
     local focused = false
-    if state.lastInputDevice ~= "mouse" then
-        pcall(function() focused = control.widget:HasKeyboardFocus() == true end)
-    end
     if control.focusIndex == state.focusIndex then focused = true end
     local signature = focused and "focus" or "normal"
     if signature == control.visualSignature then return end
@@ -1357,11 +1342,8 @@ end
 local function refreshRowDisplay(control)
     if type(control) ~= "table" or not P.isValid(control.rowFrame) then return end
     local focused = false
-    if P.isValid(control.widget) and state.lastInputDevice ~= "mouse" then
-        pcall(function() focused = control.widget:HasKeyboardFocus() == true end)
-    end
-    if focused and control.focusIndex ~= nil then
-        state.focusIndex = control.focusIndex
+    if control.passive == true then
+        focused = false
     elseif control.focusIndex == state.focusIndex then
         focused = true
     end
