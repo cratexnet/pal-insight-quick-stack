@@ -2079,24 +2079,17 @@ end
 
 local closeChoiceModal
 local openChoiceModal
-local openResetConfirmation
-local buildChoiceModal
+local Deferred = {}
 local ensureChoiceModal
-local openAboutModal
 local closeAboutModal
-local buildAboutModal
-local ensureAboutModal
 local moveAboutFocus
 local activateAboutAction
-local openAboutRoster
 local closeAboutRoster
-local openAboutPreview
 local closeAboutPreview
 local logicalViewportSize
 local commitNumberEditor
 local focusedNumberControl
 local handleNumberPreview
-local beginNumberEditor
 local commitNumber
 local selectorCapturing
 local windowCacheMatches
@@ -2531,7 +2524,7 @@ local function activateControl(control, source, returnFocusIndex)
         local mode = sourceName == "mouse" and "mouse"
             or sourceName:find("^gamepad") ~= nil and "controller"
             or "keyboard"
-        return beginNumberEditor(control, mode)
+        return Deferred.beginNumberEditor(control, mode)
     elseif control.kind == "shortcut" then
         local sourceName = tostring(source or "")
         if sourceName:find("^gamepad") ~= nil then
@@ -2554,9 +2547,9 @@ local function activateControl(control, source, returnFocusIndex)
     elseif control.kind == "steamVote" then
         return activateSteamVote()
     elseif control.kind == "about" then
-        return openAboutModal()
+        return Deferred.openAboutModal()
     elseif control.kind == "reset" then
-        return openResetConfirmation(returnFocusIndex
+        return Deferred.openResetConfirmation(returnFocusIndex
             or control.focusIndex or state.focusIndex)
     elseif control.kind == "close" then
         return SettingsUI.close(source or "activate")
@@ -3022,7 +3015,7 @@ do
     state.numberEditorOps.numberEditorRawText = numberEditorRawText
 end
 
-beginNumberEditor = function(control, mode)
+Deferred.beginNumberEditor = function(control, mode)
     if type(control) ~= "table" or control.kind ~= "number"
         or not P.isValid(control.widget) then return false end
     mode = mode == "mouse" and "mouse"
@@ -4338,7 +4331,7 @@ openChoiceModal = function(control, returnFocusIndex)
     return true
 end
 
-openResetConfirmation = function(sourceIndex)
+Deferred.openResetConfirmation = function(sourceIndex)
     if state.activeChoice ~= nil or not ensureChoiceModal() then return false end
     local edit = state.numberEdit
     if type(edit) == "table" and type(edit.control) == "table" then
@@ -4386,7 +4379,7 @@ openResetConfirmation = function(sourceIndex)
     return true
 end
 
-buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
+Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
     local overlay = construct(tree, "/Script/UMG.CanvasPanel")
     local dim = construct(tree, "/Script/UMG.Border")
     local cardBox = construct(tree, "/Script/UMG.SizeBox")
@@ -4467,7 +4460,7 @@ ensureChoiceModal = function()
     if P.isValid(state.nestedOverlay) then return true end
     if not P.isValid(state.widgetTree) or not P.isValid(state.root) then return false end
     local viewportWidth, viewportHeight = logicalViewportSize(state.controller)
-    local built = buildChoiceModal(state.widgetTree, state.root,
+    local built = Deferred.buildChoiceModal(state.widgetTree, state.root,
         viewportWidth, viewportHeight)
     if built and InputOwner.cookedInputActive()
         and not InputOwner.bindActionButtons(state.directActionButtons) then
@@ -4910,9 +4903,9 @@ activateAboutAction = function()
         tonumber(state.aboutFocusIndex) or 1]
     if type(action) ~= "table" then return false end
     if action.kind == "close" then return closeAboutModal(true) end
-    if action.kind == "preview" then return openAboutPreview() end
+    if action.kind == "preview" then return Deferred.openAboutPreview() end
     if action.kind == "roster" then
-        return openAboutRoster(action.rosterMode)
+        return Deferred.openAboutRoster(action.rosterMode)
     end
     if action.kind == "link" then
         local opened = openAboutUrl(action.urlKey)
@@ -4939,7 +4932,7 @@ closeAboutPreview = function(restoreFocus, refreshVisuals)
     return true
 end
 
-openAboutPreview = function()
+Deferred.openAboutPreview = function()
     if state.aboutOpen ~= true or not P.isValid(state.aboutPreviewOverlay) then
         return false
     end
@@ -4971,7 +4964,7 @@ closeAboutRoster = function(restoreFocus, refreshVisuals)
     return true
 end
 
-openAboutRoster = function(mode)
+Deferred.openAboutRoster = function(mode)
     if state.aboutOpen ~= true
         or (mode ~= "thanks" and mode ~= "supporters") then return false end
     local overlay = (state.aboutRosterOverlays or {})[mode]
@@ -5010,8 +5003,8 @@ closeAboutModal = function(restoreFocus)
     return wasOpen
 end
 
-openAboutModal = function()
-    if not ensureAboutModal() then return false end
+Deferred.openAboutModal = function()
+    if not Deferred.ensureAboutModal() then return false end
     closeChoiceModal(false)
     local edit = state.numberEdit
     if type(edit) == "table" and type(edit.control) == "table" then
@@ -5036,13 +5029,13 @@ openAboutModal = function()
     return true
 end
 
-ensureAboutModal = function()
+Deferred.ensureAboutModal = function()
     if P.isValid(state.aboutOverlay) then return true end
     if not state.open or not P.isValid(state.widgetTree)
         or not P.isValid(state.root) then return false end
     local viewportWidth, viewportHeight, viewportScale =
         logicalViewportSize(state.controller)
-    local built = buildAboutModal(state.widgetTree, state.root, currentStrings(),
+    local built = Deferred.buildAboutModal(state.widgetTree, state.root, currentStrings(),
         viewportWidth, viewportHeight, viewportScale)
     if built and InputOwner.cookedInputActive()
         and not InputOwner.bindActionButtons(state.directActionButtons) then
@@ -5051,7 +5044,7 @@ ensureAboutModal = function()
     return built
 end
 
-buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight,
+Deferred.buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight,
         viewportScale)
     local overlay = construct(tree, "/Script/UMG.CanvasPanel")
     local dim = construct(tree, "/Script/UMG.Border")

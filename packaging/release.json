@@ -7,7 +7,7 @@
   "releaseType": "release",
   "game": "Palworld",
   "gameVersion": "1.0",
-  "platform": "Steam",
+  "platform": "Steam / WinGDK",
   "runtime": "UE4SS Experimental (Palworld)",
   "runtimePackage": "UE4SSExperimentalPW",
   "languages": [

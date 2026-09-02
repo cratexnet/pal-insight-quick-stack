@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.0.0 - Unreleased
+## 1.0.0 - 2026-09-03
 
 Quick Stack 1.0.0 is the first stable release, adding configurable storage
 rules, a full settings panel, clearer results, and smoother storage runs.
@@ -32,6 +32,12 @@ rules, a full settings panel, clearer results, and smoother storage runs.
 - Shortened storage stutter and waiting time while keeping destination checks
   before every move. If a detailed result window cannot open safely, Quick
   Stack falls back to a text notification.
+
+### Distribution
+
+- Added separate Steam/Win64 and Xbox App / PC Game Pass / Microsoft Store
+  WinGDK packages on Nexus Mods and CurseForge. WinGDK packaging passes static
+  validation; representative Game Pass runtime acceptance remains unverified.
 
 The core single-player storage flow has been tested. Multiplayer and
 dedicated-server clients remain unverified.

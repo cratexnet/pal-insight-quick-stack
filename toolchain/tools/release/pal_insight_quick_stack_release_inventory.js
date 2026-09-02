@@ -8,7 +8,13 @@ const path = require('node:path');
 const PACKAGE_NAME = 'PalInsightQuickStack';
 const PORTABLE_RUNTIME_ROOT =
   `Pal/Binaries/Win64/ue4ss/Mods/${PACKAGE_NAME}`;
-const RELEASE_CHANNELS = Object.freeze(['nexus', 'curseforge', 'workshop']);
+const GAME_PASS_RUNTIME_ROOT =
+  `Pal/Binaries/WinGDK/ue4ss/Mods/${PACKAGE_NAME}`;
+const RELEASE_CHANNELS = Object.freeze([
+  'nexus', 'nexus-gamepass',
+  'curseforge', 'curseforge-gamepass',
+  'workshop',
+]);
 const SUPPORTED_LOCALES = Object.freeze([
   'en', 'zh-hans', 'zh-hant', 'ja', 'ko', 'de', 'fr', 'it', 'es',
   'pt-br', 'ru', 'tr', 'pl', 'id', 'es-419', 'th', 'vi',
@@ -787,13 +793,15 @@ function createChannelPlan(channel) {
     source: relative,
     target: relative,
   })));
+  const runtimeRoot = channel.endsWith('-gamepass')
+    ? GAME_PASS_RUNTIME_ROOT : PORTABLE_RUNTIME_ROOT;
   entries.push(...RUNTIME_FILES.map((relative) => ({
     source: relative,
-    target: `${PORTABLE_RUNTIME_ROOT}/${relative}`,
+    target: `${runtimeRoot}/${relative}`,
   })));
   entries.push(...COMMON_NATIVE_FILES.map((entry) => ({
     source: entry.source,
-    target: `${PORTABLE_RUNTIME_ROOT}/${entry.target}`,
+    target: `${runtimeRoot}/${entry.target}`,
   })));
   return entries;
 }
@@ -840,7 +848,8 @@ function runCli(argv) {
   assert.ok(['prebuild', 'artifact'].includes(options.phase),
     'usage: node pal_insight_quick_stack_release_inventory.js '
       + '<prebuild|artifact> [--root PATH] '
-      + '[--channel nexus|curseforge|workshop --artifact PATH]');
+      + '[--channel nexus|nexus-gamepass|curseforge|curseforge-gamepass|workshop '
+      + '--artifact PATH]');
   const version = assertPrebuild(options.root);
   if (options.phase === 'artifact') {
     assert.ok(RELEASE_CHANNELS.includes(options.channel),
@@ -869,6 +878,7 @@ if (require.main === module) {
 module.exports = {
   ABOUT_FILES,
   COMMON_NATIVE_FILES,
+  GAME_PASS_RUNTIME_ROOT,
   PACKAGE_NAME,
   PORTABLE_RUNTIME_ROOT,
   PUBLIC_DOCUMENTS,

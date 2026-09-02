@@ -1,10 +1,12 @@
 # Release packaging
 
-Quick Stack has one runtime source and two installed layouts.
+Quick Stack has one runtime source and three installed layouts.
 
 ## Nexus and CurseForge
 
-The portable ZIP is extracted into the Palworld folder that contains `Pal`:
+Nexus and CurseForge each receive two separately named portable ZIPs. The
+standard archive is extracted into the Steam Palworld folder that contains
+`Pal`:
 
 ```text
 CHANGELOG.md
@@ -17,8 +19,24 @@ Pal/Binaries/Win64/ue4ss/Mods/PalInsightQuickStack/
   assets/about/
 ```
 
-Nexus and CurseForge use the same sealed ZIP. The user supplies the
-Palworld-specific experimental UE4SS runtime separately.
+Nexus and CurseForge use byte-identical sealed ZIPs for each matching layout.
+The user supplies the Palworld-specific experimental UE4SS runtime separately.
+
+The Game Pass archive has the same contents under the WinGDK runtime root:
+
+```text
+CHANGELOG.md
+CREDITS.md
+LICENSE.md
+README.md
+Pal/Binaries/WinGDK/ue4ss/Mods/PalInsightQuickStack/
+  enabled.txt
+  Scripts/
+  assets/about/
+```
+
+It is for the Xbox App / PC Game Pass / Microsoft Store build only. Static
+package validation does not count as a representative in-game WinGDK test.
 
 ## Steam Workshop
 
@@ -30,7 +48,7 @@ Before assembling that package, build the Quick Stack-specific vote helper:
 & .\native\steam_vote\build.ps1
 ```
 
-All three channels include `assets/about/`, which contains the same About-panel
+All distributions include `assets/about/`, which contains the same About-panel
 logos and product preview used by the runtime. The Workshop artifact alone also
 includes `Scripts/PalInsightQuickStackSteamVote.dll` and the three feedback
 icons. Nexus and CurseForge omit only the vote helper and feedback icons.
@@ -60,7 +78,9 @@ After an artifact is assembled and before upload:
 
 ```powershell
 node .\toolchain\tools\release\pal_insight_quick_stack_release_inventory.js artifact --root . --channel nexus --artifact <directory>
+node .\toolchain\tools\release\pal_insight_quick_stack_release_inventory.js artifact --root . --channel nexus-gamepass --artifact <directory>
 node .\toolchain\tools\release\pal_insight_quick_stack_release_inventory.js artifact --root . --channel curseforge --artifact <directory>
+node .\toolchain\tools\release\pal_insight_quick_stack_release_inventory.js artifact --root . --channel curseforge-gamepass --artifact <directory>
 node .\toolchain\tools\release\pal_insight_quick_stack_release_inventory.js artifact --root . --channel workshop --artifact <directory>
 ```
 

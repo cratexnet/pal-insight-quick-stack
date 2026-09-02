@@ -38,7 +38,10 @@ settings as an optional convenience and discovery path.
 
 ## Assumptions
 
-1. The first release targets Palworld 1.0 on Steam with Workshop UE4SS.
+1. The first release targets Palworld 1.0 on Steam and the Xbox App / PC Game
+   Pass / Microsoft Store WinGDK build. Each platform requires its matching
+   UE4SS runtime path; WinGDK compatibility remains runtime-unverified until a
+   representative Game Pass acceptance run is completed.
 2. This is a client-installed mod; inventory mutations still use Palworld's
    server-authoritative item RPCs.
 3. Dedicated-server and co-op compatibility remain unverified until in-game
@@ -328,8 +331,8 @@ reported as an external conflict.
   catalog row. A compatible runtime shows its version and opens the same Quick
   Stack-owned surface as a separate hosted panel. Missing or incompatible
   runtime states show the current distribution channel's install/update link.
-  Game Pass remains explicitly unavailable until a real Quick Stack Game Pass
-  package exists.
+  Nexus Mods and CurseForge each publish a separate WinGDK/Game Pass archive;
+  the Steam/Win64 archive must not be installed into a WinGDK game directory.
 - Escape or controller Back closes only the hosted Quick Stack panel and
   restores Pal Insight plus focus to the originating row. `F6` closes the whole
   settings stack.

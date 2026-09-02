@@ -21,16 +21,21 @@ It is a standalone, client-side UE4SS Lua mod. [url=https://www.nexusmods.com/pa
 [size=5][b]REQUIREMENTS[/b][/size]
 
 [list]
-[*]Palworld 1.0 on Steam.
-[*][url=https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld][b]The experimental Palworld build of RE-UE4SS[/b][/url] — required. A [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587]Steam Workshop package[/url] is also available.
+[*]Palworld 1.0 on Steam, or the Xbox App / PC Game Pass / Microsoft Store WinGDK build.
+[*][url=https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld][b]The experimental Palworld build of RE-UE4SS[/b][/url] — required. Steam users may alternatively use its [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587]Steam Workshop package[/url]; Game Pass users must install the WinGDK runtime manually.
 [/list]
 
-The current Beta has been tested in single-player. Multiplayer and dedicated-server client behavior have not yet been verified and are not claimed as supported by this release.
+The current release has been tested in single-player on Steam. Game Pass, multiplayer, and dedicated-server client behavior have not yet been verified in game and are not claimed as supported by this release.
 
 [size=5][b]INSTALLATION[/b][/size]
 
+Choose the file that matches your game: the standard [b]Steam/Win64[/b] ZIP or
+the separately named [b]Game Pass/WinGDK[/b] ZIP. The WinGDK package has passed
+static package validation, but representative Game Pass runtime acceptance is
+still unverified.
+
 [list=1]
-[*]Install the [url=https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld]experimental Palworld build of RE-UE4SS[/url], or subscribe to its [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587]Steam Workshop package[/url].
+[*]Install the [url=https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld]experimental Palworld build of RE-UE4SS[/url] under [b]Win64[/b] for Steam or [b]WinGDK[/b] for Game Pass. Steam users may alternatively subscribe to its [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587]Workshop package[/url].
 [*]Extract the Quick Stack ZIP into the Palworld game folder that directly contains the [b]Pal[/b] directory.
 [*]Start Palworld, enter one of your bases, and press [b]F5[/b].
 [/list]

@@ -1,5 +1,7 @@
 dist/
 /release/
+/release-assembly/
+/release-roundtrip/
 *.log
 *.tmp
 .idea/

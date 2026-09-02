@@ -112,6 +112,7 @@ Runtime contract proof
   locales without changing the fixed product section name.
 - [ ] Observe English, Simplified Chinese, and one long-text locale in game.
 - [x] Add independent release inventory and diagnostics gate.
+- [x] Add separate Win64 and WinGDK portable layouts for Nexus and CurseForge.
 - [x] Prepare README, changelog, icon, Workshop metadata, and compatibility text.
 - [x] Document both manual Saved-directory rebinding and the conditional
   `F6 -> Controls -> Pal Insight: Quick Stack` path.

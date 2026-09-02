@@ -18,17 +18,22 @@ It is a standalone, client-side UE4SS Lua mod. [Pal Insight](https://www.cursefo
 
 ## Requirements
 
-- Palworld 1.0 on Steam.
-- **[The experimental Palworld build of RE-UE4SS](https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld) — required.** A [Steam Workshop package](https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587) is also available.
+- Palworld 1.0 on Steam, or the Xbox App / PC Game Pass / Microsoft Store WinGDK build.
+- **[The experimental Palworld build of RE-UE4SS](https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld) — required.** Steam users may alternatively use its [Steam Workshop package](https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587); Game Pass users must install the WinGDK runtime manually.
 
 The correct Palworld UE4SS runtime is not currently available as a CurseForge Related Project, so install it from one of the official pages linked above.
 
-The current Beta has been tested in single-player. Multiplayer and dedicated-server client behavior have not yet been verified and are not claimed as supported by this release.
+The current release has been tested in single-player on Steam. Game Pass, multiplayer, and dedicated-server client behavior have not yet been verified in game and are not claimed as supported by this release.
 
 ## Installation
 
-1. Install the [experimental Palworld build of RE-UE4SS](https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld), or subscribe to its [Steam Workshop package](https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587).
-2. Install Quick Stack with the CurseForge App, or extract the ZIP into the Palworld game folder that directly contains the **Pal** directory.
+Choose the file that matches your game: the standard **Steam/Win64** ZIP or the
+separately named **Game Pass/WinGDK** ZIP. The WinGDK package has passed static
+package validation, but representative Game Pass runtime acceptance is still
+unverified.
+
+1. Install the [experimental Palworld build of RE-UE4SS](https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld) under **Win64** for Steam or **WinGDK** for Game Pass. Steam users may alternatively subscribe to its [Workshop package](https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587).
+2. On Steam, use the CurseForge App or extract the standard ZIP. On Game Pass, manually extract the separately named Game Pass ZIP. In both cases, use the Palworld game folder that directly contains the **Pal** directory.
 3. Start Palworld, enter one of your bases, and press **F5**.
 
 **Do not install CurseForge, Nexus, and Steam Workshop copies at the same time.**
