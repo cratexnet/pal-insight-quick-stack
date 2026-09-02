@@ -1092,8 +1092,7 @@ local function refreshTriggerSurfaces()
             pcall(function() hovered = record.widget:IsHovered() == true end)
             -- Match Pal Insight: the virtual selection survives device changes;
             -- mouse hover is only a transient visual on another control.
-            if state.lastInputDevice ~= "mouse"
-                and type(record.control) == "table"
+            if type(record.control) == "table"
                 and record.control.focusIndex == state.focusIndex then
                 focused = true
             end
@@ -1319,8 +1318,7 @@ local function refreshShortcutDisplay(control, selecting)
     if P.isValid(control.widget) then
         pcall(function() hovered = control.widget:IsHovered() == true end)
     end
-    if state.lastInputDevice ~= "mouse"
-        and control.focusIndex == state.focusIndex then focused = true end
+    if control.focusIndex == state.focusIndex then focused = true end
     local signature = focused and "focus" or hovered and "hover" or "normal"
     if selecting == true then signature = "capture" end
     if P.isValid(control.widget) and signature ~= control.visualSignature then
@@ -1341,8 +1339,7 @@ local function refreshToggleDisplay(control)
     if state.lastInputDevice ~= "mouse" then
         pcall(function() focused = control.widget:HasKeyboardFocus() == true end)
     end
-    if state.lastInputDevice ~= "mouse"
-        and control.focusIndex == state.focusIndex then focused = true end
+    if control.focusIndex == state.focusIndex then focused = true end
     local signature = focused and "focus" or "normal"
     if signature == control.visualSignature then return end
     control.visualSignature = signature
@@ -1365,8 +1362,7 @@ local function refreshRowDisplay(control)
     end
     if focused and control.focusIndex ~= nil then
         state.focusIndex = control.focusIndex
-    elseif state.lastInputDevice ~= "mouse"
-        and control.focusIndex == state.focusIndex then
+    elseif control.focusIndex == state.focusIndex then
         focused = true
     end
     local signature = focused and "focus" or "normal"

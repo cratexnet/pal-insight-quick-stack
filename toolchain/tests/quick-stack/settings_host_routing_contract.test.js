@@ -25,6 +25,18 @@ const bridgeEmergencyRelease = bridge.slice(
 const palInsightRuntimePresence = main.slice(
   main.indexOf('local function livePalInsightRuntime()'),
   main.indexOf('\nlocal function livePalInsightHost()'));
+const triggerSurfaceVisuals = settingsUi.slice(
+  settingsUi.indexOf('local function refreshTriggerSurfaces()'),
+  settingsUi.indexOf('\nlocal function addControlToRow'));
+const shortcutVisuals = settingsUi.slice(
+  settingsUi.indexOf('local function refreshShortcutDisplay'),
+  settingsUi.indexOf('\nlocal function refreshToggleDisplay'));
+const toggleVisuals = settingsUi.slice(
+  settingsUi.indexOf('local function refreshToggleDisplay'),
+  settingsUi.indexOf('\nlocal function refreshRowDisplay'));
+const rowVisuals = settingsUi.slice(
+  settingsUi.indexOf('local function refreshRowDisplay'),
+  settingsUi.indexOf('\nlocal function setNumberEditorText'));
 
 assert.match(main, /local SettingsUI = require\("settings_ui"\)/,
   'Quick Stack must ship one settings surface owned by its own runtime');
@@ -155,6 +167,18 @@ assert.match(settingsUi,
 assert.match(settingsUi,
   /local function promoteHoveredRootSelection\(\)[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*local function activateHoveredDirectAction\(\)[\s\S]*local selectionHandled = promoteHoveredRootSelection\(\)[\s\S]*if not pointerActionIsCurrent\(action\) then[\s\S]*return selectionHandled/,
   'a row-only click must update the shared navigation origin without requiring a control action');
+assert.match(triggerSurfaceVisuals,
+  /if type\(record\.control\) == "table"[\s\S]*record\.control\.focusIndex == state\.focusIndex then[\s\S]*focused = true/,
+  'choice and number controls must keep the persistent selection visible after mouse input');
+assert.match(shortcutVisuals,
+  /if control\.focusIndex == state\.focusIndex then focused = true end/,
+  'the Shortcut control must keep the persistent selection visible after mouse input');
+assert.match(toggleVisuals,
+  /if control\.focusIndex == state\.focusIndex then focused = true end/,
+  'Toggle controls must keep the persistent selection visible after mouse input');
+assert.match(rowVisuals,
+  /elseif control\.focusIndex == state\.focusIndex then[\s\S]*focused = true/,
+  'the selected row must remain visibly selected after mouse input');
 assert.match(settingsUi,
   /action\.scope == "root"[\s\S]*local control = action\.owner[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*local returnFocusIndex = state\.focusIndex/,
   'a direct pointer action must promote its root setting before activation');
