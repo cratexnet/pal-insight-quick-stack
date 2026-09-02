@@ -148,17 +148,19 @@ function assertQuickStackSettings(root) {
   const main = fs.readFileSync(absolute(root, 'Scripts/main.lua'), 'utf8');
   assert.match(main, /local SettingsUI = require\("settings_ui"\)/,
     'Quick Stack must ship its canonical settings surface');
-  assert.match(main, /local SETTINGS_HOST_PROTOCOL_VERSION = 2\b/,
+  assert.match(main, /local SETTINGS_HOST_PROTOCOL_VERSION = 3\b/,
     'settings hosting must use the accepted private protocol version');
   for (const field of [
     'QuickStackGeneration', 'QuickStackHeartbeat',
     'OpenExtensionSettingsHostGeneration',
     'OpenExtensionSettingsTargetGeneration',
     'OpenExtensionSettingsInputDevice',
+    'OpenExtensionSettingsInputRoute',
     'CloseExtensionSettingsHostGeneration',
     'CloseExtensionSettingsTargetGeneration',
     'ExtensionSettingsAckHostGeneration',
     'ExtensionSettingsAckQuickStackGeneration',
+    'ExtensionSettingsAckInputRoute',
     'ExtensionControllerEdgeRevision',
     'ExtensionControllerPressedEdges',
     'ExtensionControllerReleasedEdges',

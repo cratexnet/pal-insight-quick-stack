@@ -134,6 +134,14 @@ the settings stack closes or the host lease expires. Host liveness and the open
 flag are refreshed every 80 ms only while this fast path is active; there is no
 80 ms watcher while both settings surfaces are closed.
 
+Protocol version 3 carries one explicit hosted input route. With `host-native`,
+Pal Insight retains its native controller filter and Quick Stack consumes the
+scoped controller snapshot without mounting another cooked blocker. With
+`extension-cooked`, Pal Insight suspends its cooked bridge and Quick Stack owns
+the replacement cooked route for the child lifetime. The acknowledgement must
+echo that route. A failed open acknowledgement rolls the child back, while a
+failed close acknowledgement remains pending and is retried.
+
 While Pal Insight is live, its callback is the sole physical `F6` action owner.
 If Quick Stack registered first, that unavoidable process-lifetime callback
 publishes its cooperative behavior version and becomes inert after observing a

@@ -69,6 +69,10 @@ local state = {
     actionDelegateBridgeAddress = nil,
     actionDelegateRecords = {},
     actionDelegateExpectedCount = 0,
+    nativeActionLastEventAt = -10.0,
+    nativeActionLastEventGeneration = 0,
+    globalMouseFallbackAt = -10.0,
+    globalMouseFallbackGeneration = 0,
     toggleDelegateBridge = nil,
     toggleDelegateBridgeAddress = nil,
     toggleDelegateRecords = {},
@@ -170,7 +174,13 @@ local function drainKeyboardQueue()
     for _, item in ipairs(queue) do
         if state.active == true and item.generation == state.generation then
             if item.keyName == "LeftMouseButton" then
-                if not Bridge.nativeActionDelegatesReady() then
+                local now = os.clock()
+                local nativeRecent = Bridge.nativeActionDelegatesReady()
+                    and state.nativeActionLastEventGeneration == state.generation
+                    and now - state.nativeActionLastEventAt <= 0.08
+                if not nativeRecent then
+                    state.globalMouseFallbackAt = now
+                    state.globalMouseFallbackGeneration = state.generation
                     dispatchEvent("onClicked", "mouse", "global")
                 end
             else
@@ -271,6 +281,11 @@ end
 local function clickedHook(context)
     if ownsDelegateBridge(context, state.actionDelegateBridge,
             state.actionDelegateBridgeAddress) or ownsBridge(context) then
+        local now = os.clock()
+        state.nativeActionLastEventAt = now
+        state.nativeActionLastEventGeneration = state.generation
+        if state.globalMouseFallbackGeneration == state.generation
+            and now - state.globalMouseFallbackAt <= 0.08 then return true end
         dispatchEvent("onClicked", "mouse")
     end
 end
@@ -843,13 +858,15 @@ function Bridge.acquire(controller, ownerWidget, options)
     local handlers, allowWithoutBridge = handlersFor(options)
     local modalUIOnly = type(options) == "table" and options.modalUIOnly == true
     local hostedParent = type(options) == "table" and options.hostedParent == true
+    local useCookedBridge = type(options) ~= "table"
+        or options.useCookedBridge ~= false
     local exclusiveController = type(options) == "table"
         and options.exclusiveController == true
     if not hostedParent and not installEscapePriorityHooks() then
         log("native Escape priority hooks are unavailable")
     end
-    local cookedAvailable = Bridge.prepare()
-    if not cookedAvailable and not allowWithoutBridge then
+    local cookedAvailable = useCookedBridge and Bridge.prepare() or false
+    if useCookedBridge and not cookedAvailable and not allowWithoutBridge then
         return false, "compatible Pal Insight is absent"
     end
     if type(ExecuteInGameThread) ~= "function"
@@ -901,7 +918,6 @@ function Bridge.acquire(controller, ownerWidget, options)
         return false, "bridge input ownership cannot be prepared"
     end
 
-
     state.generation = state.generation + 1
     state.bridge = bridge
     state.bridgeAddress = bridgeAddress
@@ -918,6 +934,10 @@ function Bridge.acquire(controller, ownerWidget, options)
     state.cookedInputActive = false
     state.nativeInputActive = false
     state.active = true
+    state.nativeActionLastEventAt = -10.0
+    state.nativeActionLastEventGeneration = state.generation
+    state.globalMouseFallbackAt = -10.0
+    state.globalMouseFallbackGeneration = state.generation
     state.closePending = false
     state.reclaimPending = false
 
@@ -952,7 +972,8 @@ function Bridge.acquire(controller, ownerWidget, options)
         nativeInputActive = state.nativeInputActive == true,
     }
 
-    if not acquireInputIsolation(controller) or not applyModalInput() then
+    local isolationAcquired = hostedParent or acquireInputIsolation(controller)
+    if not isolationAcquired or not applyModalInput() then
         local released = Bridge.release()
         return false, "settings input ownership cannot be acquired",
             released ~= true and state.active == true

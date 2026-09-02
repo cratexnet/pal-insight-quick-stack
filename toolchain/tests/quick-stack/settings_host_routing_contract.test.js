@@ -28,7 +28,7 @@ const palInsightRuntimePresence = main.slice(
 
 assert.match(main, /local SettingsUI = require\("settings_ui"\)/,
   'Quick Stack must ship one settings surface owned by its own runtime');
-assert.match(main, /local SETTINGS_HOST_PROTOCOL_VERSION = 2\b/,
+assert.match(main, /local SETTINGS_HOST_PROTOCOL_VERSION = 3\b/,
   'settings hosting must be versioned independently from the legacy value bridge');
 assert.match(main,
   /local SETTINGS_HOST_PREFIX = "PalInsightSettingsHost\."/,
@@ -58,17 +58,26 @@ assert.match(main,
   /settingsHostWrite\("F6BehaviorVersion", 2\)[\s\S]*if not livePalInsightF6Owner\(\) then[\s\S]*settingsHostWrite\("F6Owner", "QuickStack"\)/,
   'the cooperative callback must advertise itself without overwriting a live Pal Insight owner');
 assert.match(main,
-  /OpenExtensionSettingsRequestRevision[\s\S]*SettingsUI\.open\("hosted"[\s\S]*ExtensionSettingsOpenedRevision/,
+  /publishHostedOpenAcknowledgement[\s\S]*ExtensionSettingsOpenedRevision[\s\S]*OpenExtensionSettingsRequestRevision[\s\S]*SettingsUI\.open\("hosted"[\s\S]*publishHostedOpenAcknowledgement/,
   'a hosted request must acknowledge only after the canonical panel opens');
 assert.match(main,
   /OpenExtensionSettingsInputDevice[\s\S]*initialInputDevice\s*=\s*requestInputDevice/,
   'a hosted request must preserve the input device that opened the extension');
 assert.match(main,
+  /OpenExtensionSettingsInputRoute[\s\S]*requestInputRoute[\s\S]*host-native[\s\S]*extension-cooked[\s\S]*hostedInputRoute\s*=\s*requestInputRoute/,
+  'a hosted request must select one explicit controller route and pass it to the child surface');
+assert.match(main,
   /OpenExtensionSettingsHostGeneration[\s\S]*OpenExtensionSettingsTargetGeneration[\s\S]*requestTargetGeneration ~= state\.settingsHostGeneration/,
   'hosted requests must be scoped to both live runtime generations');
 assert.match(main,
-  /ExtensionSettingsAckHostGeneration[\s\S]*ExtensionSettingsAckQuickStackGeneration/,
-  'hosted acknowledgements must identify both live runtime generations');
+  /ExtensionSettingsAckHostGeneration[\s\S]*ExtensionSettingsAckQuickStackGeneration[\s\S]*ExtensionSettingsAckInputRoute/,
+  'hosted acknowledgements must identify both live runtime generations and the accepted input route');
+assert.match(main,
+  /publishHostedOpenAcknowledgement[\s\S]*if not acknowledged then[\s\S]*SettingsUI\.close\("host-open-ack-failed"\)/,
+  'a failed hosted-open acknowledgement must roll the child surface back instead of leaving split ownership');
+assert.match(main,
+  /pendingSettingsHostCloseAck[\s\S]*publishPendingHostedCloseAcknowledgement[\s\S]*reconcileSettingsHostRequests/,
+  'a locally closed hosted surface must retain and retry its close acknowledgement');
 assert.match(main,
   /CloseExtensionSettingsRequestRevision[\s\S]*SettingsUI\.close\("host-request"/,
   'the host must be able to close the extension-owned panel');
@@ -87,6 +96,27 @@ for (const field of [
 assert.match(settingsUi,
   /function SettingsUI\.open\(mode,[\s\S]*mode == "hosted"[\s\S]*buildSettingsWindow/,
   'standalone and hosted entry points must build one canonical surface');
+assert.match(settingsUi,
+  /hostedInputRoute[\s\S]*useCookedBridge = mode ~= "hosted"\s*or hostedInputRoute == "extension-cooked"/,
+  'hosted input acquisition must mount a cooked bridge only for the transferred cooked route');
+assert.match(bridgeAcquire,
+  /useCookedBridge[\s\S]*cookedAvailable = useCookedBridge and Bridge\.prepare\(\)[\s\S]*if cookedAvailable then[\s\S]*setCookedBridgeActive\(bridge, true\)/,
+  'the modal bridge must not register a second cooked blocker for a host-native route');
+assert.match(bridge,
+  /nativeActionLastEventAt[\s\S]*globalMouseFallbackAt/,
+  'the mouse arbitration state must retain native and fallback liveness');
+assert.match(bridge,
+  /drainKeyboardQueue[\s\S]*nativeRecent[\s\S]*globalMouseFallbackAt/,
+  'the global mouse path must fall back when no live native event arrived');
+assert.match(bridge,
+  /clickedHook[\s\S]*nativeActionLastEventAt[\s\S]*globalMouseFallbackGeneration/,
+  'native mouse delegates and the global fallback must use event liveness plus bounded deduplication');
+assert.match(settingsUi,
+  /pollLastTickAt[\s\S]*function SettingsUI\.ensurePollAlive\(\)[\s\S]*schedulePoll\(\)/,
+  'the settings control loop must expose an independent liveness recovery entry point');
+assert.match(main,
+  /SettingsUI\.mode\(\) ~= nil[\s\S]*SettingsUI\.ensurePollAlive\(\)/,
+  'the independent integration loop must recover a dead open-settings poll');
 assert.match(settingsUi,
   /mode == "hosted"[\s\S]*strings\.footerHosted[\s\S]*strings\.footer/,
   'the hosted surface must explain its distinct Escape\/Back and F6 behavior');

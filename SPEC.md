@@ -527,6 +527,14 @@ commit marker. The Quick Stack F6 owner also publishes a cooperative behavior
 version so Pal Insight never mistakes an older or external callback for an
 inert peer. Stale generations and expired leases are ignored.
 
+Protocol version 3 assigns every hosted open exactly one controller route:
+`host-native` retains Pal Insight's native filter and delivers scoped controller
+snapshots, while `extension-cooked` suspends the parent cooked bridge and lets
+Quick Stack mount the child route. Open, failure, and close acknowledgements
+echo the selected route. Quick Stack rolls back when it cannot publish the open
+acknowledgement and retains a failed close acknowledgement for retry, so the
+parent never restores a competing input route from a partial transaction.
+
 Load order is symmetric. If Pal Insight registers `F6` first, Quick Stack sees
 the occupied chord and does not add a duplicate callback. If Quick Stack
 registers first, Pal Insight later becomes the sole live action owner and the

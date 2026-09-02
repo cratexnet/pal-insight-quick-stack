@@ -61,7 +61,7 @@ local TAG = "[PalInsightQuickStack] "
 local VERSION = "1.0.0"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
-local SETTINGS_HOST_PROTOCOL_VERSION = 2
+local SETTINGS_HOST_PROTOCOL_VERSION = 3
 local SETTINGS_HOST_PREFIX = "PalInsightSettingsHost."
 local SETTINGS_HOST_LEASE_SECONDS = 1.5
 local SHARED_POLL_MS = 500
@@ -118,6 +118,8 @@ local state = {
     settingsHostLivenessRevision = 0,
     settingsHostPanelRevision = nil,
     settingsHostPanelHostGeneration = nil,
+    settingsHostPanelInputRoute = nil,
+    pendingSettingsHostCloseAck = nil,
     settingsPrewarmPending = false,
     settingsPrewarmCallback = nil,
     performanceCaptureEnabled = false,
@@ -668,21 +670,48 @@ local function publishSettingsSurfaceCapability()
     return true, nil
 end
 
-local function publishHostedAcknowledgementContext(hostGeneration)
+local function publishHostedAcknowledgementContext(hostGeneration, inputRoute)
     return settingsHostWrite(
             "ExtensionSettingsAckHostGeneration", hostGeneration)
         and settingsHostWrite(
             "ExtensionSettingsAckQuickStackGeneration",
             state.settingsHostGeneration)
+        and settingsHostWrite("ExtensionSettingsAckInputRoute", inputRoute)
 end
 
-local function acknowledgeHostedFailure(revision, code, hostGeneration)
-    publishHostedAcknowledgementContext(hostGeneration)
-    settingsHostWrite("ExtensionSettingsFailureCode", tostring(code or "open-failed"))
-    settingsHostWrite("ExtensionSettingsFailureRevision", revision)
+local function publishHostedOpenAcknowledgement(
+        revision, hostGeneration, inputRoute)
+    return publishHostedAcknowledgementContext(hostGeneration, inputRoute)
+        and settingsHostWrite("ExtensionSettingsFailureCode", "")
+        and settingsHostWrite("ExtensionSettingsOpenedRevision", revision)
+end
+
+local function acknowledgeHostedFailure(revision, code, hostGeneration, inputRoute)
+    return publishHostedAcknowledgementContext(hostGeneration, inputRoute)
+        and settingsHostWrite(
+            "ExtensionSettingsFailureCode", tostring(code or "open-failed"))
+        and settingsHostWrite("ExtensionSettingsFailureRevision", revision)
+end
+
+local function publishPendingHostedCloseAcknowledgement()
+    local pending = state.pendingSettingsHostCloseAck
+    if type(pending) ~= "table" then return true end
+    local published = publishHostedAcknowledgementContext(
+            pending.hostGeneration, pending.inputRoute)
+        and settingsHostWrite(
+            "ExtensionSettingsClosedRevision", pending.revision)
+    if not published then return false end
+    if state.pendingSettingsHostCloseAck == pending then
+        state.pendingSettingsHostCloseAck = nil
+        state.settingsHostPanelRevision = nil
+        state.settingsHostPanelHostGeneration = nil
+        state.settingsHostPanelInputRoute = nil
+    end
+    return true
 end
 
 local function reconcileSettingsHostRequests()
+    if not publishPendingHostedCloseAcknowledgement() then return true end
     if runtimeIsSuperseded() then
         if SettingsUI.mode() ~= nil
             and not SettingsUI.close("runtime-superseded") then return true end
@@ -705,8 +734,11 @@ local function reconcileSettingsHostRequests()
 
     if SettingsUI.mode() == "hosted" then
         local hostLive, hostGeneration = livePalInsightHost()
+        local hostSettingsOpen = select(1,
+            settingsHostRead("HostSettingsOpen")) == true
         if not hostLive
-            or hostGeneration ~= state.settingsHostPanelHostGeneration then
+            or hostGeneration ~= state.settingsHostPanelHostGeneration
+            or not hostSettingsOpen then
             SettingsUI.close("host-unavailable")
         end
     end
@@ -741,6 +773,8 @@ local function reconcileSettingsHostRequests()
         settingsHostRead("OpenExtensionSettingsTargetGeneration")))
     local requestInputDevice = select(1,
         settingsHostRead("OpenExtensionSettingsInputDevice"))
+    local requestInputRoute = select(1,
+        settingsHostRead("OpenExtensionSettingsInputRoute"))
     local hostLive, liveHostGeneration = livePalInsightHost()
     if select(1, settingsHostRead("ProtocolVersion"))
             ~= SETTINGS_HOST_PROTOCOL_VERSION
@@ -749,26 +783,38 @@ local function reconcileSettingsHostRequests()
         or requestHostGeneration ~= liveHostGeneration
         or (requestInputDevice ~= "keyboard" and requestInputDevice ~= "mouse"
             and requestInputDevice ~= "gamepad")
+        or (requestInputRoute ~= "host-native"
+            and requestInputRoute ~= "extension-cooked")
         or not hostLive then
         acknowledgeHostedFailure(
-            openRevision, "host-unavailable", requestHostGeneration)
+            openRevision, "host-unavailable", requestHostGeneration,
+            requestInputRoute)
         return true
     end
     state.settingsHostPanelRevision = openRevision
     state.settingsHostPanelHostGeneration = requestHostGeneration
+    state.settingsHostPanelInputRoute = requestInputRoute
     local opened, openError = SettingsUI.open("hosted", {
         requestRevision = openRevision,
         initialInputDevice = requestInputDevice,
+        hostedInputRoute = requestInputRoute,
     })
     if opened then
-        publishHostedAcknowledgementContext(requestHostGeneration)
-        settingsHostWrite("ExtensionSettingsFailureCode", "")
-        settingsHostWrite("ExtensionSettingsOpenedRevision", openRevision)
+        local acknowledged = publishHostedOpenAcknowledgement(
+            openRevision, requestHostGeneration, requestInputRoute)
+        if not acknowledged then
+            log("hosted settings open acknowledgement failed; rolling back")
+            if not SettingsUI.close("host-open-ack-failed") then
+                log("hosted settings rollback retained its visible recovery surface")
+            end
+        end
     else
         state.settingsHostPanelRevision = nil
         state.settingsHostPanelHostGeneration = nil
+        state.settingsHostPanelInputRoute = nil
         acknowledgeHostedFailure(openRevision,
-            openError or "open-failed", requestHostGeneration)
+            openError or "open-failed", requestHostGeneration,
+            requestInputRoute)
     end
     return true
 end
@@ -786,6 +832,7 @@ local function reconcileSettingsHost()
     state.hostActivityHostLive = hostLive == true
     state.hostActivityHostSettingsOpen = hostSettingsOpen
     state.hostActivityLastProbeAt = os.clock()
+    if SettingsUI.mode() ~= nil then SettingsUI.ensurePollAlive() end
     if hostLive and (hostSettingsOpen or SettingsUI.mode() == "hosted")
         and scheduleHostActivityPoll ~= nil then
         scheduleHostActivityPoll(HOST_REQUEST_POLL_MS)
@@ -1003,12 +1050,12 @@ SettingsUI.configure({
     end,
     onClosed = function(mode)
         if mode == "hosted" and state.settingsHostPanelRevision ~= nil then
-            publishHostedAcknowledgementContext(
-                state.settingsHostPanelHostGeneration)
-            settingsHostWrite("ExtensionSettingsClosedRevision",
-                state.settingsHostPanelRevision)
-            state.settingsHostPanelRevision = nil
-            state.settingsHostPanelHostGeneration = nil
+            state.pendingSettingsHostCloseAck = {
+                revision = state.settingsHostPanelRevision,
+                hostGeneration = state.settingsHostPanelHostGeneration,
+                inputRoute = state.settingsHostPanelInputRoute,
+            }
+            publishPendingHostedCloseAcknowledgement()
         end
     end,
 })

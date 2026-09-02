@@ -247,6 +247,7 @@ local state = {
     steamVoteActionVisuals = {},
     pollPending = false,
     pollGeneration = 0,
+    pollLastTickAt = 0.0,
     pollLoopHandle = nil,
     pollGameThreadCallback = nil,
     gamepadBackDown = false,
@@ -3899,11 +3900,23 @@ state.pollGameThreadCallback = function()
         stopPoll()
         return
     end
+    state.pollLastTickAt = os.clock()
     safePollPhase("lifecycle", pollSettingsLifecycle)
     safePollPhase("input", InputOwner.drainPendingInput)
     safePollPhase("controls", pollControls)
     safePollPhase("controller", pollStandaloneController)
     safePollPhase("navigation-repeat", pollNavigationRepeat)
+end
+
+function SettingsUI.ensurePollAlive()
+    if not state.open then return true end
+    local now = os.clock()
+    local stale = state.pollLastTickAt > 0.0
+        and now - state.pollLastTickAt > math.max(0.25, POLL_MS / 250.0)
+    if stale and state.pollLoopHandle ~= nil then
+        if not stopPoll() then return false end
+    end
+    return schedulePoll()
 end
 
 schedulePoll = function()
@@ -6278,7 +6291,7 @@ local function buildSettingsWindow(controller, mode)
     return widget, nil
 end
 
-local function acquireInput(controller, widget, mode)
+local function acquireInput(controller, widget, mode, hostedInputRoute)
     local controllerAddress = P.objectAddress(controller)
     if controllerAddress == nil then return false, "local controller identity is unavailable" end
     state.controller = controller
@@ -6288,6 +6301,8 @@ local function acquireInput(controller, widget, mode)
         modalUIOnly = true,
         hostedParent = mode == "hosted",
         exclusiveController = mode ~= "hosted",
+        useCookedBridge = mode ~= "hosted"
+            or hostedInputRoute == "extension-cooked",
         onPressed = function(keyName, source)
             if tostring(keyName):find("Gamepad_", 1, true) == 1 then
                 return dispatchControllerPressed(keyName, source or "actor")
@@ -6409,6 +6424,11 @@ function SettingsUI.open(mode, options)
     local buildFinished = openStarted
     local prepareFinished = openStarted
     mode = mode == "hosted" and "hosted" or "standalone"
+    local hostedInputRoute = mode == "hosted" and options.hostedInputRoute or nil
+    if mode == "hosted" and hostedInputRoute ~= "host-native"
+        and hostedInputRoute ~= "extension-cooked" then
+        return false, "hosted input route is unavailable"
+    end
     local initialInputDevice = options.initialInputDevice
     if initialInputDevice ~= "gamepad" and initialInputDevice ~= "mouse" then
         initialInputDevice = "keyboard"
@@ -6479,7 +6499,7 @@ function SettingsUI.open(mode, options)
     end
     prepareFinished = os.clock()
     local acquired, acquireError, retainedTransaction = acquireInput(
-        controller, widget, mode)
+        controller, widget, mode, hostedInputRoute)
     if not acquired then
         if retainedTransaction == true then
             state.lifecycle = "recovering"
@@ -6519,6 +6539,7 @@ function SettingsUI.open(mode, options)
     pcall(function() state.widget:SetRenderOpacity(1.0) end)
     refreshInputFocusVisuals()
     state.pollPending = false
+    state.pollLastTickAt = os.clock()
     schedulePoll()
     if capturePerformance then
         local bridge = InputOwner.lastAcquireDiagnostics() or {}
@@ -6568,6 +6589,7 @@ completeClose = function(closedMode, reason, widget, controller, escapeClose)
     state.pointerAction = nil
     state.pendingAboutPointerClose = nil
     state.synchronousNavigationUntil = {}
+    state.pollLastTickAt = 0.0
     state.shortcutCaptureCancelKey = nil
     state.shortcutCaptureCancelUntil = 0.0
     if preserveWindow and P.isValid(widget) then
