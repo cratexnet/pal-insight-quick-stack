@@ -348,10 +348,14 @@ reported as an external conflict.
   click. While the settings surface owns modal input, cursor visibility is an
   invariant: pointer events repair it immediately and the open-only control pump
   provides a bounded fallback when Slate does not deliver a movement event.
-  Pointer hover and activation target only the native control under the cursor;
-  they do not promote that control into the persistent keyboard/controller
-  selection. Choice close, shortcut capture completion, and mouse number-edit
-  completion restore the selection that existed before the pointer transaction.
+  Pointer hover targets only the native control under the cursor and does not
+  promote that control into the persistent keyboard/controller selection. An
+  actual pointer activation of a root settings control promotes that control
+  before running its Toggle, Choice, Number, Shortcut, or other setting action,
+  so the next keyboard/controller direction continues from the clicked control.
+  Choice close, shortcut capture completion, and mouse number-edit completion
+  restore that clicked control. Header actions retain the existing content
+  selection across their modal transaction.
 - The fixed Header matches Pal Insight's settings chrome: the optional Steam
   Workshop vote control precedes About, Restore Defaults, and Close in that
   order, using the same native UMG Button brushes, dimensions, spacing, icon

@@ -2400,6 +2400,7 @@ local function commitNativeToggleChanges(source)
             if ok and type(value) == "boolean" and value ~= control.last then
                 cancelNavigationRepeat()
                 FooterGuide.markInputDevice("mouse")
+                state.focusIndex = control.focusIndex
                 local edit = state.numberEdit
                 if type(edit) == "table" and type(edit.control) == "table" then
                     commitNumberEditor(edit.control, "number-navigation", true)
@@ -3417,6 +3418,10 @@ local function activateHoveredDirectAction()
         handled = commitNestedModalSelection("mouse")
     elseif action.scope == "root" then
         local control = action.owner
+        if control.kind == "choice" or control.kind == "number"
+            or control.kind == "shortcut" or control.kind == "toggle" then
+            state.focusIndex = control.focusIndex
+        end
         local returnFocusIndex = state.focusIndex
         local numberEdit = state.numberEdit
         local activeNumber = control.kind == "number"
@@ -3657,8 +3662,12 @@ local function pollControls()
             end
             local wasSelecting = control.selecting == true
             if selecting and not wasSelecting then
-                control.pointerReturnFocusIndex = state.lastInputDevice == "mouse"
-                    and state.focusIndex or nil
+                if state.lastInputDevice == "mouse" then
+                    state.focusIndex = control.focusIndex
+                    control.pointerReturnFocusIndex = control.focusIndex
+                else
+                    control.pointerReturnFocusIndex = nil
+                end
             end
             control.selecting = selecting
             if selecting and type(state.numberEdit) == "table"

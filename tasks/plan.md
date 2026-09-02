@@ -152,6 +152,8 @@ Runtime contract proof
   composition never reach a writable Slate text field.
 - [x] Separate explicit toggle activation from native change observation and
   keep the existing poll only as an idempotent fallback.
+- [x] Keep pointer hover transient, but promote an explicitly clicked root
+  setting control into the shared keyboard/controller selection before action.
 - [x] Commit each settings primitive independently so transient shortcut
   capture state cannot veto checkbox, choice, or number persistence.
 - [x] Reject and restore the shortcut activation key before releasing native

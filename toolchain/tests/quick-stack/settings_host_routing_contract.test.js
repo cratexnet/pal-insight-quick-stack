@@ -113,6 +113,15 @@ assert.match(bridge,
 assert.match(bridge,
   /item\.keyName == "LeftMouseButton"[\s\S]*nativeActionDelegatesReady\(\)[\s\S]*dispatchEvent\("onClicked", "mouse", "global"\)/,
   'standalone settings must retain one mouse fallback that is disabled by native delegates');
+assert.match(settingsUi,
+  /action\.scope == "root"[\s\S]*local control = action\.owner[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*local returnFocusIndex = state\.focusIndex/,
+  'a direct pointer action must promote its root setting before activation');
+assert.match(settingsUi,
+  /local function commitNativeToggleChanges\(source\)[\s\S]*FooterGuide\.markInputDevice\("mouse"\)[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*commitToggle\(control/,
+  'a native pointer Toggle change must become the next keyboard/controller navigation origin');
+assert.match(settingsUi,
+  /if selecting and not wasSelecting then[\s\S]*state\.lastInputDevice == "mouse"[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*control\.pointerReturnFocusIndex = control\.focusIndex/,
+  'a mouse-opened Shortcut capture must restore and continue from the clicked row');
 assert.match(bridge,
   /BRIDGE_TOGGLE_CHANGED_FUNCTION[\s\S]*toggleChangedHook[\s\S]*toggleDelegateBridgeAddress[\s\S]*function Bridge\.bindToggleControls\(controls\)[\s\S]*delegateBridge\(\)[\s\S]*OnCheckStateChanged:Add\([\s\S]*bridge, "PalInsightSettingsToggleChanged"\)/,
   'native CheckBox changes must use the stable cooked typed delegate used by Pal Insight');
