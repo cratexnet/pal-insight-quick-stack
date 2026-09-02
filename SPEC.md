@@ -377,14 +377,13 @@ reported as an external conflict.
   Shortcut rows preserve Pal Insight's selector geometry and capture
   transaction: the activating click/key is rejected as a candidate, invalid
   values restore the persisted chord, and capture releases focus before any
-  unrelated setting can commit. Number rows use Pal Insight's layered resting
-  Button plus a focusable, read-only `EditableTextBox` presentation. Mouse,
-  keyboard, and controller editing all mutate one settings-owned integer buffer
-  through the root preview filter; the Slate editor never opens a desktop text
-  input or IME context. Only the bounded integer operations required by the
-  active mode are accepted, and letters, paste, and composition triggers are
-  consumed. Pointer click still enters the visible edit state, where direct
-  digits, Backspace, Delete, selection-replace, and Enter remain available. The
+  unrelated setting can commit. Number rows use Pal Insight 1.8.0's layered
+  resting Button and writable `EditableTextBox`. Pointer activation gives the
+  native editor focus for caret, selection, deletion, and direct integer entry;
+  keyboard and controller activation keep focus on the settings root and use
+  the bounded settings-owned integer buffer. Only the integer operations
+  required by the active mode are accepted, while unsupported letters, paste,
+  and composition triggers are consumed. The
   text beneath Header actions is a virtual
   focus hint for keyboard and controller only; mouse hover keeps the button
   Tooltip and hover styling but leaves that hint empty. Restore Defaults opens
@@ -419,17 +418,16 @@ reported as an external conflict.
   sentence pattern as Pal Insight, with Quick Stack named as the product. Copy
   is complete in all 17 supported locales; external destinations open outside
   the game, while the modal keeps input ownership and remains open.
-- The three product columns use identical geometry and one neutral shared
-  section surface; individual columns do not add a persistent card surface. The
-  current product is identified by a one-unit, subdued accent outline around
-  the entire product column, including media, title, and links, plus a very
-  light info tint inside that column. Non-current columns reserve the same
-  transparent inset so the highlight never changes media height, title
-  position, or link alignment. Each Mod platform row is split into three equal
-  cells, with one centered `30x30` icon-only button per cell; the buttons must
-  not stretch into wide rectangles. The Breeding Calculator's CrateX.app icon
-  and localized “View breeding tool” action are centered as one group. Visible labels must always use
-  their localized or brand text and must never expose font-size metadata.
+- The three product columns always remain one equal-width row and use identical
+  `title nameplate -> framed media -> action row` geometry. Each column has one
+  neutral card surface and the current product receives no persistent outline,
+  tint, badge, or geometry change. Every cover and screenshot is wrapped by the
+  same one-unit low-contrast media frame with three units of safe inset. Each
+  Mod platform row is split into three equal cells; every icon-only button fills
+  its cell and shares the Breeding Calculator text action's height, default
+  surface, low-contrast boundary, and interaction states. The calculator action
+  remains localized and text-only. Visible labels must always use their
+  localized or brand text and must never expose font-size metadata.
 - Every settings primitive shared with Pal Insight follows the same current F6
   design system: window and scrollbar geometry, typography, section rhythm,
   whole-row hover and virtual focus, checkbox states, fixed-column Choice
@@ -478,16 +476,15 @@ reported as an external conflict.
   the actual open transaction may retry only the missing preparation work. The
   Workshop vote Pal portrait follows the same bounded retry rule; a warm open
   never calls `LoadAsset` to repair it.
-- Numeric fields retain direct integer entry. Pointer activation swaps the
-  resting Button for the layered, read-only integer presentation and focuses it
-  without creating a text-input or IME context; repeated pointer clicks preserve
-  the same settings-owned edit transaction. Root `OnPreviewKeyDown` handles
-  digits, numpad digits, Backspace, Delete, unmodified `Ctrl+A`, commit, cancel,
-  and bounded adjustment directly while consuming letters, paste, composition
-  triggers, and every unsupported key. Keyboard/controller activation uses the
-  same integer buffer while keeping focus on the settings root. Commit, cancel,
-  navigation, close, and focus restoration all terminate exactly one edit
-  transaction.
+- Numeric fields retain Pal Insight 1.8.0's direct integer-entry split. Pointer
+  activation swaps the resting Button for a writable native editor and focuses
+  it; repeated pointer clicks preserve the caret, selection, and edit
+  transaction. Root `OnPreviewKeyDown` lets only digits, numpad digits,
+  Backspace, Delete, Home, End, bounded minus, and unmodified `Ctrl+A` reach the
+  pointer-owned editor while consuming unsupported keys. Keyboard/controller
+  activation keeps focus on the settings root and uses the bounded integer
+  buffer. Commit, cancel, navigation, close, and focus restoration all
+  terminate exactly one edit transaction.
 - Focus-scoped UMG preview input is the primary keyboard owner. Global keybinds
   remain only as a compatibility fallback: their scalar events are bounded and
   marshalled to the game thread, while the existing open-panel pump can drain a

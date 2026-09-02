@@ -143,6 +143,12 @@ assert.match(bridge,
 assert.match(bridge,
   /item\.keyName == "LeftMouseButton"[\s\S]*nativeActionDelegatesReady\(\)[\s\S]*dispatchEvent\("onClicked", "mouse", "global"\)/,
   'standalone settings must retain one mouse fallback that is disabled by native delegates');
+assert.match(bridge,
+  /BRIDGE_TOGGLE_CHANGED_FUNCTION[\s\S]*toggleChangedHook[\s\S]*toggleDelegateBridgeAddress[\s\S]*function Bridge\.bindToggleControls\(controls\)[\s\S]*delegateBridge\(\)[\s\S]*OnCheckStateChanged:Add\([\s\S]*bridge, "PalInsightSettingsToggleChanged"\)/,
+  'native CheckBox changes must use the stable cooked typed delegate used by Pal Insight');
+assert.match(settingsUi,
+  /local function activateHoveredDirectAction\(\)[\s\S]*onClicked = function\(\) activateHoveredDirectAction\(\) end[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
+  'the settings surface must route both native and fallback clicks through one hovered action owner');
 assert.match(settingsUi,
   /action\.scope == "root"[\s\S]*local control = action\.owner[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*local returnFocusIndex = state\.focusIndex/,
   'a direct pointer action must promote its root setting before activation');
@@ -152,12 +158,6 @@ assert.match(settingsUi,
 assert.match(settingsUi,
   /if selecting and not wasSelecting then[\s\S]*state\.lastInputDevice == "mouse"[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*control\.pointerReturnFocusIndex = control\.focusIndex/,
   'a mouse-opened Shortcut capture must restore and continue from the clicked row');
-assert.match(bridge,
-  /BRIDGE_TOGGLE_CHANGED_FUNCTION[\s\S]*toggleChangedHook[\s\S]*toggleDelegateBridgeAddress[\s\S]*function Bridge\.bindToggleControls\(controls\)[\s\S]*delegateBridge\(\)[\s\S]*OnCheckStateChanged:Add\([\s\S]*bridge, "PalInsightSettingsToggleChanged"\)/,
-  'native CheckBox changes must use the stable cooked typed delegate used by Pal Insight');
-assert.match(settingsUi,
-  /local function activateHoveredDirectAction\(\)[\s\S]*onClicked = function\(\) activateHoveredDirectAction\(\) end[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
-  'the settings surface must route both native and fallback clicks through one hovered action owner');
 assert.match(settingsUi,
   /local function commitNativeToggleChanges\(source\)[\s\S]*control\.kind == "toggle"[\s\S]*commitToggle\(control, source[\s\S]*onToggleChanged = function\(\)[\s\S]*commitNativeToggleChanges\("toggle-native"\)[\s\S]*InputOwner\.bindToggleControls\(state\.controls\)/,
   'native CheckBox changes must commit immediately with polling retained as an idempotent fallback');
@@ -179,9 +179,9 @@ assert.match(settingsUi,
 assert.equal((settingsUi.match(
   /^\s*registerDirectActionButton\((?:surface|button|displayButton)\)/gm) || []).length, 6,
   'every direct Button constructor must publish its native action surface');
-assert.doesNotMatch(settingsUi,
-  /construct\(tree, "\/Script\/UMG\.EditableTextBox"\)/,
-  'integer settings must never transfer focus to Slate text input or the desktop IME');
+assert.match(settingsUi,
+  /addNumberRow\([\s\S]*construct\(tree, "\/Script\/UMG\.EditableTextBox"\)[\s\S]*displayButton\.bIsFocusable = false[\s\S]*input:SetIsReadOnly\(false\)[\s\S]*input\.SelectAllTextWhenFocused = true/,
+  'Quick Stack must use the same layered writable number editor as Pal Insight 1.8.0');
 assert.match(settingsUi,
   /ensureChoiceModal = function\(\)[\s\S]*buildChoiceModal[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
   'lazily built choice and reset buttons must join the active native delegate owner');
@@ -196,8 +196,26 @@ assert.match(settingsUi,
 assert.doesNotMatch(shortcutWarning, /selectedChord\(control\.widget\)/,
   'a transient InputKeySelector mouse capture must never drive the conflict warning');
 assert.match(settingsUi,
-  /beginNumberEditor = function\(control, mode\)[\s\S]*buffer = tostring\(control\.value\)[\s\S]*focusNavigationRoot\(\)[\s\S]*handleNumberPreview = function/,
-  'mouse activation and keyboard/controller editing must share one root-owned bounded buffer');
+  /local function focusNumberEditorInput\(control\)[\s\S]*control\.input:SetUserFocus[\s\S]*control\.input:SetKeyboardFocus\(\)[\s\S]*beginNumberEditor = function\(control, mode\)[\s\S]*replaceOnType = mode == "keyboard"[\s\S]*if mode == "mouse" then[\s\S]*focusNumberEditorInput\(control\)[\s\S]*focusNavigationRoot\(\)/,
+  'mouse editing must own the native text focus while keyboard and controller retain root focus');
+const navigationRootFocus = settingsUi.match(
+  /local function focusNavigationRoot\(\)[\s\S]*?\nend\n\ndo/);
+assert.ok(navigationRootFocus,
+  'navigation-root focus helper must remain independently auditable');
+assert.doesNotMatch(navigationRootFocus[0], /:HasKeyboardFocus\(/,
+  'root focus acquisition must not reject a request before Slate applies it');
+const numberEditorFocus = settingsUi.match(
+  /local function focusNumberEditorInput\(control\)[\s\S]*?\nend\n\nlocal function focusEntry/);
+assert.ok(numberEditorFocus,
+  'mouse number editor focus helper must remain independently auditable');
+assert.doesNotMatch(numberEditorFocus[0], /:HasKeyboardFocus\(/,
+  'mouse editing must not reject Slate focus before the pointer event has returned');
+assert.match(settingsUi,
+  /local function nativeNumberEditKeyAllowed\(control, keyName, controlDown, shiftDown\)[\s\S]*NUMBER_NATIVE_EDIT_KEYS\[keyName\][\s\S]*handleNumberPreview = function[\s\S]*edit\.mode == "mouse"[\s\S]*source ~= "preview"/,
+  'mouse input must let only the 1.8.0 numeric key allowlist reach Slate');
+assert.match(settingsUi,
+  /edit\.mode == "controller"[\s\S]*commitNumberEditor\(edit\.control, "number-pointer"/,
+  'switching from controller editing to pointer ownership must finish the controller transaction');
 assert.match(settingsUi,
   /local function applyControlPatch\(patch, source\)[\s\S]*candidate\[key\] = value[\s\S]*local function commitChoice[\s\S]*\[control\.key\] = control\.values\[index\][\s\S]*local function commitToggle[\s\S]*\[control\.key\] = value/,
   'each settings primitive must commit only its own persisted field');

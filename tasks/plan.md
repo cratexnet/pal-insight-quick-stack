@@ -143,13 +143,13 @@ Runtime contract proof
 - [x] Replace transparent action proxies in Header, Steam voting, choices,
   nested modals, and About with direct focusable Buttons.
 - [x] Match focusable toggle and shortcut-selector geometry.
-- [x] Use one settings-owned integer buffer for every input family; the layered
-  mouse presentation remains focusable but read-only so Windows never starts an
-  IME composition session.
+- [x] Match Pal Insight 1.8.0 numeric editing: pointer input uses the layered
+  writable native editor, while keyboard/controller input retains the bounded
+  root-owned integer buffer.
 - [x] Update the release diagnostics gate for the direct-control contract.
-- [x] Keep integer entry inside the root preview owner so only digits and the
-  supported edit operations can mutate the buffer; letters, paste, and IME
-  composition never reach a writable Slate text field.
+- [x] Keep integer routing inside the root preview owner so only the 1.8.0
+  native numeric allowlist reaches pointer-owned Slate editing; keyboard and
+  controller input continue through the bounded root-owned buffer.
 - [x] Separate explicit toggle activation from native change observation and
   keep the existing poll only as an idempotent fallback.
 - [x] Keep pointer hover transient, but promote an explicitly clicked root
@@ -171,6 +171,16 @@ Runtime contract proof
   authoritative first-row selection are both established.
 - [ ] Verify mouse, keyboard, and controller behavior in game before syncing or
   packaging.
+
+## Phase 8: About Product Hierarchy
+
+- [x] Keep the product shelf in one three-column row at every supported About
+  width.
+- [x] Reorder every product card to title nameplate, framed media, then actions.
+- [x] Make each Mod platform action fill one third of the row and share the
+  calculator text action's visual component without adding platform labels.
+- [x] Preserve existing mouse, keyboard, controller, tooltip, and preview
+  behavior while changing only layout and presentation.
 
 ## Risks and Mitigations
 

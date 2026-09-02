@@ -168,10 +168,11 @@ world, local controller, locale, and logical viewport size. The cooked input
 bridge is retained for the same live world and local controller. Close collapses
 a valid cached tree after restoring input; any relevant identity or geometry
 mismatch while open first closes the old input transaction, then removes and
-rebuilds that cache for the new context. Keyboard navigation is owned by the focused
-`UUserWidget:OnPreviewKeyDown` route. Integer editing never transfers focus to
-an `EditableTextBox`: the root consumes digits and editing keys into a bounded
-integer buffer, so Slate and the desktop IME never own that session. The cooked
+rebuilds that cache for the new context. Keyboard and controller navigation are
+owned by the focused `UUserWidget:OnPreviewKeyDown` route. Pointer-activated
+integer editing focuses a writable `EditableTextBox` for native caret,
+selection, deletion, and direct entry; keyboard and controller activation keep
+root focus and use the bounded settings-owned integer buffer. The cooked
 bridge dispatches normalized axis values synchronously and contains handler failures.
 Off-thread global keybind fallbacks use a bounded game-thread queue whose wake is
 also drained by the existing open-panel pump, so a lost wake cannot permanently

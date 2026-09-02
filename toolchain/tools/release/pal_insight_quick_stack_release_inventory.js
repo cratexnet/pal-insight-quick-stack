@@ -408,6 +408,15 @@ function assertQuickStackSettings(root) {
     /buildAboutModal\s*=\s*function[\s\S]*?\/Script\/UMG\.ScrollBox[\s\S]*?strings\.aboutSummary[\s\S]*?strings\.aboutProducts[\s\S]*?Pal Insight: Quick Stack[\s\S]*?strings\.aboutCreatorDescription[\s\S]*?strings\.aboutCommunity[\s\S]*?strings\.aboutSupport[\s\S]*?strings\.aboutSupportDescription/,
     'Quick Stack About must contain the product shelf, creator, Community, and Support content');
   assert.match(settingsUi,
+    /aboutProductLinkGapPixels\s*=\s*3\.0[\s\S]*?productActionButtonPixels\s*=\s*math\.floor[\s\S]*?productActionButtonWidth\s*=\s*productActionButtonPixels\s*\/\s*viewportScale[\s\S]*?productActionGap\s*=\s*productActionGapPixels\s*\/\s*viewportScale/,
+    'Quick Stack About must resolve equal action widths and exact physical gaps before Slate layout');
+  assert.match(settingsUi,
+    /local platformRow = construct\(tree, "\/Script\/UMG\.HorizontalBox"\)[\s\S]*?cell:SetWidthOverride\(productActionButtonWidth\)[\s\S]*?gap:SetWidthOverride\(productActionGap\)/,
+    'Quick Stack About must separate three fixed equal platform cells with dedicated gaps');
+  assert.doesNotMatch(settingsUi,
+    /local platformGrid = construct\(tree, "\/Script\/UMG\.UniformGridPanel"\)/,
+    'Quick Stack About must not use half-padded uniform cells for physical platform gaps');
+  assert.match(settingsUi,
     /local function makeAboutAction[\s\S]*?\/Script\/UMG\.Button[\s\S]*?button\.bIsFocusable = true[\s\S]*?box:AddChild\(button\)[\s\S]*?state\.aboutActions/,
     'Quick Stack About actions must use Pal Insight direct Button controls');
   assert.match(settingsUi,
@@ -416,15 +425,15 @@ function assertQuickStackSettings(root) {
   assert.match(settingsUi,
     /local function makeAboutLogoButton[\s\S]*?\/Script\/UMG\.Button[\s\S]*?\/Script\/UMG\.Image[\s\S]*?SetBrushFromTexture[\s\S]*?button\.bIsFocusable = true[\s\S]*?box:AddChild\(button\)/,
     'Quick Stack About logo actions must retain images inside direct Buttons');
-  assert.doesNotMatch(settingsUi,
-    /construct\(tree, "\/Script\/UMG\.EditableTextBox"\)/,
-    'integer settings must not create a writable Slate or IME text client');
+  assert.match(settingsUi,
+    /construct\(tree, "\/Script\/UMG\.EditableTextBox"\)[\s\S]*input:SetIsReadOnly\(false\)[\s\S]*input\.SelectAllTextWhenFocused = true/,
+    'pointer-owned integer settings must use the Pal Insight 1.8.0 native editor');
   assert.match(settingsUi,
     /local function addNumberRow\([\s\S]*\/Script\/UMG\.Button[\s\S]*widget = displayButton/,
     'number rows must expose one direct Button as their controlled presentation');
   assert.match(settingsUi,
-    /beginNumberEditor = function\(control, mode\)[\s\S]*buffer = tostring\(control\.value\)[\s\S]*focusNavigationRoot\(\)[\s\S]*handleNumberPreview = function[\s\S]*edit\.buffer[\s\S]*controlDown == true[\s\S]*keyName == "A"/,
-    'mouse activation and keyboard/controller editing must share one root-owned integer buffer');
+    /beginNumberEditor = function\(control, mode\)[\s\S]*replaceOnType = mode == "keyboard"[\s\S]*if mode == "mouse" then[\s\S]*focusNumberEditorInput\(control\)[\s\S]*focusNavigationRoot\(\)/,
+    'pointer editing must own native focus while keyboard and controller retain the root buffer');
   assert.match(settingsUi,
     /local function applyControlPatch\(patch, source\)[\s\S]*candidate\[key\] = value[\s\S]*local function commitChoice[\s\S]*\[control\.key\] = control\.values\[index\][\s\S]*local function commitToggle[\s\S]*\[control\.key\] = value/,
     'each settings primitive must commit only its own persisted field');

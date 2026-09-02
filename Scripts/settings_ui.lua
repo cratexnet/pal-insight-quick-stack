@@ -93,7 +93,7 @@ local SIZE = {
     aboutLinkGap = 8.0,
     aboutCommunityWidth = 160.0,
     aboutProductLinkHeight = 30.0,
-    aboutProductLinkGap = 2.0,
+    aboutProductLinkGapPixels = 3.0,
     aboutProductLinkIcon = 20.0,
     aboutProductCardHeight = 174.0,
     aboutProductCurrentOutline = 1.0,
@@ -323,6 +323,7 @@ local state = {
     shortcutCaptureCancelKey = nil,
     shortcutCaptureCancelUntil = 0.0,
     numberEdit = nil,
+    numberEditorOps = {},
     lastPrepareDiagnostics = nil,
     trailingReleaseUntil = {},
 }
@@ -392,6 +393,36 @@ local function makeText(tree, value, size, color, justification)
         setTextStyle(widget, size or 15, color, justification)
     end)
     return ok and widget or nil
+end
+
+do
+    local function styleEditableNumber(input)
+        if not P.isValid(input) then return false end
+        return pcall(function()
+            input:SetIsEnabled(true)
+            local style = input.WidgetStyle
+            local textStyle = style.TextStyle
+            local font = textStyle.Font
+            font.Size = FONT_SIZE[14]
+            textStyle.Font = font
+            textStyle.ColorAndOpacity = slateColor(COLORS.text)
+            style.TextStyle = textStyle
+            style.ForegroundColor = slateColor(COLORS.text)
+            style.FocusedForegroundColor = slateColor(COLORS.textOnAccent)
+            style.ReadOnlyForegroundColor = slateColor(COLORS.text)
+            style.BackgroundColor = slateColor(COLORS.white)
+            style.BackgroundImageNormal = tintBrush(
+                style.BackgroundImageNormal, COLORS.control)
+            style.BackgroundImageHovered = tintBrush(
+                style.BackgroundImageHovered, COLORS.controlHover)
+            style.BackgroundImageFocused = tintBrush(
+                style.BackgroundImageFocused, COLORS.accent)
+            input.WidgetStyle = style
+            input:SetJustification(TEXT_CENTER)
+            input:SetForegroundColor(COLORS.text)
+        end)
+    end
+    state.numberEditorOps.styleEditableNumber = styleEditableNumber
 end
 
 local function setPadding(slot, left, top, right, bottom)
@@ -639,7 +670,7 @@ local function styleHeaderButton(button, role, focused, hovered, pressed)
         hoverForeground = COLORS.textOnAccent
         pressForeground = COLORS.textOnAccent
     elseif productLink then
-        normal = focused and COLORS.controlFocus or COLORS.transparent
+        normal = focused and COLORS.controlFocus or COLORS.control
         hover = COLORS.controlHover
         press = COLORS.controlPressed
         normalForeground = COLORS.text
@@ -1355,25 +1386,39 @@ local function setNumberEditorText(control, value)
     if type(control) ~= "table" or control.kind ~= "number" then return false end
     local textValue = tostring(value)
     local updated = false
+    if P.isValid(control.input) then
+        updated = pcall(function()
+            control.input:SetText(FText(textValue))
+        end) or updated
+    end
     if P.isValid(control.displayText) then
         updated = pcall(function()
             control.displayText:SetText(FText(textValue))
-        end)
+        end) or updated
     end
     control.displayedText = textValue
     return updated == true
 end
 
-local function syncNumberPresentation(control, _editingOverride)
+local function syncNumberPresentation(control, editingOverride)
     if type(control) ~= "table" or control.kind ~= "number"
+        or not P.isValid(control.input)
         or not P.isValid(control.displayButton) then return false end
     local edit = state.numberEdit
-    local editing = type(edit) == "table" and edit.control == control
+    local editing = editingOverride
+    if type(editing) ~= "boolean" then
+        editing = type(edit) == "table" and edit.control == control
+            and (edit.mode == "keyboard" or edit.mode == "mouse")
+    end
     local synchronized = pcall(function()
-        -- The number row has no EditableTextBox. The visible button and the
-        -- Lua-owned buffer are the sole editor, so IME composition has no text
-        -- input client to attach to while mouse activation remains available.
-        control.displayButton:SetVisibility(VIS_VISIBLE)
+        if editing then
+            control.displayButton:SetVisibility(VIS_COLLAPSED)
+            control.input:SetVisibility(VIS_VISIBLE)
+            control.input:SetForegroundColor(COLORS.textOnAccent)
+        else
+            control.input:SetVisibility(VIS_COLLAPSED)
+            control.displayButton:SetVisibility(VIS_VISIBLE)
+        end
     end)
     control.editingVisual = editing == true
     if type(control.trigger) == "table" then
@@ -2086,6 +2131,23 @@ local function focusNavigationRoot()
         state.widget:SetKeyboardFocus()
     end)
     return focused == true
+end
+
+do
+    local function focusNumberEditorInput(control)
+        if type(control) ~= "table" or control.kind ~= "number"
+            or not P.isValid(control.input) then return false end
+        -- Slate applies the requested focus after the current pointer event returns.
+        -- Checking HasKeyboardFocus() synchronously here rejects a valid request and
+        -- immediately tears the editor back down on its first mouse click.
+        return pcall(function()
+            if P.isValid(state.controller) then
+                control.input:SetUserFocus(state.controller)
+            end
+            control.input:SetKeyboardFocus()
+        end)
+    end
+    state.numberEditorOps.focusNumberEditorInput = focusNumberEditorInput
 end
 
 local function focusEntry(index, device, scrollIntoView)
@@ -2968,6 +3030,20 @@ focusedNumberControl = function()
         and control or nil
 end
 
+do
+    local function numberEditorRawText(control)
+        if type(control) ~= "table" or not P.isValid(control.input) then return nil end
+        local ok, raw = pcall(function() return control.input:GetText() end)
+        if not ok or raw == nil then return nil end
+        if type(raw) ~= "string" then
+            local convertedOk, converted = pcall(function() return raw:ToString() end)
+            raw = convertedOk and converted or tostring(raw)
+        end
+        return type(raw) == "string" and raw:match("^%s*(.-)%s*$") or nil
+    end
+    state.numberEditorOps.numberEditorRawText = numberEditorRawText
+end
+
 beginNumberEditor = function(control, mode)
     if type(control) ~= "table" or control.kind ~= "number"
         or not P.isValid(control.widget) then return false end
@@ -2990,15 +3066,20 @@ beginNumberEditor = function(control, mode)
         widgetAddress = widgetAddress,
         controlAddress = controlAddress,
         buffer = tostring(control.value),
-        replaceOnType = mode ~= "controller",
+        replaceOnType = mode == "keyboard",
         mode = mode,
     }
     setNumberEditorText(control, control.value)
-    syncNumberPresentation(control, false)
-    -- Every input family edits through the settings root. No text widget ever
-    -- becomes the platform text-input client, so IME composition cannot enter
-    -- the numeric field while mouse activation still works normally.
-    local focused = focusNavigationRoot()
+    syncNumberPresentation(control, mode ~= "controller")
+    -- Pal Insight 1.8.0 used native Slate editing only for pointer activation.
+    -- Keyboard and controller editing retain root focus and use the bounded
+    -- settings-owned integer buffer.
+    local focused
+    if mode == "mouse" then
+        focused = state.numberEditorOps.focusNumberEditorInput(control)
+    else
+        focused = focusNavigationRoot()
+    end
     if focused ~= true then
         state.numberEdit = nil
         setNumberEditorText(control, control.value)
@@ -3023,7 +3104,9 @@ commitNumberEditor = function(control, source, commit)
     end
     local applied = true
     if commit ~= false then
-        local raw = edit.buffer
+        local raw = edit.mode == "mouse"
+            and state.numberEditorOps.numberEditorRawText(control)
+            or edit.buffer
         local parsed = tonumber(raw)
         if parsed ~= nil and math.floor(parsed) == parsed then
             parsed = math.max(control.minimum, math.min(control.maximum, parsed))
@@ -3047,7 +3130,9 @@ end
 local function adjustNumberEditor(control, direction)
     local edit = state.numberEdit
     local raw = type(edit) == "table" and edit.control == control
-        and edit.buffer or nil
+        and (edit.mode == "mouse"
+            and state.numberEditorOps.numberEditorRawText(control)
+            or edit.buffer) or nil
     local parsed = tonumber(raw)
     local base = parsed ~= nil and math.floor(parsed) == parsed
         and parsed >= control.minimum and parsed <= control.maximum
@@ -3058,7 +3143,7 @@ local function adjustNumberEditor(control, direction)
         edit.buffer = tostring(target)
         edit.replaceOnType = true
         setNumberEditorText(control, target)
-        syncNumberPresentation(control, false)
+        syncNumberPresentation(control)
         refreshTriggerSurfaces()
         return true
     end
@@ -3099,12 +3184,43 @@ local function previewModifierDown(keyEvent, modifier)
     return (leftOk and left == true) or (rightOk and right == true)
 end
 
+do
+    local NUMBER_NATIVE_EDIT_KEYS = {
+        Zero = true, One = true, Two = true, Three = true, Four = true,
+        Five = true, Six = true, Seven = true, Eight = true, Nine = true,
+        NumPadZero = true, NumPadOne = true, NumPadTwo = true,
+        NumPadThree = true, NumPadFour = true, NumPadFive = true,
+        NumPadSix = true, NumPadSeven = true, NumPadEight = true,
+        NumPadNine = true,
+        BackSpace = true, Delete = true, Home = true, End = true,
+    }
+    local function nativeNumberEditKeyAllowed(control, keyName, controlDown, shiftDown)
+        if type(control) ~= "table" then return false end
+        if controlDown == true then
+            return shiftDown ~= true and keyName == "A"
+        end
+        if shiftDown == true then return false end
+        if NUMBER_NATIVE_EDIT_KEYS[keyName] == true then return true end
+        return (keyName == "Hyphen" or keyName == "Subtract")
+            and (control.minimum or 0) < 0
+    end
+    state.numberEditorOps.nativeNumberEditKeyAllowed = nativeNumberEditKeyAllowed
+end
+
 handleNumberPreview = function(control, keyName, keyEvent, source)
     source = source or "preview"
     local controlDown = previewModifierDown(keyEvent, "control")
     local shiftDown = previewModifierDown(keyEvent, "shift")
     local edit = state.numberEdit
     if type(edit) ~= "table" or edit.control ~= control then return false end
+    if edit.mode == "mouse" and state.numberEditorOps.nativeNumberEditKeyAllowed(
+            control, keyName, controlDown, shiftDown) then
+        FooterGuide.markInputDevice("keyboard")
+        cancelNavigationRepeat()
+        -- Preview remains unhandled so Slate can update the focused editor;
+        -- duplicate global/actor observations are consumed here.
+        return source ~= "preview"
+    end
     local digit = NUMBER_KEY_DIGITS[keyName]
     if claimSynchronousNavigation(keyName, source) then return true end
     if digit ~= nil then
@@ -4037,10 +4153,13 @@ local function addNumberRow(tree, body, key, label, minimum, maximum, alternate)
         tonumber(state.config[key]) or minimum))
     initial = math.floor(initial + 0.5)
     local box = construct(tree, "/Script/UMG.SizeBox")
+    local layer = construct(tree, "/Script/UMG.Overlay")
+    local input = construct(tree, "/Script/UMG.EditableTextBox")
     local displayButton = construct(tree, "/Script/UMG.Button")
     local displayText = makeText(tree, tostring(initial), 14,
         COLORS.text, TEXT_LEFT)
-    if box == nil or displayButton == nil or displayText == nil then return false end
+    if box == nil or layer == nil or input == nil
+        or displayButton == nil or displayText == nil then return false end
     local ok = pcall(function()
         box:SetWidthOverride(SIZE.number)
         box:SetHeightOverride(SIZE.control)
@@ -4050,11 +4169,20 @@ local function addNumberRow(tree, body, key, label, minimum, maximum, alternate)
                 normal = COLORS.text,
                 hovered = COLORS.text,
                 pressed = COLORS.textOnAccent,
-            })
+        })
         displayText:SetVisibility(VIS_HIT_TEST_INVISIBLE)
         align(displayButton:AddChild(displayText), ALIGN_CENTER, ALIGN_CENTER)
+        state.numberEditorOps.styleEditableNumber(input)
+        input:SetText(FText(tostring(initial)))
+        input:SetIsReadOnly(false)
+        input.IsReadOnly = false
+        input.SelectAllTextWhenFocused = true
+        input.ClearKeyboardFocusOnCommit = true
+        align(layer:AddChild(input), ALIGN_FILL, ALIGN_FILL)
+        align(layer:AddChild(displayButton), ALIGN_FILL, ALIGN_FILL)
+        input:SetVisibility(VIS_COLLAPSED)
         displayButton:SetVisibility(VIS_VISIBLE)
-        align(box:AddChild(displayButton), ALIGN_FILL, ALIGN_FILL)
+        align(box:AddChild(layer), ALIGN_FILL, ALIGN_FILL)
     end)
     if not ok then return false end
     addControlToRow(row.row, box, 0)
@@ -4066,6 +4194,7 @@ local function addNumberRow(tree, body, key, label, minimum, maximum, alternate)
     state.triggerSurfaces[#state.triggerSurfaces + 1] = trigger
     local control = {
         kind = "number", key = key, widget = displayButton,
+        input = input,
         displayButton = displayButton,
         displayText = displayText, displayedText = tostring(initial),
         editingVisual = false, value = initial,
@@ -4448,7 +4577,7 @@ local function makeAboutLogoButton(tree, spec)
     if not textOnly and content == nil then return nil end
 
     local ok = pcall(function()
-        if requestedWidth ~= nil or label == nil then
+        if spec.fillWidth ~= true and (requestedWidth ~= nil or label == nil) then
             box:SetWidthOverride(width)
         end
         box:SetHeightOverride(height)
@@ -4890,9 +5019,10 @@ ensureAboutModal = function()
     if P.isValid(state.aboutOverlay) then return true end
     if not state.open or not P.isValid(state.widgetTree)
         or not P.isValid(state.root) then return false end
-    local viewportWidth, viewportHeight = logicalViewportSize(state.controller)
+    local viewportWidth, viewportHeight, viewportScale =
+        logicalViewportSize(state.controller)
     local built = buildAboutModal(state.widgetTree, state.root, currentStrings(),
-        viewportWidth, viewportHeight)
+        viewportWidth, viewportHeight, viewportScale)
     if built and InputOwner.cookedInputActive()
         and not InputOwner.bindActionButtons(state.directActionButtons) then
         log("About native action delegates unavailable; using mouse fallback")
@@ -4900,7 +5030,8 @@ ensureAboutModal = function()
     return built
 end
 
-buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
+buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight,
+        viewportScale)
     local overlay = construct(tree, "/Script/UMG.CanvasPanel")
     local dim = construct(tree, "/Script/UMG.Border")
     local cardBox = construct(tree, "/Script/UMG.SizeBox")
@@ -5292,10 +5423,9 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
         local productsCard, products = makeCard()
         local productShelfInnerWidth = math.max(1.0,
             scrollContentWidth - 24.0)
-        local compactProductShelf = productShelfInnerWidth < 376.0
-        local productsRow = construct(tree, compactProductShelf
-            and "/Script/UMG.VerticalBox" or "/Script/UMG.HorizontalBox")
-        if productsCard == nil or products == nil or productsRow == nil then
+        local productGap = SIZE.aboutLinkGap
+        local productsGrid = construct(tree, "/Script/UMG.UniformGridPanel")
+        if productsCard == nil or products == nil or productsGrid == nil then
             error("About product shelf unavailable")
         end
         local productCardColor = mixLinearColor(
@@ -5303,43 +5433,58 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
         local productFrameColor = COLORS.outline
         addCopy(products, strings.aboutProducts or "CRATEXNET PALWORLD TOOLS",
             13, COLORS.text, 0, productShelfInnerWidth)
-        local productsRowSlot = products:AddChild(productsRow)
-        setPadding(productsRowSlot, 0, 8, 0, 0)
-        align(productsRowSlot, ALIGN_FILL, ALIGN_CENTER)
-        local productGap = SIZE.aboutLinkGap
-        local productWidth = compactProductShelf and productShelfInnerWidth
-            or math.max(120.0,
-                (productShelfInnerWidth - (productGap * 2.0)) / 3.0)
+        productsGrid:SetSlotPadding({
+            Left = productGap * 0.5, Top = 0,
+            Right = productGap * 0.5, Bottom = 0,
+        })
+        local productsGridSlot = products:AddChild(productsGrid)
+        setPadding(productsGridSlot, 0, 8, 0, 0)
+        align(productsGridSlot, ALIGN_FILL, ALIGN_CENTER)
+        local productWidth = math.max(1.0,
+            (productShelfInnerWidth / 3.0) - productGap)
         local productOutlineWidth = SIZE.aboutProductCurrentOutline
-        local productInnerWidth = math.max(112.0,
-            productWidth - 12.0 - (productOutlineWidth * 2.0))
-        local productImageWidth = math.max(96.0, math.min(
-            productInnerWidth - 4.0, 92.0 * (1668.0 / 932.0)))
+        local productInnerWidth = math.max(1.0,
+            productWidth - (productOutlineWidth * 2.0))
+        local productMediaFrameWidth = 1.0
+        local productMediaInset = 3.0
+        local productMediaChrome = 2.0
+            * (productMediaFrameWidth + productMediaInset)
+        local productImageWidth = math.max(1.0, math.min(
+            productInnerWidth - productMediaChrome,
+            92.0 * (1668.0 / 932.0)))
         local productImageHeight = productImageWidth * (932.0 / 1668.0)
         local productActionHeight = SIZE.aboutProductLinkHeight
-        local productActionGap = SIZE.aboutProductLinkGap
-        local productPlatformCellWidth = math.max(productActionHeight,
-            (productInnerWidth - (productActionGap * 2.0)) / 3.0)
-        local function addProductLink(stack, spec, width, visibleLabel,
-                navRow, navColumn, leftGap)
+        viewportScale = math.max(0.01, tonumber(viewportScale) or 1.0)
+        local productActionGapPixels = SIZE.aboutProductLinkGapPixels
+        local productActionAvailableWidth = math.max(3.0,
+            productInnerWidth - 12.0)
+        local productActionAvailablePixels = math.max(3,
+            math.floor(productActionAvailableWidth * viewportScale))
+        local productActionButtonPixels = math.floor(
+            (productActionAvailablePixels - (productActionGapPixels * 2)) / 3)
+        productActionButtonPixels = math.max(1, productActionButtonPixels)
+        local productActionButtonWidth = productActionButtonPixels / viewportScale
+        local productActionGap = productActionGapPixels / viewportScale
+        local productActionStripWidth = (productActionButtonPixels * 3
+            + productActionGapPixels * 2) / viewportScale
+        local function addProductLink(stack, spec, visibleLabel,
+                navRow, navColumn)
             local iconSize = visibleLabel ~= nil and 16.0
                 or SIZE.aboutProductLinkIcon
             local action = makeAboutLogoButton(tree, {
                 asset = spec.asset, fallback = spec.fallback,
                 label = visibleLabel, tooltip = spec.label,
-                urlKey = spec.urlKey, width = width,
+                urlKey = spec.urlKey,
                 height = productActionHeight,
                 iconWidth = iconSize, iconHeight = iconSize,
                 labelFontSize = 10, textOnly = spec.textOnly,
                 orientation = visibleLabel ~= nil and "horizontal-center" or nil,
                 navRow = navRow, navColumn = navColumn,
-                role = "productLink",
+                role = "productLink", fillWidth = true,
             })
             if action == nil then return false end
             local slot = stack:AddChild(action.box)
-            setPadding(slot, 0,
-                0, 0, visibleLabel ~= nil and 6 or 0)
-            align(slot, ALIGN_CENTER, ALIGN_CENTER)
+            align(slot, ALIGN_FILL, ALIGN_CENTER)
             return true
         end
         local function makeProductMedia(spec)
@@ -5349,13 +5494,16 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
             local imageStage = construct(tree, "/Script/UMG.Border")
             local imageOverlay = construct(tree, "/Script/UMG.Overlay")
             local imageBox = construct(tree, "/Script/UMG.SizeBox")
+            local imageFrame = construct(tree, "/Script/UMG.Border")
+            local imageSurface = construct(tree, "/Script/UMG.Border")
             local titleBox = construct(tree, "/Script/UMG.SizeBox")
             local titleSurface = construct(tree, "/Script/UMG.Border")
             local titleWidget = makeText(tree, spec.title, 10,
                 COLORS.text, TEXT_CENTER)
             if mediaBox == nil or mediaStack == nil
                 or imageStageBox == nil or imageStage == nil or imageOverlay == nil
-                or imageBox == nil or titleBox == nil or titleSurface == nil
+                or imageBox == nil or imageFrame == nil or imageSurface == nil
+                or titleBox == nil or titleSurface == nil
                 or titleWidget == nil then return nil end
             local mediaWidth = math.max(1.0, tonumber(spec.iconWidth))
             local mediaHeight = math.max(1.0, tonumber(spec.iconHeight))
@@ -5395,10 +5543,9 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
             if media == nil then return nil end
             setTextWrap(titleWidget, productInnerWidth - 8.0)
             local ok = pcall(function()
-                mediaBox:SetWidthOverride(productInnerWidth)
                 mediaBox:SetHeightOverride(130.0)
-                imageStageBox:SetWidthOverride(productInnerWidth)
-                imageStageBox:SetHeightOverride(mediaHeight)
+                local framedMediaHeight = mediaHeight + productMediaChrome
+                imageStageBox:SetHeightOverride(framedMediaHeight)
                 imageStage:SetBrushColor(COLORS.transparent)
                 local imageVisual
                 if spec.preview == true then
@@ -5411,28 +5558,47 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
                         textureApplied and ALIGN_FILL or ALIGN_CENTER)
                     imageVisual = imageBox
                 end
-                align(imageOverlay:AddChild(imageVisual),
+                imageFrame:SetBrushColor(productFrameColor)
+                imageFrame:SetPadding({
+                    Left = productMediaFrameWidth,
+                    Top = productMediaFrameWidth,
+                    Right = productMediaFrameWidth,
+                    Bottom = productMediaFrameWidth,
+                })
+                imageSurface:SetBrushColor(COLORS.content)
+                imageSurface:SetPadding({
+                    Left = productMediaInset,
+                    Top = productMediaInset,
+                    Right = productMediaInset,
+                    Bottom = productMediaInset,
+                })
+                align(imageSurface:AddChild(imageVisual),
+                    ALIGN_CENTER, ALIGN_CENTER)
+                align(imageFrame:AddChild(imageSurface),
+                    ALIGN_FILL, ALIGN_FILL)
+                align(imageOverlay:AddChild(imageFrame),
                     ALIGN_CENTER, ALIGN_CENTER)
                 align(imageStage:AddChild(imageOverlay), ALIGN_FILL, ALIGN_FILL)
                 align(imageStageBox:AddChild(imageStage), ALIGN_FILL, ALIGN_FILL)
-                align(mediaStack:AddChild(imageStageBox),
-                    ALIGN_FILL, ALIGN_CENTER)
-                titleBox:SetHeightOverride(math.max(30.0, 130.0 - mediaHeight))
-                titleSurface:SetBrushColor(COLORS.transparent)
+                titleBox:SetHeightOverride(math.max(30.0,
+                    130.0 - framedMediaHeight))
+                titleSurface:SetBrushColor(mixLinearColor(
+                    productCardColor, COLORS.control, 0.55))
                 titleSurface:SetPadding({
-                    Left = 10, Top = SIZE.aboutLinkGap,
-                    Right = 10, Bottom = 0,
+                    Left = 10, Top = 4,
+                    Right = 10, Bottom = 4,
                 })
                 align(titleSurface:AddChild(titleWidget),
                     ALIGN_FILL, ALIGN_CENTER)
                 align(titleBox:AddChild(titleSurface), ALIGN_FILL, ALIGN_FILL)
                 align(mediaStack:AddChild(titleBox), ALIGN_FILL, ALIGN_FILL)
+                align(mediaStack:AddChild(imageStageBox),
+                    ALIGN_FILL, ALIGN_CENTER)
                 align(mediaBox:AddChild(mediaStack), ALIGN_FILL, ALIGN_FILL)
             end)
             return ok and mediaBox or nil
         end
         local function addProduct(spec, column)
-            local current = spec.current == true
             local productBox = construct(tree, "/Script/UMG.SizeBox")
             local productFrame = construct(tree, "/Script/UMG.Border")
             local productContent = construct(tree, "/Script/UMG.Border")
@@ -5442,18 +5608,13 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
             local mediaBox = makeProductMedia(spec)
             if mediaBox == nil then return false end
             local ok = pcall(function()
-                productBox:SetWidthOverride(productWidth)
                 productBox:SetHeightOverride(SIZE.aboutProductCardHeight)
-                productFrame:SetBrushColor(current and mixLinearColor(
-                    productFrameColor, COLORS.borderFocus, 0.60)
-                    or productFrameColor)
+                productFrame:SetBrushColor(productFrameColor)
                 productFrame:SetPadding({
                     Left = productOutlineWidth, Top = productOutlineWidth,
                     Right = productOutlineWidth, Bottom = productOutlineWidth,
                 })
-                productContent:SetBrushColor(current and mixLinearColor(
-                    productCardColor, COLORS.actionInfo, 0.07)
-                    or productCardColor)
+                productContent:SetBrushColor(productCardColor)
                 align(productFrame:AddChild(productContent),
                     ALIGN_FILL, ALIGN_FILL)
                 align(productContent:AddChild(productStack),
@@ -5473,50 +5634,49 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
             if productFooter == nil then return false end
             productFooter:SetBrushColor(COLORS.transparent)
             productFooter:SetPadding({ Left = 6, Top = 3, Right = 6, Bottom = 3 })
+            local stripBox = construct(tree, "/Script/UMG.SizeBox")
+            if stripBox == nil then return false end
+            stripBox:SetWidthOverride(productActionStripWidth)
             if #links == 3 then
                 local platformRow = construct(tree, "/Script/UMG.HorizontalBox")
                 if platformRow == nil then return false end
-                align(productFooter:AddChild(platformRow),
+                align(stripBox:AddChild(platformRow),
                     ALIGN_FILL, ALIGN_CENTER)
                 local baseColumn = tonumber(spec.navColumnBase) or 0
                 local navRow = tonumber(spec.navRow) or 2
                 for index, link in ipairs(links) do
                     local cell = construct(tree, "/Script/UMG.SizeBox")
                     if cell == nil then return false end
-                    cell:SetWidthOverride(productPlatformCellWidth)
+                    cell:SetWidthOverride(productActionButtonWidth)
                     local cellSlot = platformRow:AddChild(cell)
-                    align(cellSlot, ALIGN_CENTER, ALIGN_CENTER)
-                    if index < #links then
-                        setPadding(cellSlot, 0, 0, productActionGap, 0)
-                    end
-                    if not addProductLink(cell, link,
-                            productActionHeight, nil, navRow,
-                            baseColumn + index, false) then
+                    align(cellSlot, ALIGN_FILL, ALIGN_FILL)
+                    if not addProductLink(cell, link, nil, navRow,
+                            baseColumn + index) then
                         return false
+                    end
+                    if index < #links then
+                        local gap = construct(tree, "/Script/UMG.SizeBox")
+                        if gap == nil then return false end
+                        gap:SetWidthOverride(productActionGap)
+                        platformRow:AddChild(gap)
                     end
                 end
             else
                 for index, link in ipairs(links) do
-                    if not addProductLink(productFooter, link,
-                            productInnerWidth, link.label,
+                    if not addProductLink(stripBox, link, link.label,
                             tonumber(spec.navRow) or 2,
-                            (tonumber(spec.navColumnBase) or 0) + index,
-                            index > 1) then
+                            (tonumber(spec.navColumnBase) or 0) + index) then
                         return false
                     end
                 end
             end
+            align(productFooter:AddChild(stripBox),
+                ALIGN_CENTER, ALIGN_CENTER)
             local footerSlot = productStack:AddChild(productFooter)
             align(footerSlot, ALIGN_FILL, ALIGN_CENTER)
-            local slot = productsRow:AddChild(productBox)
-            if compactProductShelf and column < 3 then
-                setPadding(slot, 0, 0, 0, productGap)
-            elseif not compactProductShelf and column == 1 then
-                setPadding(slot, 0, 0, productGap, 0)
-            elseif not compactProductShelf and column == 2 then
-                setPadding(slot, 0, 0, productGap, 0)
-            end
-            align(slot, ALIGN_CENTER, ALIGN_CENTER)
+            local slot = productsGrid:AddChildToUniformGrid(
+                productBox, 0, column - 1)
+            align(slot, ALIGN_FILL, ALIGN_FILL)
             return true
         end
         if not addProduct({
@@ -5524,7 +5684,7 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
                 title = "Pal Insight",
                 iconWidth = productImageHeight,
                 iconHeight = productImageHeight,
-                navRow = 1, navColumnBase = 0,
+                navRow = 2, navColumnBase = 0,
                 links = {
                     { asset = "steam.png", fallback = "S",
                         label = "Steam Workshop", urlKey = "palInsightWorkshop" },
@@ -5537,10 +5697,10 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
         state.aboutDefaultFocusIndex = #state.aboutActions + 1
         if not addProduct({
                 asset = "quick-stack-preview.png", fallback = "QS",
-                title = "Pal Insight: Quick Stack", current = true,
+                title = "Pal Insight: Quick Stack",
                 iconWidth = productImageHeight,
                 iconHeight = productImageHeight,
-                navRow = 1, navColumnBase = 3,
+                navRow = 2, navColumnBase = 3,
                 links = {
                     { asset = "steam.png", fallback = "S",
                         label = "Steam Workshop", urlKey = "quickStackWorkshop" },
@@ -5557,8 +5717,8 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
                 preview = true,
                 previewTooltip = strings.aboutCalculator
                     or "Palworld Breeding Calculator",
-                previewNavRow = 1, previewNavColumn = 6,
-                navRow = 1, navColumnBase = 6,
+                previewNavRow = 1, previewNavColumn = 7,
+                navRow = 2, navColumnBase = 6,
                 links = {
                     { textOnly = true, label = strings.aboutVisitCalculator
                             or "View breeding tool",
@@ -5750,16 +5910,18 @@ end
 
 logicalViewportSize = function(controller)
     local width, height = 1280.0, 720.0
+    local viewportScale = 1.0
     local layout = staticObject("/Script/UMG.Default__WidgetLayoutLibrary")
-    if layout == nil then return width, height end
+    if layout == nil then return width, height, viewportScale end
     pcall(function()
         local size = layout:GetViewportSize(controller)
         width = tonumber(size.X) or width
         height = tonumber(size.Y) or height
-        local scale = tonumber(layout:GetViewportScale(controller)) or 1.0
-        if scale > 0 then width, height = width / scale, height / scale end
+        viewportScale = tonumber(layout:GetViewportScale(controller)) or 1.0
+        if viewportScale <= 0 then viewportScale = 1.0 end
+        width, height = width / viewportScale, height / viewportScale
     end)
-    return width, height
+    return width, height, viewportScale
 end
 
 local function clearWindowReferences()
