@@ -641,6 +641,8 @@ local function restoreInputContext(controller, controllerAddress, context)
     local library = widgetLibrary()
     local focusWidget = focusIfAlive(context.focusWidget)
     if library == nil then return false end
+    if context.mode == "UIOnly" and focusWidget == nil
+        and context.allowMissingFocus ~= true then return false end
     state.applyingInputMode = true
     local restored, cursorMatches = pcall(function()
         if context.mode == "UIOnly" then
@@ -660,7 +662,8 @@ local function restoreInputContext(controller, controllerAddress, context)
     return restored == true and cursorMatches == true
 end
 
-local function captureInputContext(controller)
+local function captureInputContext(controller, hostedParent)
+    hostedParent = hostedParent == true
     local ok, cursorVisible = pcall(function()
         return controller.bShowMouseCursor == true
     end)
@@ -670,21 +673,46 @@ local function captureInputContext(controller)
     if controllerAddress ~= nil and type(observed) == "table"
         and observed.controllerAddress == controllerAddress then
         local mode = observed.mode
-        if cursorVisible and mode == "GameOnly" then mode = "GameAndUI" end
+        if cursorVisible and mode == "GameOnly" then
+            if not hostedParent then return nil end
+            mode = "GameAndUI"
+        end
+        local focusWidget = focusIfAlive(observed.focusWidget)
+        if mode == "UIOnly" and focusWidget == nil
+            and not hostedParent then return nil end
         return {
             mode = mode,
-            focusWidget = observed.focusWidget,
+            focusWidget = focusWidget,
             mouseLockMode = observed.mouseLockMode,
             hideCursorDuringCapture = observed.hideCursorDuringCapture,
             showMouseCursor = cursorVisible == true,
+            allowMissingFocus = hostedParent and mode == "UIOnly",
         }
     end
+    if cursorVisible and not hostedParent then return nil end
     return {
         mode = cursorVisible and "GameAndUI" or "GameOnly",
         focusWidget = nil,
         mouseLockMode = 0,
         hideCursorDuringCapture = false,
         showMouseCursor = cursorVisible == true,
+        allowMissingFocus = hostedParent and cursorVisible,
+    }
+end
+
+local function releaseRestoreContext(context, ownerUnavailable)
+    if type(context) ~= "table" or context.mode ~= "UIOnly" then return context end
+    local focusWidget = focusIfAlive(context.focusWidget)
+    if not ownerUnavailable and (focusWidget ~= nil
+        or context.allowMissingFocus == true) then return context end
+    if not ownerUnavailable and context.focusWidget == nil then return context end
+    log("UI-only input owner is unavailable; restoring an interactive fallback")
+    return {
+        mode = "GameAndUI",
+        focusWidget = nil,
+        mouseLockMode = context.mouseLockMode,
+        hideCursorDuringCapture = false,
+        showMouseCursor = true,
     }
 end
 
@@ -851,7 +879,7 @@ function Bridge.acquire(controller, ownerWidget, options)
     end
     local controllerAddress = P.objectAddress(controller)
     local ownerWidgetAddress = P.objectAddress(ownerWidget)
-    local inputContext = captureInputContext(controller)
+    local inputContext = captureInputContext(controller, hostedParent)
     local hostedFallbackContext
     if hostedParent and type(inputContext) == "table" then
         hostedFallbackContext = {
@@ -860,6 +888,7 @@ function Bridge.acquire(controller, ownerWidget, options)
             mouseLockMode = inputContext.mouseLockMode,
             hideCursorDuringCapture = inputContext.hideCursorDuringCapture,
             showMouseCursor = inputContext.showMouseCursor,
+            allowMissingFocus = inputContext.allowMissingFocus,
         }
         -- Pal Insight is a UIOnly modal owner. A late-loaded extension may have
         -- missed the parent's original reflected transition and otherwise infer
@@ -868,6 +897,7 @@ function Bridge.acquire(controller, ownerWidget, options)
         inputContext.mode = "UIOnly"
         inputContext.hideCursorDuringCapture = false
         inputContext.showMouseCursor = true
+        inputContext.allowMissingFocus = true
     end
     if (cookedAvailable and bridgeAddress == nil) or controllerAddress == nil
         or ownerWidgetAddress == nil or inputContext == nil then
@@ -1266,19 +1296,7 @@ function Bridge.release(options)
         and state.inputContext
         or state.externalInputContext or state.hostedFallbackContext
         or state.inputContext
-    if hostUnavailable and type(restoreContext) == "table"
-        and restoreContext.mode == "UIOnly" then
-        -- A vanished host can no longer own the UI-only context captured under
-        -- its parent panel. Fall back to an interactive game/UI context instead
-        -- of hiding the child and leaving the player trapped behind no owner.
-        restoreContext = {
-            mode = "GameAndUI",
-            focusWidget = nil,
-            mouseLockMode = restoreContext.mouseLockMode,
-            hideCursorDuringCapture = false,
-            showMouseCursor = true,
-        }
-    end
+    restoreContext = releaseRestoreContext(restoreContext, hostUnavailable)
     local controller = state.controller
     local controllerAddress = state.controllerAddress
     local isolation = state.inputIsolation
@@ -1372,16 +1390,7 @@ function Bridge.emergencyRelease(options)
         and state.inputContext
         or state.externalInputContext or state.hostedFallbackContext
         or state.inputContext
-    if hostUnavailable and type(restoreContext) == "table"
-        and restoreContext.mode == "UIOnly" then
-        restoreContext = {
-            mode = "GameAndUI",
-            focusWidget = nil,
-            mouseLockMode = restoreContext.mouseLockMode,
-            hideCursorDuringCapture = false,
-            showMouseCursor = true,
-        }
-    end
+    restoreContext = releaseRestoreContext(restoreContext, hostUnavailable)
     local restored = restoreInputContext(
         controller, controllerAddress, restoreContext)
     if not restored then
