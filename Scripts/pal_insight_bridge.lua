@@ -1,4 +1,5 @@
 local P = require("palworld")
+local NativeSettingsInput = require("native_settings_input")
 
 local Bridge = {}
 
@@ -9,6 +10,8 @@ local BRIDGE_PRIORITY = 9999
 local BRIDGE_ASSET_PATH =
     "/Game/Mods/PalInsightX/WBP_PalInsightX_Settings"
 local BRIDGE_CLASS_PATH = BRIDGE_ASSET_PATH .. ".WBP_PalInsightX_Settings_C"
+local BRIDGE_DEFAULT_PATH = BRIDGE_ASSET_PATH
+    .. ".Default__WBP_PalInsightX_Settings_C"
 local BRIDGE_PRESSED_FUNCTION = BRIDGE_CLASS_PATH
     .. ":PalInsightInputBridgePressed"
 local BRIDGE_RELEASED_FUNCTION = BRIDGE_CLASS_PATH
@@ -19,6 +22,8 @@ local BRIDGE_AXIS_Y_FUNCTION = BRIDGE_CLASS_PATH
     .. ":PalInsightInputBridgeAxisY"
 local BRIDGE_CLICKED_FUNCTION = BRIDGE_CLASS_PATH
     .. ":PalInsightSearchClearClicked"
+local BRIDGE_TOGGLE_CHANGED_FUNCTION = BRIDGE_CLASS_PATH
+    .. ":PalInsightSettingsToggleChanged"
 local RETURN_LISTENER_CLASS =
     "/Game/Pal/Blueprint/UI/WBP_PalHUD_InGame_InputListener.WBP_PalHUD_InGame_InputListener_C"
 local RETURN_GATE_FUNCTION_CANDIDATES = {
@@ -42,6 +47,8 @@ local state = {
     keyboardBindingCallbacks = {},
     keyboardWarningLogged = false,
     bridgeHooksReady = false,
+    actionDelegateHookReady = false,
+    toggleDelegateHookReady = false,
     inputModeHooksReady = false,
     escapePriorityHooksReady = false,
     returnGateReady = false,
@@ -58,10 +65,18 @@ local state = {
     controllerAddress = nil,
     closeButton = nil,
     closeButtonAddress = nil,
+    actionDelegateBridge = nil,
+    actionDelegateBridgeAddress = nil,
+    actionDelegateRecords = {},
+    actionDelegateExpectedCount = 0,
+    toggleDelegateBridge = nil,
+    toggleDelegateBridgeAddress = nil,
+    toggleDelegateRecords = {},
     handlers = nil,
     modalUIOnly = false,
     hostedParent = false,
     cookedInputActive = false,
+    nativeInputActive = false,
     active = false,
     closePending = false,
     reclaimPending = false,
@@ -104,6 +119,11 @@ end
 local function ownsBridge(context)
     if state.active ~= true or state.bridgeAddress == nil then return false end
     return sameObject(P.unwrap(context), state.bridgeAddress)
+end
+
+local function ownsDelegateBridge(context, bridge, address)
+    return state.active == true and sameObject(bridge, address)
+        and sameObject(P.unwrap(context), address)
 end
 
 local function ownsController(controller)
@@ -149,7 +169,13 @@ local function drainKeyboardQueue()
     state.keyboardQueue = {}
     for _, item in ipairs(queue) do
         if state.active == true and item.generation == state.generation then
-            dispatchEvent("onPressed", item.keyName, "global")
+            if item.keyName == "LeftMouseButton" then
+                if not Bridge.nativeActionDelegatesReady() then
+                    dispatchEvent("onClicked", "mouse", "global")
+                end
+            else
+                dispatchEvent("onPressed", item.keyName, "global")
+            end
         end
     end
     if #state.keyboardQueue > 0 then wakeKeyboardQueue() end
@@ -205,9 +231,25 @@ end
 local function bridgeKeyName(keyParam)
     local key = P.unwrap(keyParam)
     if key == nil then return nil end
-    local ok, keyName = pcall(function() return key.KeyName end)
-    if not ok then return nil end
-    return P.nameString(keyName)
+    if type(key) == "string" then return P.nameString(key) end
+    local keyName
+    pcall(function() keyName = key.KeyName end)
+    local result = P.nameString(keyName)
+    if result ~= nil then return result end
+
+    local nestedKey
+    pcall(function() nestedKey = P.unwrap(key.Key) end)
+    if nestedKey ~= nil then
+        keyName = nil
+        pcall(function() keyName = nestedKey.KeyName end)
+        result = P.nameString(keyName)
+        if result ~= nil then return result end
+    end
+    -- FKey wrappers are not guaranteed to expose a safe UObject-style
+    -- ToString call on every UE4SS build. Match Pal Insight and accept only a
+    -- real KeyName (or its nested chord key) instead of stringifying the whole
+    -- reflected parameter.
+    return nil
 end
 
 local function pressedHook(context, keyParam)
@@ -227,7 +269,17 @@ local function releasedHook(context, keyParam)
 end
 
 local function clickedHook(context)
-    if ownsBridge(context) then dispatchEvent("onClicked", "mouse") end
+    if ownsDelegateBridge(context, state.actionDelegateBridge,
+            state.actionDelegateBridgeAddress) or ownsBridge(context) then
+        dispatchEvent("onClicked", "mouse")
+    end
+end
+
+local function toggleChangedHook(context, _checkedParam)
+    if ownsDelegateBridge(context, state.toggleDelegateBridge,
+            state.toggleDelegateBridgeAddress) then
+        dispatchEvent("onToggleChanged", "mouse", "native")
+    end
 end
 
 local function axisValue(valueParam)
@@ -449,11 +501,25 @@ local function installBridgeHooks()
     if not installHook(BRIDGE_PRESSED_FUNCTION, pressedHook)
         or not installHook(BRIDGE_RELEASED_FUNCTION, releasedHook)
         or not installHook(BRIDGE_AXIS_X_FUNCTION, axisXHook)
-        or not installHook(BRIDGE_AXIS_Y_FUNCTION, axisYHook)
-        or not installHook(BRIDGE_CLICKED_FUNCTION, clickedHook) then
+        or not installHook(BRIDGE_AXIS_Y_FUNCTION, axisYHook) then
         return false
     end
     state.bridgeHooksReady = true
+    return true
+end
+
+local function installActionDelegateHook()
+    if state.actionDelegateHookReady then return true end
+    if not installHook(BRIDGE_CLICKED_FUNCTION, clickedHook) then return false end
+    state.actionDelegateHookReady = true
+    return true
+end
+
+local function installToggleDelegateHook()
+    if state.toggleDelegateHookReady then return true end
+    if not installHook(BRIDGE_TOGGLE_CHANGED_FUNCTION,
+            toggleChangedHook) then return false end
+    state.toggleDelegateHookReady = true
     return true
 end
 
@@ -475,6 +541,7 @@ local function registerKeyboardBindings()
         { name = "SpaceBar", value = Key.SPACE },
         { name = "Escape", value = Key.ESCAPE },
         { name = "Tab", value = Key.TAB },
+        { name = "LeftMouseButton", value = Key.LEFT_MOUSE_BUTTON },
     }) do
         if spec.value ~= nil and state.keyboardBindingCallbacks[spec.name] == nil then
             local name = spec.name
@@ -623,6 +690,7 @@ end
 
 function Bridge.configure(logger)
     state.log = logger
+    NativeSettingsInput.configure(logger)
     installInputModeHooks()
 end
 
@@ -745,6 +813,8 @@ function Bridge.acquire(controller, ownerWidget, options)
     local handlers, allowWithoutBridge = handlersFor(options)
     local modalUIOnly = type(options) == "table" and options.modalUIOnly == true
     local hostedParent = type(options) == "table" and options.hostedParent == true
+    local exclusiveController = type(options) == "table"
+        and options.exclusiveController == true
     if not hostedParent and not installEscapePriorityHooks() then
         log("native Escape priority hooks are unavailable")
     end
@@ -805,6 +875,16 @@ function Bridge.acquire(controller, ownerWidget, options)
         return false, "bridge input ownership cannot be prepared"
     end
 
+    local nativeInputActive = false
+    if exclusiveController and not hostedParent then
+        local nativeAcquired, nativeError = NativeSettingsInput.acquire()
+        if not nativeAcquired then
+            if P.isValid(bridge) then setCookedBridgeActive(bridge, false) end
+            return false, nativeError or "native controller isolation is unavailable"
+        end
+        nativeInputActive = true
+    end
+
     state.generation = state.generation + 1
     state.bridge = bridge
     state.bridgeAddress = bridgeAddress
@@ -819,6 +899,7 @@ function Bridge.acquire(controller, ownerWidget, options)
     state.modalUIOnly = modalUIOnly
     state.hostedParent = hostedParent
     state.cookedInputActive = cookedAvailable == true
+    state.nativeInputActive = nativeInputActive
     state.active = true
     state.closePending = false
     state.reclaimPending = false
@@ -827,6 +908,7 @@ function Bridge.acquire(controller, ownerWidget, options)
         bridgeCacheHit = bridgeCacheHit == true,
         bridgeCreated = cookedAvailable == true and bridgeCacheHit ~= true,
         bridgeMounted = cookedAvailable == true and bridgeCacheHit ~= true,
+        nativeInputActive = nativeInputActive,
     }
 
     if not acquireInputIsolation(controller) or not applyModalInput() then
@@ -839,6 +921,18 @@ end
 
 function Bridge.cookedInputActive()
     return state.active == true and state.cookedInputActive == true
+end
+
+function Bridge.nativeControllerActive()
+    return state.active == true and state.nativeInputActive == true
+        and NativeSettingsInput.active()
+end
+
+function Bridge.readNativeControllerSnapshot()
+    if not Bridge.nativeControllerActive() then
+        return nil, "native controller isolation is inactive"
+    end
+    return NativeSettingsInput.readSnapshot()
 end
 
 function Bridge.lastAcquireDiagnostics()
@@ -900,6 +994,218 @@ function Bridge.discardPendingKey(keyName)
     return true
 end
 
+local function unbindActionButtons()
+    local bridge = state.actionDelegateBridge
+    local bridgeAddress = state.actionDelegateBridgeAddress
+    for _, record in ipairs(state.actionDelegateRecords or {}) do
+        if sameObject(bridge, bridgeAddress)
+            and sameObject(record.button, record.address) then
+            pcall(function()
+                record.button.OnClicked:Remove(
+                    bridge, "PalInsightSearchClearClicked")
+            end)
+        end
+    end
+    state.actionDelegateBridge = nil
+    state.actionDelegateBridgeAddress = nil
+    state.actionDelegateRecords = {}
+    state.actionDelegateExpectedCount = 0
+    return true
+end
+
+local function unbindToggleControls()
+    local bridge = state.toggleDelegateBridge
+    local bridgeAddress = state.toggleDelegateBridgeAddress
+    for _, record in ipairs(state.toggleDelegateRecords or {}) do
+        if sameObject(bridge, bridgeAddress)
+            and sameObject(record.widget, record.address) then
+            pcall(function()
+                record.widget.OnCheckStateChanged:Remove(
+                    bridge, "PalInsightSettingsToggleChanged")
+            end)
+        end
+    end
+    state.toggleDelegateBridge = nil
+    state.toggleDelegateBridgeAddress = nil
+    state.toggleDelegateRecords = {}
+    return true
+end
+
+local function delegateBridge()
+    local bridge = P.staticObject(BRIDGE_DEFAULT_PATH)
+    if not P.isValid(bridge) and type(LoadAsset) == "function" then
+        pcall(LoadAsset, BRIDGE_ASSET_PATH)
+        bridge = P.staticObject(BRIDGE_DEFAULT_PATH)
+    end
+    local address = P.objectAddress(bridge)
+    return address ~= nil and bridge or nil, address
+end
+
+local function actionDelegatesReady()
+    local records = state.actionDelegateRecords or {}
+    if not sameObject(state.actionDelegateBridge,
+            state.actionDelegateBridgeAddress)
+        or state.actionDelegateExpectedCount < 1
+        or #records ~= state.actionDelegateExpectedCount then return false end
+    for _, record in ipairs(records) do
+        if not sameObject(record.button, record.address) then return false end
+    end
+    return true
+end
+
+function Bridge.bindActionButtons(buttons)
+    if state.active ~= true or type(buttons) ~= "table"
+        or not installActionDelegateHook() then return false end
+    local bridge, bridgeAddress = delegateBridge()
+    if bridge == nil then return false end
+    if state.actionDelegateBridgeAddress ~= nil
+        and (not sameObject(state.actionDelegateBridge,
+                state.actionDelegateBridgeAddress)
+            or state.actionDelegateBridgeAddress ~= bridgeAddress) then
+        unbindActionButtons()
+    end
+    if state.actionDelegateBridgeAddress == nil then
+        state.actionDelegateBridge = bridge
+        state.actionDelegateBridgeAddress = bridgeAddress
+    end
+    local seen = {}
+    for _, record in ipairs(state.actionDelegateRecords or {}) do
+        if not sameObject(record.button, record.address) then
+            unbindActionButtons()
+            state.actionDelegateBridge = bridge
+            state.actionDelegateBridgeAddress = bridgeAddress
+            seen = {}
+            break
+        end
+        seen[record.address] = true
+    end
+    local pending = {}
+    local expected = {}
+    for _, button in ipairs(buttons) do
+        if P.isValid(button) then
+            local address = P.objectAddress(button)
+            if address == nil then
+                unbindActionButtons()
+                return false
+            end
+            expected[address] = true
+            if not seen[address] then
+                seen[address] = true
+                pending[#pending + 1] = { button = button, address = address }
+            end
+        end
+    end
+    local added = {}
+    for _, record in ipairs(pending) do
+        local ok = pcall(function()
+            record.button.OnClicked:Add(
+                bridge, "PalInsightSearchClearClicked")
+        end)
+        if not ok then
+            for _, rollback in ipairs(added) do
+                pcall(function()
+                    rollback.button.OnClicked:Remove(
+                        bridge, "PalInsightSearchClearClicked")
+                end)
+            end
+            unbindActionButtons()
+            return false
+        end
+        added[#added + 1] = record
+    end
+    for _, record in ipairs(added) do
+        state.actionDelegateRecords[#state.actionDelegateRecords + 1] = record
+    end
+    local expectedCount = 0
+    for _ in pairs(expected) do expectedCount = expectedCount + 1 end
+    state.actionDelegateExpectedCount = expectedCount
+    return actionDelegatesReady()
+end
+
+function Bridge.nativeActionDelegatesReady()
+    return state.active == true and actionDelegatesReady()
+end
+
+function Bridge.unbindActionButtons()
+    return unbindActionButtons()
+end
+
+function Bridge.bindToggleControls(controls)
+    if state.active ~= true or type(controls) ~= "table"
+        or not installToggleDelegateHook() then return false end
+    local pending = {}
+    local seen = {}
+    for _, control in ipairs(controls) do
+        local widget = type(control) == "table"
+            and control.kind == "toggle" and control.widget or nil
+        if P.isValid(widget) then
+            local address = P.objectAddress(widget)
+            if address == nil then return false end
+            if not seen[address] then
+                seen[address] = true
+                pending[#pending + 1] = {
+                    widget = widget,
+                    address = address,
+                }
+            end
+        end
+    end
+    if #pending == 0 then return false end
+    local bridge, bridgeAddress = delegateBridge()
+    if bridge == nil then return false end
+    local current = state.toggleDelegateRecords or {}
+    local same = sameObject(state.toggleDelegateBridge,
+            state.toggleDelegateBridgeAddress)
+        and state.toggleDelegateBridgeAddress == bridgeAddress
+        and #current == #pending
+    if same then
+        local currentAddresses = {}
+        for _, record in ipairs(current) do
+            if not sameObject(record.widget, record.address) then
+                same = false
+                break
+            end
+            currentAddresses[record.address] = true
+        end
+        if same then
+            for _, record in ipairs(pending) do
+                if currentAddresses[record.address] ~= true then
+                    same = false
+                    break
+                end
+            end
+        end
+    end
+    if same then return true end
+    unbindToggleControls()
+    state.toggleDelegateBridge = bridge
+    state.toggleDelegateBridgeAddress = bridgeAddress
+    local added = {}
+    for _, record in ipairs(pending) do
+        local ok = pcall(function()
+            record.widget.OnCheckStateChanged:Add(
+                bridge, "PalInsightSettingsToggleChanged")
+        end)
+        if not ok then
+            for _, rollback in ipairs(added) do
+                pcall(function()
+                    rollback.widget.OnCheckStateChanged:Remove(
+                        bridge, "PalInsightSettingsToggleChanged")
+                end)
+            end
+            unbindToggleControls()
+            return false
+        end
+        added[#added + 1] = record
+    end
+    state.toggleDelegateRecords = added
+    return true
+end
+
+function Bridge.unbindToggleControls()
+    return unbindToggleControls()
+end
+
 function Bridge.bindCloseButton(button)
     if state.active ~= true or not P.isValid(state.bridge)
         or not P.isValid(button) then return false end
@@ -919,6 +1225,34 @@ function Bridge.focusCloseButton()
     if state.active ~= true or not P.isValid(state.closeButton) then return false end
     local ok = pcall(function() state.closeButton:SetKeyboardFocus() end)
     return ok
+end
+
+local function clearModalOwnership()
+    state.active = false
+    state.generation = state.generation + 1
+    state.closePending = false
+    state.reclaimPending = false
+    state.closeDispatchCallback = nil
+    state.reclaimCallback = nil
+    state.handlers = nil
+    state.modalUIOnly = false
+    state.hostedParent = false
+    state.cookedInputActive = false
+    state.nativeInputActive = false
+    state.keyboardQueue = {}
+    state.keyboardWakePending = false
+    state.closeButton = nil
+    state.closeButtonAddress = nil
+    state.bridge = nil
+    state.bridgeAddress = nil
+    state.ownerWidget = nil
+    state.ownerWidgetAddress = nil
+    state.controller = nil
+    state.controllerAddress = nil
+    state.inputContext = nil
+    state.hostedFallbackContext = nil
+    state.externalInputContext = nil
+    state.inputIsolation = nil
 end
 
 function Bridge.release(options)
@@ -949,6 +1283,7 @@ function Bridge.release(options)
     local controllerAddress = state.controllerAddress
     local isolation = state.inputIsolation
     local cookedWasActive = state.cookedInputActive == true
+    local nativeWasActive = state.nativeInputActive == true
 
     -- Closing is a transaction. Do not discard ownership records until the
     -- blocking component, movement/look lease, and prior input context have all
@@ -974,37 +1309,106 @@ function Bridge.release(options)
         return false
     end
 
+    if nativeWasActive and not NativeSettingsInput.release() then
+        local isolationReclaimed = reclaimInputIsolation(isolation)
+        local bridgeReclaimed = not cookedWasActive
+            or setCookedBridgeActive(bridge, true)
+        local modalReclaimed = applyModalInput()
+        log("native controller filter could not be released; modal rollback isolation="
+            .. tostring(isolationReclaimed) .. " bridge="
+            .. tostring(bridgeReclaimed) .. " mode="
+            .. tostring(modalReclaimed))
+        return false
+    end
+
     if P.isValid(bridge) and P.isValid(button)
         and P.objectAddress(button) == buttonAddress then
         pcall(function()
             button.OnClicked:Remove(bridge, "PalInsightSearchClearClicked")
         end)
     end
+    clearModalOwnership()
+    return true
+end
 
-    state.active = false
-    state.generation = state.generation + 1
-    state.closePending = false
-    state.reclaimPending = false
-    state.closeDispatchCallback = nil
-    state.reclaimCallback = nil
-    state.handlers = nil
-    state.modalUIOnly = false
-    state.hostedParent = false
-    state.cookedInputActive = false
-    state.keyboardQueue = {}
-    state.keyboardWakePending = false
-    state.closeButton = nil
-    state.closeButtonAddress = nil
+function Bridge.emergencyRelease(options)
+    if state.active ~= true then return true end
+    local bridge = state.bridge
+    local button = state.closeButton
+    local buttonAddress = state.closeButtonAddress
+    local controller = state.controller
+    local controllerAddress = state.controllerAddress
+    local hostUnavailable = type(options) == "table"
+        and options.hostUnavailable == true
 
-    state.bridge = nil
-    state.bridgeAddress = nil
-    state.ownerWidget = nil
-    state.ownerWidgetAddress = nil
-    state.controller = nil
-    state.controllerAddress = nil
-    state.inputContext = nil
-    state.hostedFallbackContext = nil
-    state.externalInputContext = nil
+    -- This path runs only after bounded normal retries. It is still a verified
+    -- transaction: never hide the panel or discard an ownership record merely
+    -- because a best-effort call was attempted.
+    local isolation = state.inputIsolation
+    local cookedWasActive = state.cookedInputActive == true
+    local cookedReleased = not cookedWasActive
+        or setCookedBridgeActive(bridge, false)
+    if not cookedReleased and P.isValid(bridge) then
+        cookedReleased = pcall(function()
+            bridge:SetInputActionBlocking(false)
+            bridge:UnregisterInputComponent()
+        end) == true
+    end
+    local isolationReleased = releaseInputIsolation()
+    if not cookedReleased or not isolationReleased then
+        local isolationReclaimed = reclaimInputIsolation(isolation)
+        local bridgeReclaimed = not cookedWasActive
+            or setCookedBridgeActive(bridge, true)
+        applyModalInput()
+        log("modal watchdog retained recovery transaction: cooked="
+            .. tostring(cookedReleased) .. " isolation="
+            .. tostring(isolationReleased) .. " rollbackIsolation="
+            .. tostring(isolationReclaimed) .. " rollbackBridge="
+            .. tostring(bridgeReclaimed))
+        return false
+    end
+
+    local restoreContext = state.hostedParent == true and not hostUnavailable
+        and state.inputContext
+        or state.externalInputContext or state.hostedFallbackContext
+        or state.inputContext
+    if hostUnavailable and type(restoreContext) == "table"
+        and restoreContext.mode == "UIOnly" then
+        restoreContext = {
+            mode = "GameAndUI",
+            focusWidget = nil,
+            mouseLockMode = restoreContext.mouseLockMode,
+            hideCursorDuringCapture = false,
+            showMouseCursor = true,
+        }
+    end
+    local restored = restoreInputContext(
+        controller, controllerAddress, restoreContext)
+    if not restored then
+        reclaimInputIsolation(isolation)
+        if cookedWasActive then setCookedBridgeActive(bridge, true) end
+        applyModalInput()
+        log("modal watchdog could not restore input; recovery transaction retained")
+        return false
+    end
+
+    local nativeReleased = state.nativeInputActive ~= true
+        or NativeSettingsInput.emergencyRelease() == true
+    if not nativeReleased then
+        reclaimInputIsolation(isolation)
+        if cookedWasActive then setCookedBridgeActive(bridge, true) end
+        applyModalInput()
+        log("modal watchdog could not release native controller filter; recovery transaction retained")
+        return false
+    end
+    if P.isValid(bridge) and P.isValid(button)
+        and P.objectAddress(button) == buttonAddress then
+        pcall(function()
+            button.OnClicked:Remove(bridge, "PalInsightSearchClearClicked")
+        end)
+    end
+    clearModalOwnership()
+    log("modal watchdog completed a verified emergency release")
     return true
 end
 

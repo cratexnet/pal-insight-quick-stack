@@ -135,6 +135,41 @@ Runtime contract proof
 - [x] Run the static release gates.
 - [ ] Complete one representative in-game matrix.
 
+## Phase 7: Pal Insight Settings Primitive Parity
+
+- [x] Freeze shared settings controls to Pal Insight's direct native control
+  trees; native `OnClicked` owns direct Buttons and the process-lifetime mouse
+  binding remains a mutually exclusive standalone fallback.
+- [x] Replace transparent action proxies in Header, Steam voting, choices,
+  nested modals, and About with direct focusable Buttons.
+- [x] Match focusable toggle and shortcut-selector geometry.
+- [x] Use one settings-owned integer buffer for every input family; the layered
+  mouse presentation remains focusable but read-only so Windows never starts an
+  IME composition session.
+- [x] Update the release diagnostics gate for the direct-control contract.
+- [x] Keep integer entry inside the root preview owner so only digits and the
+  supported edit operations can mutate the buffer; letters, paste, and IME
+  composition never reach a writable Slate text field.
+- [x] Separate explicit toggle activation from native change observation and
+  keep the existing poll only as an idempotent fallback.
+- [x] Commit each settings primitive independently so transient shortcut
+  capture state cannot veto checkbox, choice, or number persistence.
+- [x] Reject and restore the shortcut activation key before releasing native
+  capture focus; warnings must continue to describe only the persisted chord.
+- [x] Update the existing static regression contract from the rejected live
+  bridge/all-device root buffer to stable default-object delegates, layered
+  number editing, and persisted-only shortcut conflict warnings.
+- [x] Match Pal Insight's interaction refinements: reverse `Shift+Tab`, bounded
+  keyboard/D-pad/stick repeat, real pointer-family detection, and cursor repair.
+- [x] Scope delayed settings actions to the current window/world/controller
+  session and add stale-context close plus bounded close-recovery watchdog.
+- [x] Normalize cooked controller keys from either reflected `FName` values or
+  direct strings, while retaining the standalone controller polling fallback.
+- [x] Keep the prepared window transparent until modal ownership and the
+  authoritative first-row selection are both established.
+- [ ] Verify mouse, keyboard, and controller behavior in game before syncing or
+  packaging.
+
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |

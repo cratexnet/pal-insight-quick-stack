@@ -19,10 +19,13 @@ local TEXT_RIGHT = 2
 local POLL_MS = 80
 local PREVIEW_KEY_FUNCTION = "/Script/UMG.UserWidget:OnPreviewKeyDown"
 local KEY_UP_FUNCTION = "/Script/UMG.UserWidget:OnKeyUp"
+local MOUSE_MOVE_FUNCTION = "/Script/UMG.UserWidget:OnMouseMove"
+local MOUSE_LEAVE_FUNCTION = "/Script/UMG.UserWidget:OnMouseLeave"
 
 local COLORS = {
     white = { R = 1.0, G = 1.0, B = 1.0, A = 1.0 },
     shield = { R = 0.0, G = 0.0, B = 0.0, A = 0.0 },
+    modal = { R = 0.0, G = 0.0, B = 0.0, A = 0.64 },
     window = { R = 0.006, G = 0.008, B = 0.011, A = 0.78 },
     chrome = { R = 0.027, G = 0.033, B = 0.040, A = 0.72 },
     content = { R = 0.031, G = 0.037, B = 0.045, A = 0.88 },
@@ -32,7 +35,6 @@ local COLORS = {
     rowHover = { R = 0.468, G = 0.515, B = 0.552, A = 0.14 },
     rowFocus = { R = 0.058, G = 0.105, B = 0.138, A = 0.88 },
     controlFocus = { R = 0.060, G = 0.156, B = 0.227, A = 0.96 },
-    controlSelected = { R = 0.140, G = 0.176, B = 0.207, A = 0.92 },
     controlPressed = { R = 0.056, G = 0.070, B = 0.084, A = 0.98 },
     controlDisabled = { R = 0.047, G = 0.054, B = 0.063, A = 0.64 },
     outline = { R = 0.716, G = 0.807, B = 0.855, A = 0.15 },
@@ -40,17 +42,16 @@ local COLORS = {
     borderFocus = { R = 0.292, G = 0.610, B = 0.730, A = 1.0 },
     accent = { R = 0.209, G = 0.533, B = 0.665, A = 1.0 },
     accentHover = { R = 0.288, G = 0.580, B = 0.699, A = 1.0 },
-    accentPressed = { R = 0.184, G = 0.469, B = 0.585, A = 1.0 },
     actionInfo = { R = 0.209, G = 0.533, B = 0.665, A = 1.0 },
     actionWarning = { R = 0.807, G = 0.451, B = 0.102, A = 1.0 },
     actionDanger = { R = 0.800, G = 0.390, B = 0.380, A = 1.0 },
+    stateCapture = { R = 0.209, G = 0.533, B = 0.665, A = 1.0 },
+    checkboxHover = { R = 0.930, G = 0.947, B = 0.956, A = 1.0 },
     text = { R = 0.930, G = 0.947, B = 0.956, A = 1.0 },
     muted = { R = 0.631, G = 0.680, B = 0.708, A = 1.0 },
     textMuted = { R = 0.361, G = 0.407, B = 0.440, A = 1.0 },
     textOnAccent = { R = 0.004, G = 0.009, B = 0.012, A = 1.0 },
     danger = { R = 1.0, G = 0.72, B = 0.48, A = 1.0 },
-    voteBlack = { R = 0.0, G = 0.0, B = 0.0, A = 1.0 },
-    voteGold = { R = 1.0, G = 0.7379109859, B = 0.0051819999, A = 1.0 },
     transparent = { R = 0.0, G = 0.0, B = 0.0, A = 0.0 },
 }
 
@@ -62,6 +63,13 @@ local SIZE = {
     choice = 260.0,
     binding = 180.0,
     button = 36.0,
+    contentMinimum = 240.0,
+    windowOutline = 1.0,
+    scrollbarThickness = 9.0,
+    scrollbarPadding = 2.0,
+    scrollbarGutter = 13.0,
+    modalOption = 40.0,
+    pageEdge = 12.0,
     headerAction = 36.0,
     headerActionGap = 8.0,
     headerActionIconBox = 20.0,
@@ -83,9 +91,16 @@ local SIZE = {
     aboutLinkIcon = 28.0,
     aboutLinkIconColumn = 36.0,
     aboutLinkGap = 8.0,
+    aboutCommunityWidth = 160.0,
+    aboutProductLinkHeight = 30.0,
+    aboutProductLinkGap = 2.0,
+    aboutProductLinkIcon = 20.0,
+    aboutProductCardHeight = 174.0,
+    aboutProductCurrentOutline = 1.0,
     aboutCreatorLinkWidth = 140.0,
     aboutPreviewThumbnailWidth = 160.0,
     aboutPreviewThumbnailHeight = 90.0,
+    aboutPreviewMaxWidth = 960.0,
     aboutPrimaryActionWidth = 120.0,
     aboutRosterWidth = 620.0,
     aboutRosterMaxHeight = 500.0,
@@ -132,11 +147,21 @@ local ABOUT_URLS = {
         "https://steamcommunity.com/sharedfiles/filedetails/?id=3792968111",
     quickStackCurseForge =
         "https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack",
-    quickStackCurseForge =
-        "https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack",
     x = "https://x.com/cratexnet",
     discord = "https://discord.gg/JWhE4TKsBN",
     bmc = "https://buymeacoffee.com/cratexnet",
+}
+
+-- Static public credits only. Platform identities remain separate and are
+-- ordered by each person's first useful public Quick Stack feedback.
+local ABOUT_CREDITS = {
+    thanks = {
+        nexus = {},
+        steam = {
+            { name = "lainverse", utf8Prefix = { 0xF0, 0x9F, 0xA6, 0x84 } },
+        },
+    },
+    supporters = { nexus = {}, steam = {} },
 }
 
 local NUMBER_KEY_DIGITS = {
@@ -154,12 +179,20 @@ local state = {
     configPath = nil,
     registerShortcut = nil,
     shortcutConflict = nil,
+    readHostedControllerSnapshot = nil,
+    ackHostedControllerSnapshot = nil,
     log = nil,
     onApplied = nil,
     onClosed = nil,
     open = false,
+    lifecycle = "closed",
     mode = nil,
     generation = 0,
+    windowSession = 0,
+    closeRecoveryDeadline = 0.0,
+    closeRecoveryRetryAt = 0.0,
+    closeRecoveryReason = nil,
+    nextContextCheckAt = 0.0,
     widget = nil,
     widgetTree = nil,
     root = nil,
@@ -179,20 +212,24 @@ local state = {
     aboutOverlay = nil,
     aboutCloseWidget = nil,
     aboutOpen = false,
+    aboutRevision = 0,
     aboutReturnFocusIndex = nil,
     aboutActions = {},
     aboutFocusIndex = 1,
+    aboutDefaultFocusIndex = nil,
     aboutPreferredColumn = 1,
     aboutActionHint = nil,
     aboutScroll = nil,
-    aboutRosterOverlay = nil,
-    aboutRosterTitle = nil,
-    aboutRosterDescription = nil,
-    aboutRosterEmpty = nil,
-    aboutRosterCloseWidget = nil,
-    aboutRosterCloseAction = nil,
+    aboutRosterOverlays = {},
+    aboutRosterCloseWidgets = {},
+    aboutRosterCloseActions = {},
     aboutRosterOpen = false,
     aboutRosterMode = nil,
+    aboutPreviewOverlay = nil,
+    aboutPreviewCloseWidget = nil,
+    aboutPreviewCloseAction = nil,
+    aboutPreviewOpen = false,
+    aboutPreviewSourceIndex = nil,
     aboutTextures = {},
     steamVoteControl = nil,
     steamVoteNoneWidget = nil,
@@ -214,16 +251,49 @@ local state = {
     pollGameThreadCallback = nil,
     gamepadBackDown = false,
     gamepadAcceptDown = false,
+    controllerInputOwner = nil,
     controllerDown = {},
+    controllerInputSources = {},
+    lastHostedControllerEdgeRevision = nil,
+    nativeControllerInitialized = false,
     axisArmed = { x = true, y = true },
+    axisValues = { x = 0.0, y = 0.0 },
+    navigationRepeat = nil,
+    navigationRepeatInitialMs = 450,
+    navigationRepeatIntervalMs = 75,
+    controllerKeys = {
+        "Gamepad_DPad_Up", "Gamepad_DPad_Down",
+        "Gamepad_DPad_Left", "Gamepad_DPad_Right",
+        "Gamepad_LeftStick_Up", "Gamepad_LeftStick_Down",
+        "Gamepad_LeftStick_Left", "Gamepad_LeftStick_Right",
+        "Gamepad_FaceButton_Bottom", "Gamepad_FaceButton_Right",
+    },
+    controllerPollKeys = {
+        "Gamepad_DPad_Up", "Gamepad_DPad_Down",
+        "Gamepad_DPad_Left", "Gamepad_DPad_Right",
+        "Gamepad_FaceButton_Bottom", "Gamepad_FaceButton_Right",
+    },
+    hostedControllerButtons = {
+        { mask = 0x0001, key = "Gamepad_DPad_Up" },
+        { mask = 0x0002, key = "Gamepad_DPad_Down" },
+        { mask = 0x0004, key = "Gamepad_DPad_Left" },
+        { mask = 0x0008, key = "Gamepad_DPad_Right" },
+        { mask = 0x1000, key = "Gamepad_FaceButton_Bottom" },
+        { mask = 0x2000, key = "Gamepad_FaceButton_Right" },
+    },
     triggerSurfaces = {},
+    directActionButtons = {},
     headerActionVisuals = {},
     contentWidth = 640.0,
     scroll = nil,
     nestedOverlay = nil,
     nestedTitle = nil,
+    nestedMessage = nil,
     modalOptions = {},
     activeChoice = nil,
+    choiceReturnFocusIndex = nil,
+    pointerAction = nil,
+    pendingAboutPointerClose = nil,
     modalIndex = 1,
     focusEntries = {},
     focusIndex = 1,
@@ -235,10 +305,19 @@ local state = {
     keyUpHookReady = false,
     keyUpHookPreId = nil,
     keyUpHookPostId = nil,
+    mouseMoveHookReady = false,
+    mouseMoveHookPreId = nil,
+    mouseMoveHookPostId = nil,
+    mouseLeaveHookReady = false,
+    mouseLeaveHookPreId = nil,
+    mouseLeaveHookPostId = nil,
     selectorSelectedKeyHookReady = false,
     selectorSelectedKeyHookPreId = nil,
     selectorSelectedKeyHookPostId = nil,
     selectorChordProgrammatic = false,
+    shortcutFocusRestoreToken = 0,
+    shortcutFocusRestoreCallback = nil,
+    toggleEventsSuppressed = false,
     synchronousNavigationUntil = {},
     numberEdit = nil,
     lastPrepareDiagnostics = nil,
@@ -250,6 +329,13 @@ local currentStrings
 
 local function log(message)
     if type(state.log) == "function" then state.log(tostring(message)) end
+end
+
+local function registerDirectActionButton(button)
+    if P.isValid(button) then
+        state.directActionButtons[#state.directActionButtons + 1] = button
+    end
+    return button
 end
 
 local function slateColor(color)
@@ -356,129 +442,6 @@ local function align(slot, horizontal, vertical)
     end)
 end
 
-local function styleTrigger(trigger, warning)
-    local ok = pcall(function()
-        -- The settings root owns navigation. Pointer-only surfaces must not
-        -- steal Slate focus and strand later keyboard/controller input.
-        trigger.bIsFocusable = false
-        local style = trigger.WidgetStyle
-        style.CheckBoxType = 1
-        style.UncheckedImage = tintBrush(style.UncheckedImage, COLORS.transparent)
-        style.UncheckedHoveredImage = tintBrush(
-            style.UncheckedHoveredImage, COLORS.transparent)
-        style.UncheckedPressedImage = tintBrush(
-            style.UncheckedPressedImage, COLORS.transparent)
-        style.CheckedImage = tintBrush(style.CheckedImage, COLORS.transparent)
-        style.CheckedHoveredImage = tintBrush(
-            style.CheckedHoveredImage, COLORS.transparent)
-        style.CheckedPressedImage = tintBrush(
-            style.CheckedPressedImage, COLORS.transparent)
-        style.UncheckedForeground = slateColor(COLORS.transparent)
-        style.CheckedForeground = slateColor(COLORS.transparent)
-        style.HoveredForeground = slateColor(COLORS.transparent)
-        style.PressedForeground = slateColor(COLORS.transparent)
-        style.Padding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
-        trigger.WidgetStyle = style
-        trigger:SetIsChecked(false)
-    end)
-    return ok
-end
-
-local function styleToggle(toggle)
-    return pcall(function()
-        toggle:SetIsEnabled(true)
-        local style = toggle.WidgetStyle
-        style.UncheckedImage = tintBrush(style.UncheckedImage, COLORS.border)
-        style.UncheckedHoveredImage = tintBrush(
-            style.UncheckedHoveredImage, COLORS.text)
-        style.UncheckedPressedImage = tintBrush(
-            style.UncheckedPressedImage, COLORS.muted)
-        style.CheckedImage = tintBrush(style.CheckedImage, COLORS.accent)
-        style.CheckedHoveredImage = tintBrush(
-            style.CheckedHoveredImage, COLORS.accent)
-        style.CheckedPressedImage = tintBrush(
-            style.CheckedPressedImage, COLORS.accentPressed)
-        style.UncheckedForeground = slateColor(COLORS.muted)
-        style.CheckedForeground = slateColor(COLORS.text)
-        style.CheckedHoveredForeground = slateColor(COLORS.text)
-        style.CheckedPressedForeground = slateColor(COLORS.text)
-        style.HoveredForeground = slateColor(COLORS.text)
-        style.PressedForeground = slateColor(COLORS.text)
-        toggle.WidgetStyle = style
-    end)
-end
-
-local function styleShortcutSelector(selector, focused)
-    return pcall(function()
-        selector:SetIsEnabled(true)
-        local style = selector.WidgetStyle
-        style.Normal = tintBrush(style.Normal, COLORS.transparent)
-        style.Hovered = tintBrush(style.Hovered, COLORS.transparent)
-        style.Pressed = tintBrush(style.Pressed, COLORS.transparent)
-        style.Disabled = tintBrush(style.Disabled, COLORS.transparent)
-        style.NormalForeground = slateColor(COLORS.transparent)
-        style.HoveredForeground = slateColor(COLORS.transparent)
-        style.PressedForeground = slateColor(COLORS.transparent)
-        style.DisabledForeground = slateColor(COLORS.transparent)
-        selector.WidgetStyle = style
-        local textStyle = selector.TextStyle
-        textStyle.ColorAndOpacity = slateColor(COLORS.transparent)
-        selector.TextStyle = textStyle
-    end)
-end
-
-local function makeTrigger(tree, label, width, warning, indicatorText, height)
-    local box = construct(tree, "/Script/UMG.SizeBox")
-    local surface = construct(tree, "/Script/UMG.Border")
-    local trigger = construct(tree, "/Script/UMG.CheckBox")
-    local overlay = construct(tree, "/Script/UMG.Overlay")
-    local text = makeText(tree, label, 14,
-        warning and COLORS.actionWarning or COLORS.text,
-        indicatorText ~= nil and TEXT_LEFT or TEXT_CENTER)
-    if box == nil or surface == nil or trigger == nil
-        or overlay == nil or text == nil then return nil end
-    local content
-    local indicator
-    if indicatorText ~= nil then
-        content = construct(tree, "/Script/UMG.HorizontalBox")
-        indicator = makeText(tree, indicatorText, 14, COLORS.muted, TEXT_RIGHT)
-        if content == nil or indicator == nil then return nil end
-    end
-    local ok = pcall(function()
-        box:SetWidthOverride(width or 170.0)
-        box:SetHeightOverride(height or SIZE.control)
-        surface:SetBrushColor(COLORS.control)
-        surface:SetPadding({ Left = 0, Top = 0, Right = 0, Bottom = 0 })
-        styleTrigger(trigger, warning)
-        if content ~= nil then
-            local labelSlot = content:AddChild(text)
-            setFill(labelSlot)
-            align(labelSlot, ALIGN_LEFT, ALIGN_CENTER)
-            local indicatorSlot = content:AddChild(indicator)
-            align(indicatorSlot, ALIGN_RIGHT, ALIGN_CENTER)
-            local contentSlot = overlay:AddChildToOverlay(content)
-            setPadding(contentSlot, 12, 0, 10, 0)
-            align(contentSlot, ALIGN_FILL, ALIGN_CENTER)
-        else
-            local textSlot = overlay:AddChildToOverlay(text)
-            align(textSlot, ALIGN_CENTER, ALIGN_CENTER)
-        end
-        local triggerSlot = overlay:AddChildToOverlay(trigger)
-        align(triggerSlot, ALIGN_FILL, ALIGN_FILL)
-        local overlaySlot = surface:AddChild(overlay)
-        align(overlaySlot, ALIGN_FILL, ALIGN_FILL)
-        local surfaceSlot = box:AddChild(surface)
-        align(surfaceSlot, ALIGN_FILL, ALIGN_FILL)
-    end)
-    if not ok then return nil end
-    local record = {
-        box = box, widget = trigger, surface = surface, text = text,
-        warning = warning == true,
-    }
-    state.triggerSurfaces[#state.triggerSurfaces + 1] = record
-    return record
-end
-
 local function mixLinearColor(first, second, amount)
     amount = math.max(0.0, math.min(1.0, tonumber(amount) or 0.0))
     return {
@@ -499,6 +462,148 @@ local function darkenLinearColor(color, amount)
     }
 end
 
+local function styleSurfaceButton(button, normal, hovered, pressed, disabled,
+        foregrounds)
+    if not P.isValid(button) then return false end
+    return pcall(function()
+        local style = button.WidgetStyle
+        style.Normal = tintBrush(style.Normal, normal)
+        style.Hovered = tintBrush(style.Hovered, hovered or normal)
+        style.Pressed = tintBrush(style.Pressed, pressed or hovered or normal)
+        style.Disabled = tintBrush(style.Disabled, disabled or normal)
+        foregrounds = foregrounds or {}
+        style.NormalForeground = slateColor(
+            foregrounds.normal or COLORS.text)
+        style.HoveredForeground = slateColor(
+            foregrounds.hovered or COLORS.text)
+        style.PressedForeground = slateColor(
+            foregrounds.pressed or COLORS.textOnAccent)
+        style.DisabledForeground = slateColor(
+            foregrounds.disabled or COLORS.textMuted)
+        style.NormalPadding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
+        style.PressedPadding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
+        button.WidgetStyle = style
+        button:SetBackgroundColor(COLORS.white)
+    end)
+end
+
+local function styleToggle(toggle)
+    return pcall(function()
+        toggle:SetIsEnabled(true)
+        local style = toggle.WidgetStyle
+        local uncheckedPressed = darkenLinearColor(COLORS.checkboxHover, 0.10)
+        local checkedPressed = darkenLinearColor(COLORS.accent, 0.10)
+        style.UncheckedImage = tintBrush(style.UncheckedImage, COLORS.border)
+        style.UncheckedHoveredImage = tintBrush(
+            style.UncheckedHoveredImage, COLORS.checkboxHover)
+        style.UncheckedPressedImage = tintBrush(
+            style.UncheckedPressedImage, uncheckedPressed)
+        style.CheckedImage = tintBrush(style.CheckedImage, COLORS.accent)
+        style.CheckedHoveredImage = tintBrush(
+            style.CheckedHoveredImage, COLORS.accent)
+        style.CheckedPressedImage = tintBrush(
+            style.CheckedPressedImage, checkedPressed)
+        style.UncheckedForeground = slateColor(COLORS.muted)
+        style.CheckedForeground = slateColor(COLORS.text)
+        style.CheckedHoveredForeground = slateColor(COLORS.text)
+        style.CheckedPressedForeground = slateColor(COLORS.text)
+        style.HoveredForeground = slateColor(COLORS.text)
+        style.PressedForeground = slateColor(COLORS.text)
+        toggle.WidgetStyle = style
+    end)
+end
+
+local function styleShortcutSelector(selector, focused, selecting)
+    return pcall(function()
+        selector:SetIsEnabled(true)
+        local normal = selecting and COLORS.stateCapture
+            or focused and COLORS.controlFocus or COLORS.control
+        local hovered = selecting and COLORS.stateCapture
+            or focused and mixLinearColor(
+                COLORS.controlFocus, COLORS.borderFocus, 0.22)
+            or COLORS.controlHover
+        local style = selector.WidgetStyle
+        style.Normal = tintBrush(style.Normal, normal)
+        style.Hovered = tintBrush(style.Hovered, hovered)
+        style.Pressed = tintBrush(style.Pressed, COLORS.controlPressed)
+        style.Disabled = tintBrush(style.Disabled, COLORS.controlDisabled)
+        style.NormalForeground = slateColor(COLORS.transparent)
+        style.HoveredForeground = slateColor(COLORS.transparent)
+        style.PressedForeground = slateColor(COLORS.transparent)
+        style.DisabledForeground = slateColor(COLORS.transparent)
+        selector.WidgetStyle = style
+        local textStyle = selector.TextStyle
+        textStyle.ColorAndOpacity = slateColor(COLORS.transparent)
+        selector.TextStyle = textStyle
+    end)
+end
+
+local function makeTrigger(tree, label, width, warning, indicatorText, height,
+        modalOption)
+    local box = construct(tree, "/Script/UMG.SizeBox")
+    local surface = construct(tree, "/Script/UMG.Button")
+    local text = makeText(tree, label, 14,
+        warning and COLORS.actionWarning or COLORS.text,
+        indicatorText ~= nil and TEXT_LEFT or TEXT_CENTER)
+    if box == nil or surface == nil or text == nil then return nil end
+    local content
+    local indicator
+    local indicatorBox
+    if indicatorText ~= nil then
+        content = construct(tree, "/Script/UMG.HorizontalBox")
+        indicatorBox = construct(tree, "/Script/UMG.SizeBox")
+        indicator = makeText(tree, indicatorText, 11, COLORS.muted, TEXT_CENTER)
+        if content == nil or indicatorBox == nil or indicator == nil then
+            return nil
+        end
+    end
+    local ok = pcall(function()
+        box:SetWidthOverride(width or 170.0)
+        box:SetHeightOverride(height or SIZE.control)
+        surface.bIsFocusable = modalOption ~= true
+        styleSurfaceButton(surface, COLORS.control, COLORS.controlHover,
+            COLORS.controlPressed, COLORS.controlDisabled, {
+                normal = COLORS.text,
+                hovered = COLORS.text,
+                pressed = COLORS.text,
+            })
+        if modalOption == true then
+            local style = surface.WidgetStyle
+            local padding = { Left = 12, Top = 4, Right = 12, Bottom = 4 }
+            style.NormalPadding = padding
+            style.PressedPadding = padding
+            surface.WidgetStyle = style
+        end
+        if content ~= nil then
+            local labelSlot = content:AddChild(text)
+            setFill(labelSlot)
+            setPadding(labelSlot, 12, 0, 8, 0)
+            align(labelSlot, ALIGN_LEFT, ALIGN_CENTER)
+            indicatorBox:SetWidthOverride(36.0)
+            local indicatorSlot = indicatorBox:AddChild(indicator)
+            align(indicatorSlot, ALIGN_CENTER, ALIGN_CENTER)
+            local indicatorBoxSlot = content:AddChild(indicatorBox)
+            align(indicatorBoxSlot, ALIGN_CENTER, ALIGN_CENTER)
+            local contentSlot = surface:AddChild(content)
+            align(contentSlot, ALIGN_FILL, ALIGN_CENTER)
+        else
+            local textSlot = surface:AddChild(text)
+            align(textSlot, ALIGN_CENTER, ALIGN_CENTER)
+        end
+        local surfaceSlot = box:AddChild(surface)
+        align(surfaceSlot, ALIGN_FILL, ALIGN_FILL)
+    end)
+    if not ok then return nil end
+    local record = {
+        box = box, widget = surface, surface = surface, text = text,
+        indicator = indicator,
+        warning = warning == true, directButton = true,
+    }
+    registerDirectActionButton(surface)
+    state.triggerSurfaces[#state.triggerSurfaces + 1] = record
+    return record
+end
+
 local function styleHeaderButton(button, role, focused, hovered, pressed)
     if not P.isValid(button) then return false end
     local roleColor = role == "about" and COLORS.actionInfo
@@ -512,6 +617,7 @@ local function styleHeaderButton(button, role, focused, hovered, pressed)
     local primary = role == "primary"
     local roster = role == "thanks" or role == "supporters"
     local neutral = role == "aboutLink"
+    local productLink = role == "productLink"
     local normal, hover, press
     local normalForeground, hoverForeground, pressForeground
     if brand then
@@ -529,6 +635,13 @@ local function styleHeaderButton(button, role, focused, hovered, pressed)
         normalForeground = COLORS.textOnAccent
         hoverForeground = COLORS.textOnAccent
         pressForeground = COLORS.textOnAccent
+    elseif productLink then
+        normal = focused and COLORS.controlFocus or COLORS.transparent
+        hover = COLORS.controlHover
+        press = COLORS.controlPressed
+        normalForeground = COLORS.text
+        hoverForeground = COLORS.text
+        pressForeground = COLORS.text
     elseif roster then
         local selected = mixLinearColor(COLORS.control, roleColor, 0.36)
         normal = focused and selected or COLORS.control
@@ -575,22 +688,21 @@ end
 
 local function makeIconTrigger(tree, glyph, tooltip, role)
     local box = construct(tree, "/Script/UMG.SizeBox")
-    local overlay = construct(tree, "/Script/UMG.Overlay")
     local button = construct(tree, "/Script/UMG.Button")
     local iconBox = construct(tree, "/Script/UMG.SizeBox")
-    local trigger = construct(tree, "/Script/UMG.CheckBox")
     local size = role == "close" and 27 or role == "reset" and 17 or 18
     local translation = role == "close" and { X = 1.0, Y = -6.0 }
         or role == "reset" and { X = 1.0, Y = 1.0 }
         or { X = 0.0, Y = -1.0 }
     local icon = makeText(tree, glyph, size, COLORS.text, TEXT_CENTER)
-    if box == nil or overlay == nil or button == nil or iconBox == nil
-        or trigger == nil or icon == nil then return nil end
+    if box == nil or button == nil or iconBox == nil or icon == nil then
+        return nil
+    end
     local ok = pcall(function()
         box:SetWidthOverride(SIZE.headerAction)
         box:SetHeightOverride(SIZE.headerAction)
-        button.bIsFocusable = false
-        button:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        button.bIsFocusable = true
+        button:SetToolTipText(FText(tooltip or ""))
         local style = button.WidgetStyle
         style.NormalPadding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
         style.PressedPadding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
@@ -605,18 +717,15 @@ local function makeIconTrigger(tree, glyph, tooltip, role)
         align(iconBox:AddChild(icon), ALIGN_CENTER, ALIGN_CENTER)
         align(button:AddChild(iconBox), ALIGN_CENTER, ALIGN_CENTER)
         styleHeaderButton(button, role, false, false, false)
-        align(overlay:AddChildToOverlay(button), ALIGN_FILL, ALIGN_FILL)
-        styleTrigger(trigger, false)
-        trigger.bIsFocusable = true
-        trigger:SetToolTipText(FText(tooltip or ""))
-        align(overlay:AddChildToOverlay(trigger), ALIGN_FILL, ALIGN_FILL)
-        align(box:AddChild(overlay), ALIGN_FILL, ALIGN_FILL)
+        align(box:AddChild(button), ALIGN_FILL, ALIGN_FILL)
     end)
     if not ok then return nil end
     local record = {
-        box = box, widget = trigger, surface = button, text = icon,
-        visualButton = button, role = role, tooltip = tooltip or "",
+        box = box, widget = button, surface = button, text = icon,
+        visualButton = button, directButton = true,
+        role = role, tooltip = tooltip or "",
     }
+    registerDirectActionButton(button)
     state.headerActionVisuals[#state.headerActionVisuals + 1] = record
     return record
 end
@@ -671,7 +780,7 @@ local function steamVotePalTexture()
     return P.isValid(texture) and texture or nil
 end
 
-local function makeSteamVoteContent(tree, thumbAsset, palAngle, thumbColor)
+local function makeSteamVoteContent(tree, thumbAsset, palAngle)
     local row = construct(tree, "/Script/UMG.HorizontalBox")
     if row == nil then return nil end
     if palAngle ~= nil then
@@ -683,6 +792,14 @@ local function makeSteamVoteContent(tree, thumbAsset, palAngle, thumbColor)
             avatarBox:SetHeightOverride(26.0)
             avatar:SetRenderTransformPivot({ X = 0.5, Y = 0.5 })
             avatar:SetRenderTransformAngle(palAngle)
+            avatar:SetRenderScale({
+                X = tonumber(palAngle) == 180.0 and 1.0 or -1.0,
+                Y = 1.0,
+            })
+            avatar:SetRenderTranslation({
+                X = 0.0,
+                Y = tonumber(palAngle) == 180.0 and 1.0 or -1.0,
+            })
             if P.isValid(texture) then
                 avatar:SetBrushFromTexture(texture, false)
             else
@@ -704,7 +821,6 @@ local function makeSteamVoteContent(tree, thumbAsset, palAngle, thumbColor)
     thumbBox:SetWidthOverride(22.0)
     thumbBox:SetHeightOverride(22.0)
     thumb:SetBrushFromTexture(thumbTexture, false)
-    if thumbColor ~= nil then thumb:SetColorAndOpacity(thumbColor) end
     align(thumbBox:AddChild(thumb), ALIGN_FILL, ALIGN_FILL)
     align(row:AddChild(thumbBox), ALIGN_CENTER, ALIGN_CENTER)
     return row
@@ -736,15 +852,13 @@ local function refreshSteamVotePalVisuals()
 end
 
 local function makeSteamVoteAction(tree, content, tooltip)
-    local overlay = construct(tree, "/Script/UMG.Overlay")
     local button = construct(tree, "/Script/UMG.Button")
-    local trigger = construct(tree, "/Script/UMG.CheckBox")
-    if overlay == nil or button == nil or trigger == nil or content == nil then
+    if button == nil or content == nil then
         return nil
     end
     local ok = pcall(function()
-        button.bIsFocusable = false
-        button:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        button.bIsFocusable = true
+        button:SetToolTipText(FText(tooltip or ""))
         local style = button.WidgetStyle
         local padding = { Left = 4, Top = 3, Right = 4, Bottom = 3 }
         style.NormalPadding = padding
@@ -752,17 +866,13 @@ local function makeSteamVoteAction(tree, content, tooltip)
         button.WidgetStyle = style
         styleHeaderButton(button, "steamVote", false, false, false)
         align(button:AddChild(content), ALIGN_CENTER, ALIGN_CENTER)
-        align(overlay:AddChildToOverlay(button), ALIGN_FILL, ALIGN_FILL)
-        styleTrigger(trigger, false)
-        trigger.bIsFocusable = true
-        trigger:SetToolTipText(FText(tooltip or ""))
-        align(overlay:AddChildToOverlay(trigger), ALIGN_FILL, ALIGN_FILL)
     end)
     if not ok then return nil end
     local record = {
-        widget = trigger, surface = overlay, visualButton = button,
-        role = "steamVote", tooltip = tooltip or "",
+        widget = button, surface = button, visualButton = button,
+        directButton = true, role = "steamVote", tooltip = tooltip or "",
     }
+    registerDirectActionButton(button)
     state.steamVoteActionVisuals[#state.steamVoteActionVisuals + 1] = record
     return record
 end
@@ -802,6 +912,7 @@ local function applySteamVoteVisual(status, force)
     control.widget = status == statuses.noVote and state.steamVoteNoneWidget
         or status == statuses.down and state.steamVoteDownWidget
         or state.steamVoteUpSurface
+    control.passive = status == statuses.up
     local strings = currentStrings()
     control.tooltip = status == statuses.down and strings.voteReconsider
         or status == statuses.up and strings.voteThanks or strings.voteLike
@@ -850,11 +961,10 @@ local function makeSteamVoteControl(tree, strings)
     local none = makeSteamVoteAction(tree,
         makeSteamVoteContent(tree, "thumb-up-outline.png", nil), strings.voteLike)
     local down = makeSteamVoteAction(tree,
-        makeSteamVoteContent(tree, "thumb-down-filled.png", 180.0,
-            COLORS.voteBlack), strings.voteReconsider)
+        makeSteamVoteContent(tree, "thumb-down-filled.png", 180.0),
+        strings.voteReconsider)
     local upSurface = construct(tree, "/Script/UMG.Border")
-    local upContent = makeSteamVoteContent(tree, "thumb-up-filled.png", 0.0,
-        COLORS.voteGold)
+    local upContent = makeSteamVoteContent(tree, "thumb-up-filled.png", 0.0)
     if box == nil or overlay == nil or none == nil or down == nil
         or upSurface == nil or upContent == nil then return nil end
     upSurface:SetBrushColor(COLORS.control)
@@ -882,7 +992,7 @@ end
 
 local function makeRow(tree, body, label, role)
     local rowBox = construct(tree, "/Script/UMG.SizeBox")
-    local rowSurface = construct(tree, "/Script/UMG.Border")
+    local rowSurface = construct(tree, "/Script/UMG.Button")
     local frame = construct(tree, "/Script/UMG.Border")
     local row = construct(tree, "/Script/UMG.HorizontalBox")
     local labelWidget = makeText(tree, label, 15, COLORS.text, TEXT_LEFT)
@@ -891,8 +1001,13 @@ local function makeRow(tree, body, label, role)
     setTextWrap(labelWidget, role)
     local ok = pcall(function()
         rowBox:SetMinDesiredHeight(SIZE.row)
-        rowSurface:SetBrushColor(COLORS.transparent)
-        rowSurface:SetPadding({ Left = 0, Top = 0, Right = 0, Bottom = 0 })
+        rowSurface.bIsFocusable = false
+        styleSurfaceButton(rowSurface, COLORS.transparent, COLORS.rowHover,
+            COLORS.rowHover, COLORS.transparent, {
+                normal = COLORS.text,
+                hovered = COLORS.text,
+                pressed = COLORS.text,
+            })
         frame:SetBrushColor(COLORS.transparent)
         frame:SetPadding({ Left = 12, Top = 4, Right = 12, Bottom = 4 })
         local labelSlot = row:AddChild(labelWidget)
@@ -935,20 +1050,60 @@ local function refreshTriggerSurfaces()
         if P.isValid(record.widget) and P.isValid(record.surface) then
             local focused = false
             local hovered = false
-            pcall(function() focused = record.widget:HasKeyboardFocus() == true end)
+            if state.lastInputDevice ~= "mouse" then
+                pcall(function()
+                    focused = record.widget:HasKeyboardFocus() == true
+                end)
+            end
             pcall(function() hovered = record.widget:IsHovered() == true end)
-            if type(record.control) == "table"
-                and record.control.focusIndex == state.focusIndex
-                and state.lastInputDevice ~= "mouse" then focused = true end
-            local signature = focused and "focus"
-                or record.selected == true and "selected"
+            -- Match Pal Insight: the virtual selection survives device changes;
+            -- mouse hover is only a transient visual on another control.
+            if state.lastInputDevice ~= "mouse"
+                and type(record.control) == "table"
+                and record.control.focusIndex == state.focusIndex then
+                focused = true
+            end
+            local capture = record.selected == true
+                and type(record.control) == "table"
+                and record.control.kind == "number"
+            local selected = record.selected == true and not capture
+            local warning = record.warning == true
+            local signature = capture and "capture"
+                or focused and "focus"
+                or selected and "selected"
                 or hovered and "hover" or "normal"
             if signature ~= record.visualSignature then
                 record.visualSignature = signature
-                local color = focused and COLORS.controlFocus
-                or record.selected == true and COLORS.controlSelected
-                or hovered and COLORS.controlHover or COLORS.control
-                pcall(function() record.surface:SetBrushColor(color) end)
+                local normal = capture and COLORS.stateCapture
+                    or (focused or selected) and (warning
+                        and COLORS.actionWarning or COLORS.controlFocus)
+                    or warning and mixLinearColor(
+                        COLORS.control, COLORS.actionWarning, 0.12)
+                    or COLORS.control
+                local hover = capture and COLORS.stateCapture
+                    or warning and COLORS.actionWarning
+                    or (focused or selected) and mixLinearColor(
+                        COLORS.controlFocus, COLORS.borderFocus, 0.22)
+                    or COLORS.controlHover
+                local foreground = capture and COLORS.textOnAccent
+                    or warning and (focused or selected or hovered)
+                        and COLORS.textOnAccent
+                    or warning and COLORS.actionWarning
+                    or COLORS.text
+                styleSurfaceButton(record.surface, normal, hover,
+                    COLORS.controlPressed, COLORS.controlDisabled, {
+                        normal = foreground,
+                        hovered = foreground,
+                        pressed = COLORS.textOnAccent,
+                    })
+                pcall(function()
+                    record.text:SetColorAndOpacity(slateColor(foreground))
+                    if P.isValid(record.indicator) then
+                        record.indicator:SetColorAndOpacity(slateColor(
+                            (focused or selected) and COLORS.borderFocus
+                                or COLORS.muted))
+                    end
+                end)
             end
         end
     end
@@ -966,14 +1121,17 @@ local function refreshTriggerSurfaces()
                 local focused = active and type(record.control) == "table"
                     and record.control.focusIndex == state.focusIndex
                     and state.lastInputDevice ~= "mouse"
-                if active and record == state.aboutRosterCloseAction
-                    and state.aboutRosterOpen == true
+                if active and ((record == (state.aboutRosterCloseActions or {})[
+                            state.aboutRosterMode]
+                        and state.aboutRosterOpen == true)
+                    or (record == state.aboutPreviewCloseAction
+                        and state.aboutPreviewOpen == true))
                     and state.lastInputDevice ~= "mouse" then focused = true end
                 local hovered = false
                 local pressed = false
                 if active then
                     pcall(function() hovered = record.widget:IsHovered() == true end)
-                    pcall(function() pressed = record.widget:IsChecked() == true end)
+                    pcall(function() pressed = record.widget:IsPressed() == true end)
                 end
                 local signature = pressed and "pressed"
                     or focused and "focus" or hovered and "hover" or "normal"
@@ -989,13 +1147,15 @@ local function refreshTriggerSurfaces()
         if P.isValid(record.widget) and P.isValid(record.visualButton) then
             local focused = state.aboutOpen == true
                 and state.aboutRosterOpen ~= true
+                and state.aboutPreviewOpen ~= true
                 and index == state.aboutFocusIndex
                 and state.lastInputDevice ~= "mouse"
             local hovered = false
             local pressed = false
-            if state.aboutOpen == true and state.aboutRosterOpen ~= true then
+            if state.aboutOpen == true and state.aboutRosterOpen ~= true
+                and state.aboutPreviewOpen ~= true then
                 pcall(function() hovered = record.widget:IsHovered() == true end)
-                pcall(function() pressed = record.widget:IsChecked() == true end)
+                pcall(function() pressed = record.widget:IsPressed() == true end)
             end
             local signature = pressed and "pressed"
                 or focused and "focus" or hovered and "hover" or "normal"
@@ -1009,6 +1169,7 @@ local function refreshTriggerSurfaces()
     if P.isValid(state.aboutActionHint) then
         local hint = ""
         if state.aboutOpen == true and state.aboutRosterOpen ~= true
+            and state.aboutPreviewOpen ~= true
             and state.lastInputDevice ~= "mouse" then
             local action = (state.aboutActions or {})[
                 tonumber(state.aboutFocusIndex) or 1]
@@ -1020,17 +1181,14 @@ local function refreshTriggerSurfaces()
     end
     if P.isValid(state.headerActionHint) then
         local hint = ""
-        for _, control in ipairs(state.controls or {}) do
-            if control.kind == "steamVote" or control.kind == "about"
-                or control.kind == "reset" or control.kind == "close" then
-                local hovered = false
-                if P.isValid(control.widget) then
-                    pcall(function() hovered = control.widget:IsHovered() == true end)
-                end
-                if hovered or (control.focusIndex == state.focusIndex
-                        and state.lastInputDevice ~= "mouse") then
-                    hint = tostring(control.tooltip or "")
-                    break
+        if state.lastInputDevice ~= "mouse" then
+            for _, control in ipairs(state.controls or {}) do
+                if control.kind == "steamVote" or control.kind == "about"
+                    or control.kind == "reset" or control.kind == "close" then
+                    if control.focusIndex == state.focusIndex then
+                        hint = tostring(control.tooltip or "")
+                        break
+                    end
                 end
             end
         end
@@ -1117,7 +1275,8 @@ local function refreshShortcutDisplay(control, selecting)
     end
     local focused = selecting == true
     local hovered = false
-    if P.isValid(control.widget) and not focused then
+    if P.isValid(control.widget) and not focused
+        and state.lastInputDevice ~= "mouse" then
         local ok, value = pcall(function()
             return control.widget:HasKeyboardFocus()
         end)
@@ -1126,16 +1285,17 @@ local function refreshShortcutDisplay(control, selecting)
     if P.isValid(control.widget) then
         pcall(function() hovered = control.widget:IsHovered() == true end)
     end
-    if control.focusIndex == state.focusIndex
-        and state.lastInputDevice ~= "mouse" then focused = true end
+    if state.lastInputDevice ~= "mouse"
+        and control.focusIndex == state.focusIndex then focused = true end
     local signature = focused and "focus" or hovered and "hover" or "normal"
+    if selecting == true then signature = "capture" end
     if P.isValid(control.widget) and signature ~= control.visualSignature then
         control.visualSignature = signature
-        styleShortcutSelector(control.widget, focused)
-        if P.isValid(control.surface) then
+        styleShortcutSelector(control.widget, focused, selecting == true)
+        if P.isValid(control.text) then
             pcall(function()
-                control.surface:SetBrushColor(focused and COLORS.controlFocus
-                    or hovered and COLORS.controlHover or COLORS.control)
+                control.text:SetColorAndOpacity(slateColor(
+                    selecting == true and COLORS.textOnAccent or COLORS.text))
             end)
         end
     end
@@ -1144,9 +1304,11 @@ end
 local function refreshToggleDisplay(control)
     if type(control) ~= "table" or not P.isValid(control.widget) then return end
     local focused = false
-    pcall(function() focused = control.widget:HasKeyboardFocus() == true end)
-    if control.focusIndex == state.focusIndex
-        and state.lastInputDevice ~= "mouse" then focused = true end
+    if state.lastInputDevice ~= "mouse" then
+        pcall(function() focused = control.widget:HasKeyboardFocus() == true end)
+    end
+    if state.lastInputDevice ~= "mouse"
+        and control.focusIndex == state.focusIndex then focused = true end
     local signature = focused and "focus" or "normal"
     if signature == control.visualSignature then return end
     control.visualSignature = signature
@@ -1164,23 +1326,57 @@ end
 local function refreshRowDisplay(control)
     if type(control) ~= "table" or not P.isValid(control.rowFrame) then return end
     local focused = false
-    local hovered = false
-    if P.isValid(control.widget) then
+    if P.isValid(control.widget) and state.lastInputDevice ~= "mouse" then
         pcall(function() focused = control.widget:HasKeyboardFocus() == true end)
-        pcall(function() hovered = control.widget:IsHovered() == true end)
     end
     if focused and control.focusIndex ~= nil then
         state.focusIndex = control.focusIndex
-    elseif control.focusIndex == state.focusIndex
-        and state.lastInputDevice ~= "mouse" then
+    elseif state.lastInputDevice ~= "mouse"
+        and control.focusIndex == state.focusIndex then
         focused = true
     end
-    local signature = focused and "focus" or hovered and "hover" or "normal"
+    local signature = focused and "focus" or "normal"
     if signature == control.rowVisualSignature then return end
     control.rowVisualSignature = signature
-    local color = focused and COLORS.rowFocus
-        or hovered and COLORS.rowHover or COLORS.transparent
-    pcall(function() control.rowFrame:SetBrushColor(color) end)
+    styleSurfaceButton(control.rowFrame,
+        focused and COLORS.rowFocus or COLORS.transparent,
+        focused and COLORS.rowFocus or COLORS.rowHover,
+        COLORS.rowHover, COLORS.transparent, {
+            normal = COLORS.text,
+            hovered = COLORS.text,
+            pressed = COLORS.text,
+        })
+end
+
+local function setNumberEditorText(control, value)
+    if type(control) ~= "table" or control.kind ~= "number" then return false end
+    local textValue = tostring(value)
+    local updated = false
+    if P.isValid(control.displayText) then
+        updated = pcall(function()
+            control.displayText:SetText(FText(textValue))
+        end)
+    end
+    control.displayedText = textValue
+    return updated == true
+end
+
+local function syncNumberPresentation(control, _editingOverride)
+    if type(control) ~= "table" or control.kind ~= "number"
+        or not P.isValid(control.displayButton) then return false end
+    local edit = state.numberEdit
+    local editing = type(edit) == "table" and edit.control == control
+    local synchronized = pcall(function()
+        -- The number row has no EditableTextBox. The visible button and the
+        -- Lua-owned buffer are the sole editor, so IME composition has no text
+        -- input client to attach to while mouse activation remains available.
+        control.displayButton:SetVisibility(VIS_VISIBLE)
+    end)
+    control.editingVisual = editing == true
+    if type(control.trigger) == "table" then
+        control.trigger.selected = type(edit) == "table" and edit.control == control
+    end
+    return synchronized == true
 end
 
 local function copyConfig(source)
@@ -1293,6 +1489,7 @@ currentStrings = function()
         inputHelpTitle = "Controls",
         inputDeviceKeyboardMouse = "Keyboard / Mouse",
         inputDeviceGamepad = "Controller",
+        shortcutKeyboardMouseOnly = "Use a keyboard or mouse to change this shortcut.",
         navigate = "Navigate",
         adjust = "Adjust",
         confirm = "Confirm",
@@ -1747,33 +1944,25 @@ end
 
 local refreshShortcutConflictWarning
 
-local function applyFromControls(source)
+local function applyControlPatch(patch, source)
     local candidate = copyConfig(state.config)
-    for _, control in ipairs(state.controls) do
-        if control.kind == "toggle" and P.isValid(control.widget) then
-            local ok, value = pcall(function() return control.widget:IsChecked() end)
-            if ok and type(value) == "boolean" then candidate[control.key] = value end
-        elseif control.kind == "choice" then
-            candidate[control.key] = control.values[control.index]
-        elseif control.kind == "number" then
-            candidate[control.key] = control.value
-        elseif control.kind == "shortcut" then
-            local chord = selectedChord(control.widget)
-            if chord ~= nil then
-                candidate.Key = chord.Key
-                candidate.Shift = chord.Shift
-                candidate.Ctrl = chord.Ctrl
-                candidate.Alt = chord.Alt
-            end
-        end
+    for key, value in pairs(type(patch) == "table" and patch or {}) do
+        candidate[key] = value
     end
     local applied, applyError = SettingsUI.apply(candidate, source)
     local strings = currentStrings()
     if applied then
-        setStatus(strings.saved, false)
+        setStatus("", false)
         refreshShortcutConflictWarning()
         FooterGuide.refreshFooterHelp(false)
         return true
+    end
+    if applyError == "F6 is reserved for the settings surface"
+        or applyError == "Escape is reserved for the settings surface"
+        or applyError == "LeftMouseButton is reserved for the settings surface" then
+        setStatus("", false)
+        FooterGuide.refreshFooterHelp(false)
+        return false
     end
     setStatus(string.format(strings.saveFailed, tostring(applyError)), true)
     return false
@@ -1783,7 +1972,7 @@ refreshShortcutConflictWarning = function()
     local warning = state.shortcutWarningText
     local control = state.shortcutControl
     if not P.isValid(warning) or type(control) ~= "table" then return false end
-    local chord = selectedChord(control.widget) or {
+    local chord = {
         Key = state.config.Key,
         Shift = state.config.Shift,
         Ctrl = state.config.Ctrl,
@@ -1811,9 +2000,11 @@ end
 local function resetControlsToConfig()
     for _, control in ipairs(state.controls) do
         if control.kind == "toggle" and P.isValid(control.widget) then
+            state.toggleEventsSuppressed = true
             pcall(function()
                 control.widget:SetIsChecked(state.config[control.key] == true)
             end)
+            state.toggleEventsSuppressed = false
             control.last = state.config[control.key] == true
             refreshToggleDisplay(control)
         elseif control.kind == "choice" then
@@ -1827,11 +2018,8 @@ local function resetControlsToConfig()
             end
         elseif control.kind == "number" then
             control.value = tonumber(state.config[control.key]) or control.minimum
-            if P.isValid(control.text) then
-                pcall(function()
-                    control.text:SetText(FText(tostring(control.value)))
-                end)
-            end
+            setNumberEditorText(control, control.value)
+            syncNumberPresentation(control, false)
         elseif control.kind == "shortcut" and P.isValid(control.widget) then
             local chord = {
                 Key = state.config.Key,
@@ -1848,14 +2036,6 @@ local function resetControlsToConfig()
     end
 end
 
-local function triggerPressed(widget)
-    if not P.isValid(widget) then return false end
-    local ok, checked = pcall(function() return widget:IsChecked() end)
-    if not ok or checked ~= true then return false end
-    pcall(function() widget:SetIsChecked(false) end)
-    return true
-end
-
 local function inputKeyDown(controller, keyName)
     if not P.isValid(controller) or type(FName) ~= "function" then return nil end
     local ok, down = pcall(function()
@@ -1864,8 +2044,16 @@ local function inputKeyDown(controller, keyName)
     return ok and type(down) == "boolean" and down or nil
 end
 
+local function controllerWorldAddress(controller)
+    if not P.isValid(controller) then return nil end
+    local world
+    local ok = pcall(function() world = controller:GetWorld() end)
+    return ok and P.objectAddress(world) or nil
+end
+
 local closeChoiceModal
 local openChoiceModal
+local openResetConfirmation
 local buildChoiceModal
 local ensureChoiceModal
 local openAboutModal
@@ -1876,10 +2064,17 @@ local moveAboutFocus
 local activateAboutAction
 local openAboutRoster
 local closeAboutRoster
+local openAboutPreview
+local closeAboutPreview
 local logicalViewportSize
 local commitNumberEditor
 local focusedNumberControl
 local handleNumberPreview
+local beginNumberEditor
+local commitNumber
+local selectorCapturing
+local windowCacheMatches
+local completeClose
 
 local function focusNavigationRoot()
     if not P.isValid(state.widget) then return false end
@@ -1899,12 +2094,54 @@ local function focusEntry(index, device, scrollIntoView)
     state.focusIndex = index
     FooterGuide.markInputDevice(device or state.lastInputDevice)
     focusNavigationRoot()
+    refreshTriggerSurfaces()
     if scrollIntoView ~= false and P.isValid(state.scroll)
         and P.isValid(control.scrollTarget) then
         pcall(function()
             state.scroll:ScrollWidgetIntoView(control.scrollTarget, false, 0, 12.0)
         end)
     end
+    return true
+end
+
+local function scheduleShortcutFocusRestore(control)
+    if type(control) ~= "table" then return false end
+    state.shortcutFocusRestoreToken = state.shortcutFocusRestoreToken + 1
+    local token = state.shortcutFocusRestoreToken
+    local generation = state.generation
+    local windowSession = state.windowSession
+    local widgetAddress = P.objectAddress(state.widget)
+    local controllerAddress = P.objectAddress(state.controller)
+    local worldAddress = controllerWorldAddress(state.controller)
+    if widgetAddress == nil or controllerAddress == nil or worldAddress == nil then
+        return false
+    end
+    local pointerReturnFocusIndex = control.pointerReturnFocusIndex
+    local index = pointerReturnFocusIndex or control.focusIndex or state.focusIndex
+    local device = pointerReturnFocusIndex ~= nil and "mouse" or "keyboard"
+    control.pointerReturnFocusIndex = nil
+    local callback
+    callback = function()
+        if state.shortcutFocusRestoreToken ~= token then return end
+        state.shortcutFocusRestoreCallback = nil
+        if not state.open or state.lifecycle ~= "open"
+            or state.generation ~= generation
+            or state.windowSession ~= windowSession
+            or P.objectAddress(state.widget) ~= widgetAddress
+            or P.objectAddress(state.controller) ~= controllerAddress
+            or controllerWorldAddress(state.controller) ~= worldAddress then return end
+        focusEntry(index, device, true)
+    end
+    state.shortcutFocusRestoreCallback = callback
+    if type(ExecuteInGameThreadWithDelay) == "function" then
+        local scheduled = pcall(ExecuteInGameThreadWithDelay, 1, callback)
+        if scheduled then return true end
+    end
+    if type(ExecuteInGameThread) == "function" then
+        local scheduled = pcall(ExecuteInGameThread, callback)
+        if scheduled then return true end
+    end
+    callback()
     return true
 end
 
@@ -1923,8 +2160,183 @@ local function moveFocus(direction, device)
         refreshTriggerSurfaces()
         return true
     end
-    return focusEntry((tonumber(state.focusIndex) or 1) + direction,
-        device or "keyboard", true)
+    local count = #(state.focusEntries or {})
+    if count < 1 then return false end
+    local index = tonumber(state.focusIndex) or 1
+    for _ = 1, count do
+        index = ((index - 1 + direction) % count) + 1
+        local control = state.focusEntries[index]
+        if type(control) == "table" and control.passive ~= true then
+            return focusEntry(index, device or "keyboard", true)
+        end
+    end
+    return false
+end
+
+local HEADER_FOCUS_KINDS = {
+    steamVote = true,
+    about = true,
+    reset = true,
+    close = true,
+}
+
+local function moveHeaderFocus(direction, device)
+    local current = (state.focusEntries or {})[tonumber(state.focusIndex) or 1]
+    if type(current) ~= "table" or HEADER_FOCUS_KINDS[current.kind] ~= true then
+        return false
+    end
+    local indices = {}
+    local currentPosition
+    for index, control in ipairs(state.focusEntries or {}) do
+        if type(control) == "table" and control.passive ~= true
+            and HEADER_FOCUS_KINDS[control.kind] == true then
+            indices[#indices + 1] = index
+            if control == current then currentPosition = #indices end
+        end
+    end
+    if currentPosition == nil or #indices < 2 then return false end
+    local targetPosition = ((currentPosition - 1 + direction) % #indices) + 1
+    return focusEntry(indices[targetPosition], device or "keyboard", false)
+end
+
+state.navigationDirection = function(keyName)
+    if keyName == "W" or keyName == "Up"
+        or keyName == "Gamepad_DPad_Up"
+        or keyName == "Gamepad_LeftStick_Up" then
+        return "y", -1
+    end
+    if keyName == "S" or keyName == "Down"
+        or keyName == "Gamepad_DPad_Down"
+        or keyName == "Gamepad_LeftStick_Down" then
+        return "y", 1
+    end
+    if keyName == "A" or keyName == "Left"
+        or keyName == "Gamepad_DPad_Left"
+        or keyName == "Gamepad_LeftStick_Left" then
+        return "x", -1
+    end
+    if keyName == "D" or keyName == "Right"
+        or keyName == "Gamepad_DPad_Right"
+        or keyName == "Gamepad_LeftStick_Right" then
+        return "x", 1
+    end
+    return nil
+end
+
+local function navigationRepeatScope()
+    if state.aboutOpen == true then return "about", nil end
+    if state.activeChoice ~= nil then return "choice", state.activeChoice end
+    return "root", nil
+end
+
+local function cancelNavigationRepeat(keyName)
+    local record = state.navigationRepeat
+    if type(record) ~= "table" then return false end
+    if keyName ~= nil and record.keyName ~= keyName then return false end
+    state.navigationRepeat = nil
+    return true
+end
+
+local function startNavigationRepeat(keyName, device)
+    local axis, direction = state.navigationDirection(keyName)
+    if axis == nil or not state.open or state.lifecycle ~= "open" then
+        return false
+    end
+    if axis == "x" and keyName ~= "Gamepad_DPad_Left"
+        and keyName ~= "Gamepad_DPad_Right" then return false end
+    local scope, owner = navigationRepeatScope()
+    local controllerAddress = P.objectAddress(state.controller)
+    local worldAddress = controllerWorldAddress(state.controller)
+    local widgetAddress = P.objectAddress(state.widget)
+    if controllerAddress == nil or worldAddress == nil or widgetAddress == nil then
+        return false
+    end
+    state.navigationRepeat = {
+        keyName = keyName,
+        axis = axis,
+        direction = direction,
+        device = device,
+        scope = scope,
+        owner = owner,
+        generation = state.generation,
+        windowSession = state.windowSession,
+        controllerAddress = controllerAddress,
+        worldAddress = worldAddress,
+        widgetAddress = widgetAddress,
+        nextRepeatAt = os.clock() + state.navigationRepeatInitialMs / 1000.0,
+    }
+    return true
+end
+
+local function navigationRepeatOwnsPress(keyName)
+    local record = state.navigationRepeat
+    return type(record) == "table" and record.keyName == keyName
+        and record.generation == state.generation
+        and record.windowSession == state.windowSession
+end
+
+local function navigationRepeatHeld(record)
+    if tostring(record.keyName):find("Gamepad_LeftStick_", 1, true) == 1 then
+        local value = tonumber((state.axisValues or {})[record.axis]) or 0.0
+        return math.abs(value) >= 0.55
+            and (record.axis == "y"
+                and ((record.direction < 0 and value > 0)
+                    or (record.direction > 0 and value < 0))
+                or record.axis == "x"
+                and ((record.direction < 0 and value < 0)
+                    or (record.direction > 0 and value > 0)))
+    end
+    if tostring(record.keyName):find("Gamepad_", 1, true) == 1 then
+        return state.controllerDown[record.keyName] == true
+    end
+    return inputKeyDown(state.controller, record.keyName) == true
+end
+
+local function pollNavigationRepeat()
+    local record = state.navigationRepeat
+    if type(record) ~= "table" then return end
+    local scope, owner = navigationRepeatScope()
+    if not state.open or state.lifecycle ~= "open"
+        or record.generation ~= state.generation
+        or record.windowSession ~= state.windowSession
+        or record.controllerAddress ~= P.objectAddress(state.controller)
+        or record.worldAddress ~= controllerWorldAddress(state.controller)
+        or record.widgetAddress ~= P.objectAddress(state.widget)
+        or record.scope ~= scope or record.owner ~= owner
+        or selectorCapturing() or not navigationRepeatHeld(record) then
+        cancelNavigationRepeat()
+        return
+    end
+    local now = os.clock()
+    if now < record.nextRepeatAt then return end
+    record.nextRepeatAt = now + state.navigationRepeatIntervalMs / 1000.0
+    FooterGuide.markInputDevice(record.device)
+    local horizontal = record.axis == "x" and record.direction or 0
+    local vertical = record.axis == "y" and record.direction or 0
+    if record.scope == "about" then
+        moveAboutFocus(horizontal, vertical)
+    elseif record.scope == "choice" then
+        if vertical ~= 0 or (horizontal ~= 0
+                and type(record.owner) == "table"
+                and record.owner.kind == "resetConfirmation") then
+            moveFocus(record.direction, record.device)
+        end
+    elseif vertical ~= 0 then
+        moveFocus(vertical, record.device)
+    elseif not moveHeaderFocus(horizontal, record.device) then
+        local editedNumber = focusedNumberControl ~= nil
+            and focusedNumberControl() or nil
+        if editedNumber ~= nil and handleNumberPreview ~= nil then
+            handleNumberPreview(editedNumber, record.keyName, nil, "repeat")
+        else
+            local control = (state.focusEntries or {})[state.focusIndex]
+            if type(control) == "table" and control.kind == "number" then
+                commitNumber(control, control.value + horizontal,
+                    horizontal < 0 and "number-left-repeat"
+                        or "number-right-repeat")
+            end
+        end
+    end
 end
 
 local function commitChoice(control, index, source)
@@ -1932,7 +2344,9 @@ local function commitChoice(control, index, source)
         or control.labels[index] == nil then return false end
     local previous = control.index
     control.index = index
-    if not applyFromControls(source or ("choice:" .. control.key)) then
+    if not applyControlPatch({
+            [control.key] = control.values[index],
+        }, source or ("choice:" .. control.key)) then
         control.index = previous
     end
     if P.isValid(control.text) then
@@ -1948,34 +2362,71 @@ local function commitToggle(control, source)
         or not P.isValid(control.widget) then return false end
     local ok, value = pcall(function() return control.widget:IsChecked() end)
     if not ok or type(value) ~= "boolean" then return false end
-    if value == control.last then
-        value = not control.last
-        pcall(function() control.widget:SetIsChecked(value) end)
-    end
+    if value == control.last then return false end
     local previous = control.last
     control.last = value
-    if not applyFromControls(source or ("toggle:" .. control.key)) then
+    if not applyControlPatch({
+            [control.key] = value,
+        }, source or ("toggle:" .. control.key)) then
         control.last = previous
+        state.toggleEventsSuppressed = true
         pcall(function() control.widget:SetIsChecked(previous) end)
+        state.toggleEventsSuppressed = false
         return false
     end
     return true
 end
 
-local function commitNumber(control, value, source)
+local function activateToggle(control, source)
+    if type(control) ~= "table" or control.kind ~= "toggle"
+        or not P.isValid(control.widget) then return false end
+    local ok, current = pcall(function() return control.widget:IsChecked() end)
+    if not ok or type(current) ~= "boolean" then return false end
+    local target = not current
+    state.toggleEventsSuppressed = true
+    local changed = pcall(function() control.widget:SetIsChecked(target) end)
+    state.toggleEventsSuppressed = false
+    if not changed then return false end
+    return commitToggle(control, source or ("toggle:" .. control.key))
+end
+
+local function commitNativeToggleChanges(source)
+    if not state.open or state.toggleEventsSuppressed == true then return false end
+    for _, control in ipairs(state.controls or {}) do
+        if control.kind == "toggle" and P.isValid(control.widget) then
+            local ok, value = pcall(function() return control.widget:IsChecked() end)
+            if ok and type(value) == "boolean" and value ~= control.last then
+                cancelNavigationRepeat()
+                FooterGuide.markInputDevice("mouse")
+                local edit = state.numberEdit
+                if type(edit) == "table" and type(edit.control) == "table" then
+                    commitNumberEditor(edit.control, "number-navigation", true)
+                end
+                commitToggle(control, source or ("toggle:" .. control.key))
+                refreshToggleDisplay(control)
+                refreshRowDisplay(control)
+                refreshTriggerSurfaces()
+                return true
+            end
+        end
+    end
+    return false
+end
+
+commitNumber = function(control, value, source)
     if type(control) ~= "table" or control.kind ~= "number" then return false end
     value = tonumber(value)
     if value == nil or math.floor(value) ~= value
         or value < control.minimum or value > control.maximum then return false end
     local previous = control.value
     control.value = value
-    if value ~= previous and not applyFromControls(source or ("number:" .. control.key)) then
+    if value ~= previous and not applyControlPatch({
+            [control.key] = value,
+        }, source or ("number:" .. control.key)) then
         control.value = previous
         value = previous
     end
-    if P.isValid(control.text) then
-        pcall(function() control.text:SetText(FText(tostring(control.value))) end)
-    end
+    setNumberEditorText(control, control.value)
     return control.value == value
 end
 
@@ -1989,7 +2440,7 @@ local function resetFromDefaults()
     local applied, applyError = SettingsUI.apply(candidate, "reset")
     if applied then
         resetControlsToConfig()
-        setStatus(currentStrings().saved, false)
+        setStatus("", false)
         return true
     end
     setStatus(string.format(currentStrings().saveFailed,
@@ -1997,43 +2448,59 @@ local function resetFromDefaults()
     return false
 end
 
-local function activateFocused(source)
-    if state.activeChoice ~= nil then
-        local control = state.activeChoice
-        local index = tonumber(state.modalIndex) or control.index or 1
-        commitChoice(control, index, "choice:" .. tostring(control.key))
+local function commitNestedModalSelection(source)
+    local control = state.activeChoice
+    if type(control) ~= "table" then return false end
+    local index = tonumber(state.modalIndex) or control.index or 1
+    if control.kind == "resetConfirmation" then
+        local confirmed = index == 2
         closeChoiceModal(true)
+        if confirmed then return resetFromDefaults() end
         return true
     end
-    local control = (state.focusEntries or {})[tonumber(state.focusIndex) or 1]
+    commitChoice(control, index, source or ("choice:" .. tostring(control.key)))
+    closeChoiceModal(true)
+    return true
+end
+
+local function activateControl(control, source, returnFocusIndex)
     if type(control) ~= "table" then return false end
+    if control.passive == true then
+        if source == "mouse" then return false end
+        return moveFocus(1, source or "keyboard")
+    end
     local edit = state.numberEdit
     if type(edit) == "table" and edit.control ~= control
         and type(edit.control) == "table" then
         commitNumberEditor(edit.control, "number-navigation", true)
     end
     if control.kind == "choice" then
-        return openChoiceModal(control)
+        return openChoiceModal(control, returnFocusIndex)
     elseif control.kind == "toggle" then
-        return commitToggle(control, source)
+        return activateToggle(control, source)
     elseif control.kind == "number" then
         local edit = state.numberEdit
         if type(edit) == "table" and edit.control == control then
             return commitNumberEditor(control, "number-commit", true)
         end
-        if type(edit) == "table" and type(edit.control) == "table" then
-            commitNumberEditor(edit.control, "number-navigation", true)
-        end
-        state.numberEdit = {
-            control = control,
-            buffer = tostring(control.value),
-            replaceOnType = true,
-        }
-        if type(control.trigger) == "table" then control.trigger.selected = true end
-        focusNavigationRoot()
-        refreshTriggerSurfaces()
-        return true
+        local sourceName = tostring(source or "")
+        local mode = sourceName == "mouse" and "mouse"
+            or sourceName:find("^gamepad") ~= nil and "controller"
+            or "keyboard"
+        return beginNumberEditor(control, mode)
     elseif control.kind == "shortcut" then
+        local sourceName = tostring(source or "")
+        if sourceName:find("^gamepad") ~= nil then
+            setStatus(currentStrings().shortcutKeyboardMouseOnly
+                or "Use a keyboard or mouse to change this shortcut.", false)
+            focusNavigationRoot()
+            refreshTriggerSurfaces()
+            return true
+        end
+        if source == "mouse" then
+            control.pointerReturnFocusIndex = tonumber(returnFocusIndex)
+                or state.focusIndex
+        end
         control.selecting = true
         pcall(function()
             if P.isValid(state.controller) then control.widget:SetUserFocus(state.controller) end
@@ -2043,25 +2510,25 @@ local function activateFocused(source)
     elseif control.kind == "steamVote" then
         return activateSteamVote()
     elseif control.kind == "about" then
-        if P.isValid(control.widget) then
-            pcall(function() control.widget:SetIsChecked(false) end)
-        end
         return openAboutModal()
     elseif control.kind == "reset" then
-        if P.isValid(control.widget) then
-            pcall(function() control.widget:SetIsChecked(false) end)
-        end
-        return resetFromDefaults()
+        return openResetConfirmation(returnFocusIndex
+            or control.focusIndex or state.focusIndex)
     elseif control.kind == "close" then
-        if P.isValid(control.widget) then
-            pcall(function() control.widget:SetIsChecked(false) end)
-        end
         return SettingsUI.close(source or "activate")
     end
     return false
 end
 
-local function selectorCapturing()
+local function activateFocused(source)
+    if state.activeChoice ~= nil then
+        return commitNestedModalSelection(source)
+    end
+    local control = (state.focusEntries or {})[tonumber(state.focusIndex) or 1]
+    return activateControl(control, source, nil)
+end
+
+selectorCapturing = function()
     for _, control in ipairs(state.controls or {}) do
         if control.kind == "shortcut" and P.isValid(control.widget) then
             local ok, selecting = pcall(function()
@@ -2118,13 +2585,31 @@ local function claimSynchronousNavigation(keyName, source)
     return false
 end
 
-local function handlePressed(keyName, device, source)
+local function handlePressed(keyName, device, source, shiftDown)
     if not state.open then return false end
+    if state.lifecycle ~= "open" and state.lifecycle ~= "recovering" then return true end
     device = device or (tostring(keyName):find("^Gamepad_") and "gamepad" or "keyboard")
+    if shiftDown ~= true and keyName == "Tab" then
+        shiftDown = inputKeyDown(state.controller, "LeftShift") == true
+            or inputKeyDown(state.controller, "RightShift") == true
+    end
     FooterGuide.markInputDevice(device)
     if selectorCapturing() then return true end
+    local navigationAxis = state.navigationDirection(keyName)
+    if navigationAxis == nil then cancelNavigationRepeat() end
+    if navigationAxis ~= nil and navigationRepeatOwnsPress(keyName) then return true end
     if state.aboutOpen == true then
-        if state.aboutRosterOpen == true then
+        if state.aboutPreviewOpen == true then
+            if keyName == "Escape" or keyName == "Enter"
+                or keyName == "SpaceBar" then
+                return closeAboutPreview(true)
+            elseif keyName == "Gamepad_FaceButton_Bottom" then
+                state.gamepadAcceptDown = true
+            elseif keyName == "Gamepad_FaceButton_Right" then
+                state.gamepadBackDown = true
+            end
+            return true
+        elseif state.aboutRosterOpen == true then
             if keyName == "Escape" or keyName == "Enter"
                 or keyName == "SpaceBar" then
                 return closeAboutRoster(true)
@@ -2139,19 +2624,27 @@ local function handlePressed(keyName, device, source)
         if keyName == "W" or keyName == "Up"
             or keyName == "Gamepad_DPad_Up"
             or keyName == "Gamepad_LeftStick_Up" then
-            return moveAboutFocus(0, -1)
+            local moved = moveAboutFocus(0, -1)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
         elseif keyName == "S" or keyName == "Down"
             or keyName == "Gamepad_DPad_Down"
             or keyName == "Gamepad_LeftStick_Down" then
-            return moveAboutFocus(0, 1)
+            local moved = moveAboutFocus(0, 1)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
         elseif keyName == "A" or keyName == "Left"
             or keyName == "Gamepad_DPad_Left"
             or keyName == "Gamepad_LeftStick_Left" then
-            return moveAboutFocus(-1, 0)
+            local moved = moveAboutFocus(-1, 0)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
         elseif keyName == "D" or keyName == "Right"
             or keyName == "Gamepad_DPad_Right"
             or keyName == "Gamepad_LeftStick_Right" then
-            return moveAboutFocus(1, 0)
+            local moved = moveAboutFocus(1, 0)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
         elseif keyName == "Enter" or keyName == "SpaceBar" then
             return activateAboutAction()
         elseif keyName == "Tab" then
@@ -2181,12 +2674,32 @@ local function handlePressed(keyName, device, source)
         if keyName == "W" or keyName == "Up"
             or keyName == "Gamepad_DPad_Up"
             or keyName == "Gamepad_LeftStick_Up" then
-            return moveFocus(-1, device)
+            local moved = moveFocus(-1, device)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
         end
         if keyName == "S" or keyName == "Down"
             or keyName == "Gamepad_DPad_Down"
             or keyName == "Gamepad_LeftStick_Down" then
-            return moveFocus(1, device)
+            local moved = moveFocus(1, device)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
+        end
+        if state.activeChoice.kind == "resetConfirmation"
+            and (keyName == "A" or keyName == "Left"
+                or keyName == "Gamepad_DPad_Left"
+                or keyName == "Gamepad_LeftStick_Left") then
+            local moved = moveFocus(-1, device)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
+        end
+        if state.activeChoice.kind == "resetConfirmation"
+            and (keyName == "D" or keyName == "Right"
+                or keyName == "Gamepad_DPad_Right"
+                or keyName == "Gamepad_LeftStick_Right") then
+            local moved = moveFocus(1, device)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
         end
         if keyName == "Enter" or keyName == "SpaceBar" then
             return activateFocused(device .. "-accept")
@@ -2200,25 +2713,44 @@ local function handlePressed(keyName, device, source)
     if keyName == "W" or keyName == "Up" or keyName == "Tab"
         or keyName == "Gamepad_DPad_Up"
         or keyName == "Gamepad_LeftStick_Up" then
-        return moveFocus(keyName == "Tab" and 1 or -1, device)
+        local direction = keyName == "Tab" and (shiftDown and -1 or 1) or -1
+        local moved = moveFocus(direction, device)
+        if moved and keyName ~= "Tab" then startNavigationRepeat(keyName, device) end
+        return moved
     elseif keyName == "S" or keyName == "Down"
         or keyName == "Gamepad_DPad_Down"
         or keyName == "Gamepad_LeftStick_Down" then
-        return moveFocus(1, device)
+        local moved = moveFocus(1, device)
+        if moved then startNavigationRepeat(keyName, device) end
+        return moved
     elseif keyName == "A" or keyName == "Left"
         or keyName == "Gamepad_DPad_Left"
         or keyName == "Gamepad_LeftStick_Left" then
+        if moveHeaderFocus(-1, device) then
+            startNavigationRepeat(keyName, device)
+            return true
+        end
         local control = (state.focusEntries or {})[state.focusIndex]
         if type(control) == "table" and control.kind == "number" then
-            return commitNumber(control, control.value - 1, "number-left")
+            local committed = commitNumber(
+                control, control.value - 1, "number-left")
+            if committed then startNavigationRepeat(keyName, device) end
+            return committed
         end
         return true
     elseif keyName == "D" or keyName == "Right"
         or keyName == "Gamepad_DPad_Right"
         or keyName == "Gamepad_LeftStick_Right" then
+        if moveHeaderFocus(1, device) then
+            startNavigationRepeat(keyName, device)
+            return true
+        end
         local control = (state.focusEntries or {})[state.focusIndex]
         if type(control) == "table" and control.kind == "number" then
-            return commitNumber(control, control.value + 1, "number-right")
+            local committed = commitNumber(
+                control, control.value + 1, "number-right")
+            if committed then startNavigationRepeat(keyName, device) end
+            return committed
         end
         return true
     elseif keyName == "Enter" or keyName == "SpaceBar" then
@@ -2235,13 +2767,18 @@ end
 
 local function handleReleased(keyName)
     if not state.open then return false end
+    if state.lifecycle ~= "open" and state.lifecycle ~= "recovering" then return true end
     if type(keyName) == "string" then
         state.synchronousNavigationUntil[keyName] = nil
+        cancelNavigationRepeat(keyName)
     end
     if state.aboutOpen == true then
         if keyName == "Gamepad_FaceButton_Bottom" then
             local armed = state.gamepadAcceptDown == true
             state.gamepadAcceptDown = false
+            if armed and state.aboutPreviewOpen == true then
+                return closeAboutPreview(true)
+            end
             if armed and state.aboutRosterOpen == true then
                 return closeAboutRoster(true)
             end
@@ -2249,6 +2786,9 @@ local function handleReleased(keyName)
         elseif keyName == "Gamepad_FaceButton_Right" then
             local armed = state.gamepadBackDown == true
             state.gamepadBackDown = false
+            if armed and state.aboutPreviewOpen == true then
+                return closeAboutPreview(true)
+            end
             if armed and state.aboutRosterOpen == true then
                 return closeAboutRoster(true)
             end
@@ -2273,10 +2813,71 @@ local function handleReleased(keyName)
     return true
 end
 
-local function handleAxis(axis, value)
+local controllerInput = {}
+
+function controllerInput.noteSource(eventName, keyName, source)
+    if type(state.config) ~= "table"
+        or state.config.PerformanceCapture ~= true then return end
+    source = tostring(source or "unknown")
+    local signature = tostring(eventName) .. ":" .. source
+    if state.controllerInputSources[signature] == true then return end
+    state.controllerInputSources[signature] = true
+    log(string.format(
+        "settings_input|device=gamepad|event=%s|source=%s|key=%s",
+        tostring(eventName), source, tostring(keyName)))
+end
+
+function controllerInput.selectOwner(source, snapshot)
+    source = type(source) == "string" and source or nil
+    if source == nil or state.controllerInputOwner == source then return false end
+    snapshot = type(snapshot) == "table" and snapshot or {}
+    local connected = snapshot.connected ~= false
+    local buttons = connected and math.floor(tonumber(snapshot.buttons) or 0) or 0
+    state.controllerInputOwner = source
+    state.controllerDown = {}
+    for _, binding in ipairs(state.hostedControllerButtons) do
+        state.controllerDown[binding.key] = (buttons & binding.mask) ~= 0
+    end
+    state.axisValues = {
+        x = connected and (tonumber(snapshot.leftX) or 0.0) or 0.0,
+        y = connected and (tonumber(snapshot.leftY) or 0.0) or 0.0,
+    }
+    state.axisArmed = {
+        x = math.abs(state.axisValues.x) <= 0.30,
+        y = math.abs(state.axisValues.y) <= 0.30,
+    }
+    state.gamepadBackDown = false
+    state.gamepadAcceptDown = false
+    cancelNavigationRepeat()
+    return true
+end
+
+function controllerInput.isOwnedBy(source)
+    return type(source) == "string" and state.controllerInputOwner == source
+end
+
+local function dispatchControllerPressed(keyName, source)
+    if not controllerInput.isOwnedBy(source) then return true end
+    if state.controllerDown[keyName] == true then return true end
+    state.controllerDown[keyName] = true
+    controllerInput.noteSource("pressed", keyName, source)
+    return handlePressed(keyName, "gamepad", source)
+end
+
+local function dispatchControllerReleased(keyName, source)
+    if not controllerInput.isOwnedBy(source) then return true end
+    if state.controllerDown[keyName] ~= true then return true end
+    state.controllerDown[keyName] = false
+    controllerInput.noteSource("released", keyName, source)
+    return handleReleased(keyName)
+end
+
+local function handleAxis(axis, value, source)
     if not state.open then return false end
+    if not controllerInput.isOwnedBy(source) then return true end
     value = tonumber(value)
     if type(value) ~= "number" or (axis ~= "x" and axis ~= "y") then return false end
+    state.axisValues[axis] = value
     if type(state.axisArmed) ~= "table" then
         state.axisArmed = { x = true, y = true }
     end
@@ -2284,6 +2885,14 @@ local function handleAxis(axis, value)
     local armed = state.axisArmed[axis] ~= false
     if magnitude <= 0.30 then
         state.axisArmed[axis] = true
+        if axis == "y" then
+            local record = state.navigationRepeat
+            if type(record) == "table"
+                and (record.keyName == "Gamepad_LeftStick_Up"
+                    or record.keyName == "Gamepad_LeftStick_Down") then
+                cancelNavigationRepeat()
+            end
+        end
         return true
     end
     if not armed or magnitude < 0.55 then return true end
@@ -2300,51 +2909,109 @@ focusedNumberControl = function()
     local edit = state.numberEdit
     local control = type(edit) == "table" and edit.control or nil
     return state.open and type(control) == "table" and control.kind == "number"
-        and P.isValid(control.widget) and control or nil
+        and P.isValid(control.widget)
+        and edit.windowSession == state.windowSession
+        and edit.worldAddress == controllerWorldAddress(state.controller)
+        and edit.widgetAddress == P.objectAddress(state.widget)
+        and edit.controlAddress == P.objectAddress(control.widget)
+        and control or nil
+end
+
+beginNumberEditor = function(control, mode)
+    if type(control) ~= "table" or control.kind ~= "number"
+        or not P.isValid(control.widget) then return false end
+    mode = mode == "mouse" and "mouse"
+        or mode == "controller" and "controller" or "keyboard"
+    local existing = state.numberEdit
+    if type(existing) == "table" and type(existing.control) == "table" then
+        commitNumberEditor(existing.control, "number-navigation", true)
+    end
+    local widgetAddress = P.objectAddress(state.widget)
+    local controlAddress = P.objectAddress(control.widget)
+    local worldAddress = controllerWorldAddress(state.controller)
+    if widgetAddress == nil or controlAddress == nil or worldAddress == nil then
+        return false
+    end
+    state.numberEdit = {
+        control = control,
+        windowSession = state.windowSession,
+        worldAddress = worldAddress,
+        widgetAddress = widgetAddress,
+        controlAddress = controlAddress,
+        buffer = tostring(control.value),
+        replaceOnType = mode ~= "controller",
+        mode = mode,
+    }
+    setNumberEditorText(control, control.value)
+    syncNumberPresentation(control, false)
+    -- Every input family edits through the settings root. No text widget ever
+    -- becomes the platform text-input client, so IME composition cannot enter
+    -- the numeric field while mouse activation still works normally.
+    local focused = focusNavigationRoot()
+    if focused ~= true then
+        state.numberEdit = nil
+        setNumberEditorText(control, control.value)
+        syncNumberPresentation(control, false)
+        return false
+    end
+    refreshRowDisplay(control)
+    refreshTriggerSurfaces()
+    return true
 end
 
 commitNumberEditor = function(control, source, commit)
     if type(control) ~= "table" or control.kind ~= "number" then return false end
     local edit = state.numberEdit
     if type(edit) ~= "table" or edit.control ~= control then return false end
-    state.numberEdit = nil
-    if type(control.trigger) == "table" then control.trigger.selected = false end
+    if edit.windowSession ~= state.windowSession
+        or edit.worldAddress ~= controllerWorldAddress(state.controller)
+        or edit.widgetAddress ~= P.objectAddress(state.widget)
+        or edit.controlAddress ~= P.objectAddress(control.widget) then
+        state.numberEdit = nil
+        return false
+    end
     local applied = true
     if commit ~= false then
-        local parsed = tonumber(edit.buffer)
+        local raw = edit.buffer
+        local parsed = tonumber(raw)
         if parsed ~= nil and math.floor(parsed) == parsed then
             parsed = math.max(control.minimum, math.min(control.maximum, parsed))
+            state.numberEdit = nil
             applied = commitNumber(control, parsed, source)
         else
+            state.numberEdit = nil
             applied = false
         end
+    else
+        state.numberEdit = nil
     end
-    if P.isValid(control.text) then
-        pcall(function()
-            control.text:SetText(FText(tostring(control.value)))
-        end)
-    end
+    setNumberEditorText(control, control.value)
+    syncNumberPresentation(control, false)
     focusNavigationRoot()
+    refreshRowDisplay(control)
     refreshTriggerSurfaces()
     return applied
 end
 
 local function adjustNumberEditor(control, direction)
     local edit = state.numberEdit
-    local parsed = type(edit) == "table" and edit.control == control
-        and tonumber(edit.buffer) or nil
+    local raw = type(edit) == "table" and edit.control == control
+        and edit.buffer or nil
+    local parsed = tonumber(raw)
     local base = parsed ~= nil and math.floor(parsed) == parsed
         and parsed >= control.minimum and parsed <= control.maximum
         and parsed or control.value
     local target = math.max(control.minimum,
         math.min(control.maximum, base + direction))
-    local committed = commitNumber(control, target,
-        direction < 0 and "number-left" or "number-right")
-    if committed and type(edit) == "table" and edit.control == control then
+    if type(edit) == "table" and edit.control == control then
         edit.buffer = tostring(target)
         edit.replaceOnType = true
+        setNumberEditorText(control, target)
+        syncNumberPresentation(control, false)
+        refreshTriggerSurfaces()
+        return true
     end
-    return committed
+    return false
 end
 
 local function previewKeyEvent(keyEventParam)
@@ -2387,8 +3054,8 @@ handleNumberPreview = function(control, keyName, keyEvent, source)
     local shiftDown = previewModifierDown(keyEvent, "shift")
     local edit = state.numberEdit
     if type(edit) ~= "table" or edit.control ~= control then return false end
-    if claimSynchronousNavigation(keyName, source) then return true end
     local digit = NUMBER_KEY_DIGITS[keyName]
+    if claimSynchronousNavigation(keyName, source) then return true end
     if digit ~= nil then
         if not controlDown and not shiftDown then
             local raw = edit.replaceOnType == true and digit
@@ -2398,9 +3065,7 @@ handleNumberPreview = function(control, keyName, keyEvent, source)
             if #raw <= maxDigits then
                 edit.buffer = raw
                 edit.replaceOnType = false
-                if P.isValid(control.text) then
-                    pcall(function() control.text:SetText(FText(raw)) end)
-                end
+                setNumberEditorText(control, raw)
             end
         end
         return true
@@ -2411,10 +3076,12 @@ handleNumberPreview = function(control, keyName, keyEvent, source)
             local raw = clear and "" or tostring(edit.buffer or ""):sub(1, -2)
             edit.buffer = raw
             edit.replaceOnType = false
-            if P.isValid(control.text) then
-                pcall(function() control.text:SetText(FText(raw)) end)
-            end
+            setNumberEditorText(control, raw)
         end
+        return true
+    end
+    if controlDown == true and shiftDown ~= true and keyName == "A" then
+        edit.replaceOnType = true
         return true
     end
     if controlDown or shiftDown then return true end
@@ -2423,6 +3090,7 @@ handleNumberPreview = function(control, keyName, keyEvent, source)
             or keyName == "Gamepad_DPad_Left"
             or keyName == "Gamepad_LeftStick_Left") then
         adjustNumberEditor(control, -1)
+        if source ~= "repeat" then startNavigationRepeat(keyName, "gamepad") end
         return true
     end
     if not controlDown and not shiftDown
@@ -2430,6 +3098,7 @@ handleNumberPreview = function(control, keyName, keyEvent, source)
             or keyName == "Gamepad_DPad_Right"
             or keyName == "Gamepad_LeftStick_Right") then
         adjustNumberEditor(control, 1)
+        if source ~= "repeat" then startNavigationRepeat(keyName, "gamepad") end
         return true
     end
     if keyName == "Enter" or keyName == "SpaceBar"
@@ -2444,11 +3113,16 @@ handleNumberPreview = function(control, keyName, keyEvent, source)
         or keyName == "Gamepad_LeftStick_Up"
         or keyName == "Gamepad_LeftStick_Down" then
         commitNumberEditor(control, "number-navigation", true)
-        local direction = (keyName == "W" or keyName == "Up"
+        local direction = keyName == "Tab" and (shiftDown and -1 or 1)
+            or (keyName == "W" or keyName == "Up"
             or keyName == "Gamepad_DPad_Up"
             or keyName == "Gamepad_LeftStick_Up") and -1 or 1
-        return moveFocus(direction,
-            keyName:find("Gamepad_", 1, true) == 1 and "gamepad" or "keyboard")
+        local device = keyName:find("Gamepad_", 1, true) == 1
+            and "gamepad" or "keyboard"
+        local moved = moveFocus(direction,
+            device)
+        if moved and keyName ~= "Tab" then startNavigationRepeat(keyName, device) end
+        return moved
     end
     if keyName == "Escape" or keyName == "Gamepad_FaceButton_Right" then
         return commitNumberEditor(control, "number-cancel", false)
@@ -2469,11 +3143,14 @@ local function previewKeyHook(context, _geometryParam, keyEventParam)
         local gamepad = keyName:find("Gamepad_", 1, true) == 1
         local numberControl = focusedNumberControl()
         local handled
-        if numberControl ~= nil then
+        if gamepad then
+            handled = dispatchControllerPressed(keyName, "preview")
+        elseif numberControl ~= nil then
             handled = handleNumberPreview(numberControl, keyName, keyEvent, "preview")
         else
             handled = handlePressed(keyName,
-                gamepad and "gamepad" or "keyboard", "preview")
+                "keyboard", "preview",
+                previewModifierDown(keyEvent, "shift"))
         end
         if handled ~= true then return nil end
         local library = staticObject("/Script/UMG.Default__WidgetBlueprintLibrary")
@@ -2488,6 +3165,225 @@ local function previewKeyHook(context, _geometryParam, keyEventParam)
         return nil
     end
     return reply
+end
+
+local function hoveredWidget(widget)
+    if not P.isValid(widget) then return false end
+    local hovered = false
+    pcall(function() hovered = widget:IsHovered() == true end)
+    return hovered
+end
+
+local function hoveredPointerAction()
+    if not state.open or (state.lifecycle ~= "open"
+        and state.lifecycle ~= "recovering") then return nil end
+    if state.aboutOpen == true then
+        if state.aboutPreviewOpen == true then
+            if hoveredWidget(state.aboutPreviewCloseWidget) then
+                return { scope = "about-preview" }
+            end
+            return nil
+        end
+        if state.aboutRosterOpen == true then
+            local closeWidget = (state.aboutRosterCloseWidgets or {})[
+                state.aboutRosterMode]
+            if hoveredWidget(closeWidget) then
+                return {
+                    scope = "about-roster",
+                    owner = state.aboutRosterMode,
+                }
+            end
+            return nil
+        end
+        for index, action in ipairs(state.aboutActions or {}) do
+            if hoveredWidget(action.widget) then
+                return { scope = "about", index = index, owner = action }
+            end
+        end
+        return nil
+    end
+    if state.activeChoice ~= nil then
+        local control = state.activeChoice
+        for index, option in ipairs(state.modalOptions or {}) do
+            if control.labels[index] ~= nil and hoveredWidget(option.widget) then
+                return { scope = "choice", index = index, owner = control }
+            end
+        end
+        return nil
+    end
+    for _, control in ipairs(state.controls or {}) do
+        local pointerHovered = control.kind == "number"
+            and (hoveredWidget(control.displayButton)
+                or hoveredWidget(control.widget))
+            or hoveredWidget(control.widget)
+        if pointerHovered and control.kind ~= "toggle"
+            and control.kind ~= "shortcut" and control.passive ~= true then
+            return { scope = "root", owner = control }
+        end
+    end
+    return nil
+end
+
+local function rememberPointerAction(action)
+    if type(action) ~= "table" then return nil end
+    action.generation = state.generation
+    action.windowSession = state.windowSession
+    state.pointerAction = action
+    return action
+end
+
+local function pointerActionIsCurrent(action)
+    if type(action) ~= "table" or not state.open
+        or (state.lifecycle ~= "open" and state.lifecycle ~= "recovering")
+        or action.generation ~= state.generation
+        or action.windowSession ~= state.windowSession then return false end
+    if action.scope == "about-preview" then
+        return state.aboutOpen == true and state.aboutPreviewOpen == true
+    end
+    if action.scope == "about-roster" then
+        return state.aboutOpen == true and state.aboutRosterOpen == true
+            and action.owner == state.aboutRosterMode
+    end
+    if action.scope == "about" then
+        return state.aboutOpen == true and state.aboutPreviewOpen ~= true
+            and state.aboutRosterOpen ~= true
+            and (state.aboutActions or {})[action.index] == action.owner
+    end
+    if action.scope == "choice" then
+        return state.aboutOpen ~= true and state.activeChoice == action.owner
+            and action.owner.labels[action.index] ~= nil
+    end
+    if action.scope == "root" and state.aboutOpen ~= true
+        and state.activeChoice == nil then
+        for _, control in ipairs(state.controls or {}) do
+            if control == action.owner then return true end
+        end
+    end
+    return false
+end
+
+local function capturePointerAction()
+    local action = hoveredPointerAction()
+    if action == nil then
+        state.pointerAction = nil
+        return nil
+    end
+    return rememberPointerAction(action)
+end
+
+local function aboutPointerCloseMode(action)
+    if type(action) ~= "table" then return nil end
+    if action.scope == "about-preview" then return "preview" end
+    if action.scope == "about-roster" then return "roster" end
+    if action.scope == "about" and type(action.owner) == "table"
+        and action.owner.kind == "close" then return "about" end
+    return nil
+end
+
+local function queueAboutPointerClose(action)
+    local mode = aboutPointerCloseMode(action)
+    if mode == nil then return false end
+    state.pendingAboutPointerClose = {
+        mode = mode,
+        rosterMode = mode == "roster" and action.owner or nil,
+        generation = state.generation,
+        windowSession = state.windowSession,
+        aboutRevision = state.aboutRevision,
+        widgetAddress = P.objectAddress(state.widget),
+        controllerAddress = P.objectAddress(state.controller),
+        worldAddress = controllerWorldAddress(state.controller),
+    }
+    return true
+end
+
+local function pendingAboutPointerCloseIsCurrent(record)
+    if type(record) ~= "table" or not state.open
+        or state.lifecycle ~= "open"
+        or record.generation ~= state.generation
+        or record.windowSession ~= state.windowSession
+        or record.aboutRevision ~= state.aboutRevision
+        or record.widgetAddress == nil
+        or record.widgetAddress ~= P.objectAddress(state.widget)
+        or record.controllerAddress == nil
+        or record.controllerAddress ~= P.objectAddress(state.controller)
+        or record.worldAddress == nil
+        or record.worldAddress ~= controllerWorldAddress(state.controller)
+        or state.aboutOpen ~= true then return false end
+    if record.mode == "preview" then
+        return state.aboutPreviewOpen == true
+    end
+    if record.mode == "roster" then
+        return state.aboutRosterOpen == true
+            and record.rosterMode == state.aboutRosterMode
+    end
+    return record.mode == "about" and state.aboutPreviewOpen ~= true
+        and state.aboutRosterOpen ~= true
+end
+
+local function drainPendingAboutPointerClose()
+    local record = state.pendingAboutPointerClose
+    if type(record) ~= "table" then return false end
+    state.pendingAboutPointerClose = nil
+    if not pendingAboutPointerCloseIsCurrent(record) then return false end
+    FooterGuide.markInputDevice("mouse")
+    if record.mode == "preview" then return closeAboutPreview(true) end
+    if record.mode == "roster" then return closeAboutRoster(true) end
+    return closeAboutModal(true)
+end
+
+local function refreshInputFocusVisuals()
+    if type(state.shortcutControl) == "table" then
+        refreshShortcutDisplay(state.shortcutControl, selectorCapturing())
+    end
+    for _, control in ipairs(state.controls or {}) do
+        if control.kind == "toggle" then refreshToggleDisplay(control) end
+        refreshRowDisplay(control)
+    end
+    refreshTriggerSurfaces()
+end
+
+local function activateHoveredDirectAction()
+    if not state.open then return false end
+    local cached = state.pointerAction
+    local action = capturePointerAction() or cached
+    if not pointerActionIsCurrent(action) then
+        state.pointerAction = nil
+        return false
+    end
+    cancelNavigationRepeat()
+    state.pointerAction = nil
+    if queueAboutPointerClose(action) then return true end
+    FooterGuide.markInputDevice("mouse")
+    local handled = false
+    if action.scope == "about-preview" then
+        handled = closeAboutPreview(true)
+    elseif action.scope == "about-roster" then
+        handled = closeAboutRoster(true)
+    elseif action.scope == "about" then
+        state.aboutFocusIndex = action.index
+        state.aboutPreferredColumn = tonumber(action.owner.navColumn) or 1
+        handled = activateAboutAction()
+    elseif action.scope == "choice" then
+        state.modalIndex = action.index
+        handled = commitNestedModalSelection("mouse")
+    elseif action.scope == "root" then
+        local control = action.owner
+        local returnFocusIndex = state.focusIndex
+        local numberEdit = state.numberEdit
+        local activeNumber = control.kind == "number"
+            and type(numberEdit) == "table" and numberEdit.control == control
+        if control.kind == "choice" then
+            state.choiceReturnFocusIndex = returnFocusIndex
+            handled = openChoiceModal(control)
+            if handled ~= true then state.choiceReturnFocusIndex = nil end
+        elseif control.kind == "number" and activeNumber then
+            handled = true
+        else
+            handled = activateControl(control, "mouse", returnFocusIndex)
+        end
+    end
+    if handled == true then refreshInputFocusVisuals() end
+    return handled
 end
 
 local function keyUpHook(context, _geometryParam, keyEventParam)
@@ -2509,7 +3405,11 @@ local function keyUpHook(context, _geometryParam, keyEventParam)
         if not P.isValid(owner)
             or P.objectAddress(owner) ~= P.objectAddress(state.widget) then return nil end
         if selectorCapturing() then return nil end
-        handleReleased(keyName)
+        if keyName:find("Gamepad_", 1, true) == 1 then
+            dispatchControllerReleased(keyName, "preview")
+        else
+            handleReleased(keyName)
+        end
         local library = staticObject("/Script/UMG.Default__WidgetBlueprintLibrary")
         return library ~= nil and library:Handled() or nil
     end)
@@ -2549,6 +3449,76 @@ local function installKeyUpHook()
     return true
 end
 
+local function ensureSettingsCursor()
+    if not state.open or not P.isValid(state.controller) then return false end
+    local visible = false
+    local ok = pcall(function() visible = state.controller.bShowMouseCursor == true end)
+    if ok and visible then return true end
+    local repaired, cursorVisible = pcall(function()
+        state.controller.bShowMouseCursor = true
+        return state.controller.bShowMouseCursor == true
+    end)
+    return repaired == true and cursorVisible == true
+end
+
+local function settingsPointerOwner(context)
+    if not state.open or (state.lifecycle ~= "open"
+        and state.lifecycle ~= "recovering")
+        or not P.isValid(state.widget) then return false end
+    local owner = P.unwrap(context)
+    return P.isValid(owner)
+        and P.objectAddress(owner) == P.objectAddress(state.widget)
+end
+
+local function mouseMoveHook(context)
+    if not settingsPointerOwner(context) then return nil end
+    cancelNavigationRepeat()
+    local edit = state.numberEdit
+    if type(edit) == "table" and edit.mode == "controller"
+        and type(edit.control) == "table" then
+        commitNumberEditor(edit.control, "number-pointer", true)
+    end
+    local changedDevice = FooterGuide.markInputDevice("mouse")
+    capturePointerAction()
+    ensureSettingsCursor()
+    if changedDevice then refreshInputFocusVisuals() end
+    return nil
+end
+
+local function mouseLeaveHook(context)
+    if not settingsPointerOwner(context) then return nil end
+    cancelNavigationRepeat()
+    state.pointerAction = nil
+    local changedDevice = FooterGuide.markInputDevice("mouse")
+    ensureSettingsCursor()
+    focusNavigationRoot()
+    if changedDevice then refreshInputFocusVisuals() end
+    return nil
+end
+
+local function installPointerHooks()
+    if type(RegisterHook) ~= "function" then return false end
+    if not state.mouseMoveHookReady then
+        if staticObject(MOUSE_MOVE_FUNCTION) == nil then return false end
+        local ok, preId, postId = pcall(RegisterHook,
+            MOUSE_MOVE_FUNCTION, mouseMoveHook)
+        if not ok or type(preId) ~= "number" then return false end
+        state.mouseMoveHookReady = true
+        state.mouseMoveHookPreId = preId
+        state.mouseMoveHookPostId = postId
+    end
+    if not state.mouseLeaveHookReady then
+        if staticObject(MOUSE_LEAVE_FUNCTION) == nil then return false end
+        local ok, preId, postId = pcall(RegisterHook,
+            MOUSE_LEAVE_FUNCTION, mouseLeaveHook)
+        if not ok or type(preId) ~= "number" then return false end
+        state.mouseLeaveHookReady = true
+        state.mouseLeaveHookPreId = preId
+        state.mouseLeaveHookPostId = postId
+    end
+    return true
+end
+
 local function installSelectorSelectedKeyHook()
     if state.selectorSelectedKeyHookReady then return true end
     local path = "/Script/UMG.InputKeySelector:SetSelectedKey"
@@ -2565,93 +3535,62 @@ end
 
 local function pollControls()
     if not state.open then return end
+    if drainPendingAboutPointerClose() then return end
     pollSteamVote()
+    if type(state.steamVoteControl) == "table"
+        and state.steamVoteControl.passive == true
+        and state.steamVoteControl.focusIndex == state.focusIndex then
+        moveFocus(1, state.lastInputDevice)
+    end
     if state.steamVotePalVisualReady ~= true then
         refreshSteamVotePalVisuals()
     end
     if state.aboutOpen == true then
-        if state.aboutRosterOpen == true then
-            if triggerPressed(state.aboutRosterCloseWidget) then
-                FooterGuide.markInputDevice("mouse")
-                closeAboutRoster(true)
-            end
-            refreshTriggerSurfaces()
-            return
-        end
-        for index, action in ipairs(state.aboutActions or {}) do
-            if triggerPressed(action.widget) then
-                FooterGuide.markInputDevice("mouse")
-                state.aboutFocusIndex = index
-                state.aboutPreferredColumn = tonumber(action.navColumn) or 1
-                activateAboutAction()
-                if state.aboutOpen ~= true then return end
-                break
-            end
-        end
         refreshTriggerSurfaces()
         return
     end
     if state.activeChoice ~= nil then
-        local control = state.activeChoice
-        for index, option in ipairs(state.modalOptions or {}) do
-            if triggerPressed(option.widget) and control.labels[index] ~= nil then
-                FooterGuide.markInputDevice("mouse")
-                state.modalIndex = index
-                commitChoice(control, index, "choice:" .. control.key)
-                closeChoiceModal(true)
-                refreshTriggerSurfaces()
-                return
-            end
-        end
         refreshTriggerSurfaces()
         return
     end
+    commitNativeToggleChanges("toggle-poll")
     for _, control in ipairs(state.controls) do
-        if control.kind == "toggle" and P.isValid(control.widget) then
-            local ok, value = pcall(function() return control.widget:IsChecked() end)
-            if ok and type(value) == "boolean" and value ~= control.last then
-                state.focusIndex = control.focusIndex or state.focusIndex
-                FooterGuide.markInputDevice("mouse")
-                local edit = state.numberEdit
-                if type(edit) == "table" and type(edit.control) == "table" then
-                    commitNumberEditor(edit.control, "number-navigation", true)
-                end
-                local previous = control.last
-                control.last = value
-                if not applyFromControls("toggle:" .. control.key) then
-                    control.last = previous
-                    pcall(function() control.widget:SetIsChecked(previous) end)
-                end
-                focusNavigationRoot()
-            end
-        elseif control.kind == "choice" and triggerPressed(control.widget) then
-            state.focusIndex = control.focusIndex or state.focusIndex
-            FooterGuide.markInputDevice("mouse")
-            local edit = state.numberEdit
-            if type(edit) == "table" and type(edit.control) == "table" then
-                commitNumberEditor(edit.control, "number-navigation", true)
-            end
-            openChoiceModal(control)
-        elseif control.kind == "number" then
-            if triggerPressed(control.widget) then
-                state.focusIndex = control.focusIndex or state.focusIndex
-                FooterGuide.markInputDevice("mouse")
-                activateFocused("mouse")
-            end
-        elseif control.kind == "shortcut" then
+        if control.kind == "shortcut" then
             local chord = selectedChord(control.widget)
             local signature = chordSignature(chord)
             if chord ~= nil and signature ~= control.last then
                 local previous = control.last
-                control.last = signature
-                if not applyFromControls("shortcut") then
-                    control.last = previous
-                    setSelectorChord(control.widget, {
+                local reserved = chord.Key == "F6" or chord.Key == "Escape"
+                    or chord.Key == "LeftMouseButton"
+                if reserved then
+                    InputOwner.discardPendingKey(chord.Key)
+                    local persisted = {
                         Key = state.config.Key,
                         Shift = state.config.Shift,
                         Ctrl = state.config.Ctrl,
                         Alt = state.config.Alt,
-                    })
+                    }
+                    setSelectorChord(control.widget, persisted)
+                    control.last = chordSignature(persisted)
+                    control.selecting = false
+                    scheduleShortcutFocusRestore(control)
+                else
+                    control.last = signature
+                    if not applyControlPatch({
+                        Key = chord.Key,
+                        Shift = chord.Shift,
+                        Ctrl = chord.Ctrl,
+                        Alt = chord.Alt,
+                        }, "shortcut") then
+                        control.last = previous
+                        setSelectorChord(control.widget, {
+                            Key = state.config.Key,
+                            Shift = state.config.Shift,
+                            Ctrl = state.config.Ctrl,
+                            Alt = state.config.Alt,
+                        })
+                        refreshShortcutConflictWarning()
+                    end
                 end
             end
             local selecting = false
@@ -2662,6 +3601,10 @@ local function pollControls()
                 selecting = selectingOk and selectingValue == true
             end
             local wasSelecting = control.selecting == true
+            if selecting and not wasSelecting then
+                control.pointerReturnFocusIndex = state.lastInputDevice == "mouse"
+                    and state.focusIndex or nil
+            end
             control.selecting = selecting
             if selecting and type(state.numberEdit) == "table"
                 and type(state.numberEdit.control) == "table" then
@@ -2669,29 +3612,9 @@ local function pollControls()
                     state.numberEdit.control, "number-navigation", true)
             end
             if wasSelecting and not selecting then
-                focusEntry(control.focusIndex or state.focusIndex,
-                    "keyboard", true)
+                scheduleShortcutFocusRestore(control)
             end
             refreshShortcutDisplay(control, selecting)
-        elseif control.kind == "steamVote" then
-            if triggerPressed(state.steamVoteNoneWidget)
-                or triggerPressed(state.steamVoteDownWidget) then
-                state.focusIndex = control.focusIndex or state.focusIndex
-                FooterGuide.markInputDevice("mouse")
-                activateSteamVote()
-            end
-        elseif control.kind == "about" and triggerPressed(control.widget) then
-            state.focusIndex = control.focusIndex or state.focusIndex
-            FooterGuide.markInputDevice("mouse")
-            openAboutModal()
-            return
-        elseif control.kind == "reset" and triggerPressed(control.widget) then
-            FooterGuide.markInputDevice("mouse")
-            resetFromDefaults()
-        elseif control.kind == "close" and triggerPressed(control.widget) then
-            FooterGuide.markInputDevice("mouse")
-            SettingsUI.close("button")
-            return
         end
     end
     for _, control in ipairs(state.controls) do
@@ -2701,22 +3624,151 @@ local function pollControls()
     refreshTriggerSurfaces()
 end
 
-local CONTROLLER_KEYS = {
-    "Gamepad_DPad_Up", "Gamepad_DPad_Down",
-    "Gamepad_DPad_Left", "Gamepad_DPad_Right",
-    "Gamepad_LeftStick_Up", "Gamepad_LeftStick_Down",
-    "Gamepad_LeftStick_Left", "Gamepad_LeftStick_Right",
-    "Gamepad_FaceButton_Bottom", "Gamepad_FaceButton_Right",
-}
+local function pollHostedController()
+    if state.mode ~= "hosted"
+        or type(state.readHostedControllerSnapshot) ~= "function" then
+        return false
+    end
+    local ok, snapshot = pcall(state.readHostedControllerSnapshot)
+    if not ok or type(snapshot) ~= "table" then
+        -- Shared scalar publication is revision-guarded, so one read may land
+        -- between the host's field writes. Keep an already established owner
+        -- instead of briefly enabling a second controller route.
+        return state.controllerInputOwner == "host-native"
+    end
+    local connected = snapshot.connected == true
+    local buttons = connected and math.floor(tonumber(snapshot.buttons) or 0) or 0
+    local edgeRevision = math.floor(tonumber(snapshot.edgeRevision) or 0)
+    local pressedEdges = math.floor(tonumber(snapshot.pressedEdges) or 0)
+    local releasedEdges = math.floor(tonumber(snapshot.releasedEdges) or 0)
+    if not connected then
+        if state.controllerInputOwner == "host-native" then
+            state.controllerInputOwner = nil
+            state.controllerDown = {}
+            state.axisValues = { x = 0.0, y = 0.0 }
+            state.axisArmed = { x = true, y = true }
+            cancelNavigationRepeat()
+        end
+        return false
+    end
+    if controllerInput.selectOwner("host-native", snapshot) then
+        state.lastHostedControllerEdgeRevision = edgeRevision
+        if type(state.ackHostedControllerSnapshot) == "function" then
+            pcall(state.ackHostedControllerSnapshot, edgeRevision)
+        end
+        return true
+    end
+    local previousEdgeRevision = state.lastHostedControllerEdgeRevision
+    local consumeEdges = previousEdgeRevision == nil
+        or edgeRevision > previousEdgeRevision
+    for _, binding in ipairs(state.hostedControllerButtons) do
+        local down = (buttons & binding.mask) ~= 0
+        local wasDown = state.controllerDown[binding.key] == true
+        local pressed = consumeEdges and (pressedEdges & binding.mask) ~= 0
+        local released = consumeEdges and (releasedEdges & binding.mask) ~= 0
+        if pressed and released then
+            if down then
+                if wasDown then
+                    dispatchControllerReleased(binding.key, "host-native")
+                end
+                dispatchControllerPressed(binding.key, "host-native")
+            elseif wasDown then
+                dispatchControllerReleased(binding.key, "host-native")
+            else
+                dispatchControllerPressed(binding.key, "host-native")
+                dispatchControllerReleased(binding.key, "host-native")
+            end
+        elseif pressed then
+            dispatchControllerPressed(binding.key, "host-native")
+        elseif released then
+            dispatchControllerReleased(binding.key, "host-native")
+        end
+        if down then dispatchControllerPressed(binding.key, "host-native")
+        else dispatchControllerReleased(binding.key, "host-native") end
+    end
+    if consumeEdges then state.lastHostedControllerEdgeRevision = edgeRevision end
+    handleAxis("x", tonumber(snapshot.leftX) or 0, "host-native")
+    handleAxis("y", tonumber(snapshot.leftY) or 0, "host-native")
+    if type(state.ackHostedControllerSnapshot) == "function" then
+        pcall(state.ackHostedControllerSnapshot, edgeRevision)
+    end
+    -- A host without an XInput-visible pad must not suppress UE's cooked and
+    -- PlayerController fallbacks (for example, a non-XInput controller).
+    return connected
+end
+
+state.pollNativeController = function()
+    if state.mode == "hosted" or not InputOwner.nativeControllerActive() then
+        return false
+    end
+    local snapshot, failure = InputOwner.readNativeControllerSnapshot()
+    if type(snapshot) ~= "table" then
+        log("native settings controller failed: " .. tostring(failure))
+        SettingsUI.close("native-controller-failure")
+        return true
+    end
+    local connected = snapshot.connected == true
+    local buttons = connected and math.floor(tonumber(snapshot.buttons) or 0) or 0
+    if not connected then
+        if state.controllerInputOwner == "standalone-native" then
+            state.controllerInputOwner = nil
+            state.controllerDown = {}
+            state.axisValues = { x = 0.0, y = 0.0 }
+            state.axisArmed = { x = true, y = true }
+            cancelNavigationRepeat()
+        end
+        state.nativeControllerInitialized = false
+        return false
+    end
+    if state.nativeControllerInitialized ~= true
+        or controllerInput.selectOwner("standalone-native", snapshot) then
+        if state.controllerInputOwner ~= "standalone-native" then
+            controllerInput.selectOwner("standalone-native", snapshot)
+        end
+        state.nativeControllerInitialized = true
+        return true
+    end
+    for _, binding in ipairs(state.hostedControllerButtons) do
+        local down = (buttons & binding.mask) ~= 0
+        if down then dispatchControllerPressed(binding.key, "standalone-native")
+        else dispatchControllerReleased(binding.key, "standalone-native") end
+    end
+    handleAxis("x", tonumber(snapshot.leftX) or 0.0, "standalone-native")
+    handleAxis("y", tonumber(snapshot.leftY) or 0.0, "standalone-native")
+    return true
+end
 
 local function pollStandaloneController()
-    if InputOwner.cookedInputActive() then return end
-    for _, keyName in ipairs(CONTROLLER_KEYS) do
-        local down = inputKeyDown(state.controller, keyName) == true
-        local previous = state.controllerDown[keyName] == true
-        if down and not previous then handlePressed(keyName, "gamepad") end
-        if previous and not down then handleReleased(keyName) end
-        state.controllerDown[keyName] = down
+    if pollHostedController() then return end
+    if state.pollNativeController() then return end
+    if InputOwner.cookedInputActive() then
+        controllerInput.selectOwner("actor", {})
+        return
+    end
+    if state.controllerInputOwner ~= "poll" then
+        local x, y = 0.0, 0.0
+        if P.isValid(state.controller) and type(FName) == "function" then
+            pcall(function()
+                x = tonumber(state.controller:GetInputAnalogKeyState(
+                    { KeyName = FName("Gamepad_LeftX") })) or 0.0
+                y = tonumber(state.controller:GetInputAnalogKeyState(
+                    { KeyName = FName("Gamepad_LeftY") })) or 0.0
+            end)
+        end
+        controllerInput.selectOwner("poll", { leftX = x, leftY = y })
+        for _, keyName in ipairs(state.controllerPollKeys) do
+            state.controllerDown[keyName] = inputKeyDown(
+                state.controller, keyName) == true
+        end
+        return
+    end
+    for _, keyName in ipairs(state.controllerPollKeys) do
+        local down = inputKeyDown(state.controller, keyName)
+        if down == true then
+            dispatchControllerPressed(keyName, "poll")
+        elseif down == false then
+            dispatchControllerReleased(keyName, "poll")
+        end
     end
     if P.isValid(state.controller) and type(FName) == "function" then
         local x, y
@@ -2724,8 +3776,8 @@ local function pollStandaloneController()
             x = state.controller:GetInputAnalogKeyState({ KeyName = FName("Gamepad_LeftX") })
             y = state.controller:GetInputAnalogKeyState({ KeyName = FName("Gamepad_LeftY") })
         end)
-        if tonumber(x) ~= nil then handleAxis("x", x) end
-        if tonumber(y) ~= nil then handleAxis("y", y) end
+        if tonumber(x) ~= nil then handleAxis("x", x, "poll") end
+        if tonumber(y) ~= nil then handleAxis("y", y, "poll") end
     end
 end
 
@@ -2740,6 +3792,42 @@ local function safePollPhase(name, callback)
     return false
 end
 
+local function pollSettingsLifecycle()
+    if not state.open then return end
+    local now = os.clock()
+    ensureSettingsCursor()
+    if state.lifecycle == "recovering" then
+        if (tonumber(state.closeRecoveryDeadline) or 0.0) > 0.0
+            and now >= state.closeRecoveryDeadline then
+            local closedMode = state.mode
+            local widget = state.widget
+            local controller = state.controller
+            local current = P.currentController()
+            local hostUnavailable = state.closeRecoveryReason == "host-unavailable"
+                or state.closeRecoveryReason == "context-changed"
+                or not P.isValid(current) or not windowCacheMatches(current)
+            if InputOwner.emergencyRelease({ hostUnavailable = hostUnavailable }) then
+                completeClose(closedMode, "watchdog", widget, controller)
+            else
+                state.closeRecoveryDeadline = now + 0.5
+                state.closeRecoveryRetryAt = now + 0.25
+            end
+            return
+        end
+        if now >= (tonumber(state.closeRecoveryRetryAt) or 0.0) then
+            SettingsUI.close("recovery-retry")
+        end
+        return
+    end
+    if now < (tonumber(state.nextContextCheckAt) or 0.0) then return end
+    state.nextContextCheckAt = now + 0.25
+    local controller = P.currentController()
+    if not P.isValid(controller) or not windowCacheMatches(controller) then
+        SettingsUI.close("context-changed")
+        return
+    end
+end
+
 local schedulePoll
 local stopPoll
 state.pollGameThreadCallback = function()
@@ -2747,9 +3835,11 @@ state.pollGameThreadCallback = function()
         stopPoll()
         return
     end
+    safePollPhase("lifecycle", pollSettingsLifecycle)
     safePollPhase("input", InputOwner.drainPendingInput)
     safePollPhase("controls", pollControls)
     safePollPhase("controller", pollStandaloneController)
+    safePollPhase("navigation-repeat", pollNavigationRepeat)
 end
 
 schedulePoll = function()
@@ -2823,7 +3913,7 @@ local function addToggleRow(tree, body, key, label, alternate)
     local box = construct(tree, "/Script/UMG.SizeBox")
     if row == nil or toggle == nil or box == nil then return false end
     pcall(function()
-        toggle.bIsFocusable = false
+        toggle.bIsFocusable = true
         styleToggle(toggle)
         toggle:SetIsChecked(state.config[key] == true)
         box:SetWidthOverride(SIZE.checkbox)
@@ -2831,7 +3921,7 @@ local function addToggleRow(tree, body, key, label, alternate)
         local toggleSlot = box:AddChild(toggle)
         align(toggleSlot, ALIGN_FILL, ALIGN_FILL)
     end)
-    addControlToRow(row.row, box, 12)
+    addControlToRow(row.row, box, 0)
     local control = {
         kind = "toggle", key = key, widget = toggle,
         rowFrame = row.surface,
@@ -2852,7 +3942,7 @@ local function addChoiceRow(tree, body, key, label, values, labels, alternate)
     end
     local trigger = makeTrigger(tree, labels[index], SIZE.choice, false, "▼")
     if trigger == nil then return false end
-    addControlToRow(row.row, trigger.box, 12)
+    addControlToRow(row.row, trigger.box, 0)
     local control = {
         kind = "choice", key = key, widget = trigger.widget,
         text = trigger.text, values = values, labels = labels, index = index,
@@ -2866,18 +3956,44 @@ end
 local function addNumberRow(tree, body, key, label, minimum, maximum, alternate)
     local row = makeRow(tree, body, label, "number")
     if row == nil then return false end
-    -- Keep Slate out of desktop text-input mode. The focused settings root owns
-    -- an integer-only buffer, while this trigger is presentation and pointer input.
-    local trigger = makeTrigger(tree, tostring(state.config[key]),
-        SIZE.number, false, nil, SIZE.control)
-    if trigger == nil then return false end
-    addControlToRow(row.row, trigger.box, 12)
+    local initial = math.max(minimum, math.min(maximum,
+        tonumber(state.config[key]) or minimum))
+    initial = math.floor(initial + 0.5)
+    local box = construct(tree, "/Script/UMG.SizeBox")
+    local displayButton = construct(tree, "/Script/UMG.Button")
+    local displayText = makeText(tree, tostring(initial), 14,
+        COLORS.text, TEXT_LEFT)
+    if box == nil or displayButton == nil or displayText == nil then return false end
+    local ok = pcall(function()
+        box:SetWidthOverride(SIZE.number)
+        box:SetHeightOverride(SIZE.control)
+        displayButton.bIsFocusable = false
+        styleSurfaceButton(displayButton, COLORS.control, COLORS.controlHover,
+            COLORS.controlPressed, COLORS.controlDisabled, {
+                normal = COLORS.text,
+                hovered = COLORS.text,
+                pressed = COLORS.textOnAccent,
+            })
+        displayText:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        align(displayButton:AddChild(displayText), ALIGN_CENTER, ALIGN_CENTER)
+        displayButton:SetVisibility(VIS_VISIBLE)
+        align(box:AddChild(displayButton), ALIGN_FILL, ALIGN_FILL)
+    end)
+    if not ok then return false end
+    addControlToRow(row.row, box, 0)
+    local trigger = {
+        box = box, widget = displayButton, surface = displayButton,
+        text = displayText, directButton = true,
+    }
+    registerDirectActionButton(displayButton)
+    state.triggerSurfaces[#state.triggerSurfaces + 1] = trigger
     local control = {
-        kind = "number", key = key, widget = trigger.widget,
-        text = trigger.text, trigger = trigger,
-        value = tonumber(state.config[key]) or minimum,
+        kind = "number", key = key, widget = displayButton,
+        displayButton = displayButton,
+        displayText = displayText, displayedText = tostring(initial),
+        editingVisual = false, value = initial,
         minimum = minimum, maximum = maximum,
-        rowFrame = row.surface,
+        rowFrame = row.surface, trigger = trigger,
     }
     registerFocusable(control, row.box, trigger)
     state.controls[#state.controls + 1] = control
@@ -2890,9 +4006,8 @@ local function addShortcutRow(tree, body, strings)
     if row == nil or selector == nil then return false end
     local box = construct(tree, "/Script/UMG.SizeBox")
     local overlay = construct(tree, "/Script/UMG.Overlay")
-    local surface = construct(tree, "/Script/UMG.Border")
     local valueText = makeText(tree, "", 14, COLORS.text, TEXT_CENTER)
-    if box == nil or overlay == nil or surface == nil or valueText == nil then
+    if box == nil or overlay == nil or valueText == nil then
         return false
     end
     local chord = {
@@ -2905,38 +4020,35 @@ local function addShortcutRow(tree, body, strings)
         selector.bIsFocusable = true
         selector.bAllowModifierKeys = true
         selector.bAllowGamepadKeys = false
-        styleShortcutSelector(selector, false)
+        styleShortcutSelector(selector, false, false)
         box:SetWidthOverride(SIZE.binding)
         box:SetHeightOverride(SIZE.control)
-        surface:SetBrushColor(COLORS.control)
-        local surfaceSlot = overlay:AddChildToOverlay(surface)
-        align(surfaceSlot, ALIGN_FILL, ALIGN_FILL)
+        local selectorSlot = overlay:AddChildToOverlay(selector)
+        align(selectorSlot, ALIGN_FILL, ALIGN_FILL)
         valueText:SetVisibility(VIS_HIT_TEST_INVISIBLE)
         valueText:SetRenderOpacity(1.0)
         local valueSlot = overlay:AddChildToOverlay(valueText)
         align(valueSlot, ALIGN_CENTER, ALIGN_CENTER)
-        local selectorSlot = overlay:AddChildToOverlay(selector)
-        align(selectorSlot, ALIGN_FILL, ALIGN_FILL)
         local overlaySlot = box:AddChild(overlay)
         align(overlaySlot, ALIGN_FILL, ALIGN_FILL)
         setSelectorChord(selector, chord)
     end)
     if not ok then return false end
-    addControlToRow(row.row, box, 12)
+    addControlToRow(row.row, box, 4)
     local control = {
         kind = "shortcut", widget = selector,
-        text = valueText, surface = surface, rowFrame = row.surface,
+        text = valueText, rowFrame = row.surface,
         last = chordSignature(chord), selecting = false,
     }
     registerFocusable(control, row.box)
     state.controls[#state.controls + 1] = control
     state.shortcutControl = control
-    local warning = makeText(tree, "", 11, COLORS.danger, TEXT_LEFT)
+    local warning = makeText(tree, "", 12, COLORS.actionWarning, TEXT_LEFT)
     if warning == nil then return false end
-    setTextWrap(warning, math.max(1.0, state.contentWidth - 24.0))
+    setTextWrap(warning, math.max(1.0, state.contentWidth - 52.0))
     warning:SetVisibility(VIS_COLLAPSED)
     local warningSlot = body:AddChild(warning)
-    setPadding(warningSlot, 12, 2, 12, 4)
+    setPadding(warningSlot, 36, 4, 16, 8)
     align(warningSlot, ALIGN_FILL, ALIGN_FILL)
     state.shortcutWarningText = warning
     refreshShortcutDisplay(control, false)
@@ -2946,42 +4058,49 @@ end
 
 closeChoiceModal = function(restoreFocus)
     local control = state.activeChoice
+    local returnFocusIndex = state.choiceReturnFocusIndex
     state.activeChoice = nil
+    state.choiceReturnFocusIndex = nil
+    state.pointerAction = nil
     if P.isValid(state.nestedOverlay) then
         pcall(function() state.nestedOverlay:SetVisibility(VIS_COLLAPSED) end)
     end
     for _, option in ipairs(state.modalOptions or {}) do
         option.selected = false
-        if P.isValid(option.widget) then
-            pcall(function() option.widget:SetIsChecked(false) end)
-        end
     end
     if restoreFocus == true and type(control) == "table"
         and P.isValid(control.widget) then
-        focusEntry(control.focusIndex or state.focusIndex,
+        focusEntry(returnFocusIndex or control.focusIndex or state.focusIndex,
             state.lastInputDevice, true)
     end
     return control ~= nil
 end
 
-openChoiceModal = function(control)
+openChoiceModal = function(control, returnFocusIndex)
     if type(control) ~= "table" or control.kind ~= "choice"
         or not ensureChoiceModal() then return false end
     state.activeChoice = control
+    state.choiceReturnFocusIndex = tonumber(returnFocusIndex)
+        or state.choiceReturnFocusIndex or control.focusIndex or state.focusIndex
+    state.pointerAction = nil
     state.modalIndex = tonumber(control.index) or 1
-    if P.isValid(control.widget) then
-        pcall(function() control.widget:SetIsChecked(false) end)
-    end
     if P.isValid(state.nestedTitle) then
         pcall(function() state.nestedTitle:SetText(FText(control.label or "")) end)
+    end
+    if P.isValid(state.nestedMessage) then
+        pcall(function()
+            state.nestedMessage:SetText(FText(""))
+            state.nestedMessage:SetVisibility(VIS_COLLAPSED)
+        end)
     end
     local first
     for index, option in ipairs(state.modalOptions or {}) do
         local label = control.labels[index]
         local visible = label ~= nil
+        option.warning = false
+        option.visualSignature = nil
         pcall(function()
             option.box:SetVisibility(visible and VIS_VISIBLE or VIS_COLLAPSED)
-            option.widget:SetIsChecked(false)
             if visible then option.text:SetText(FText(label)) end
         end)
         option.selected = visible and index == state.modalIndex
@@ -2989,6 +4108,54 @@ openChoiceModal = function(control)
     end
     pcall(function() state.nestedOverlay:SetVisibility(VIS_VISIBLE) end)
     if P.isValid(first) then focusNavigationRoot() end
+    return true
+end
+
+openResetConfirmation = function(sourceIndex)
+    if state.activeChoice ~= nil or not ensureChoiceModal() then return false end
+    local edit = state.numberEdit
+    if type(edit) == "table" and type(edit.control) == "table" then
+        commitNumberEditor(edit.control, "number-reset-confirm", true)
+    end
+    local strings = currentStrings()
+    local control = {
+        kind = "resetConfirmation",
+        label = strings.reset or "Restore defaults",
+        labels = {
+            strings.cancel or "Cancel",
+            strings.confirmReset or "Restore all",
+        },
+        index = 1,
+        focusIndex = tonumber(sourceIndex) or state.focusIndex,
+    }
+    state.activeChoice = control
+    state.choiceReturnFocusIndex = control.focusIndex
+    state.modalIndex = 1
+    if P.isValid(state.nestedTitle) then
+        pcall(function() state.nestedTitle:SetText(FText(control.label)) end)
+    end
+    if P.isValid(state.nestedMessage) then
+        pcall(function()
+            state.nestedMessage:SetText(FText(strings.resetConfirmMessage or ""))
+            state.nestedMessage:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        end)
+    end
+    local first
+    for index, option in ipairs(state.modalOptions or {}) do
+        local label = control.labels[index]
+        local visible = label ~= nil
+        option.warning = visible and index == 2
+        option.visualSignature = nil
+        pcall(function()
+            option.box:SetVisibility(visible and VIS_VISIBLE or VIS_COLLAPSED)
+            if visible then option.text:SetText(FText(label)) end
+        end)
+        option.selected = visible and index == state.modalIndex
+        if option.selected then first = option.widget end
+    end
+    pcall(function() state.nestedOverlay:SetVisibility(VIS_VISIBLE) end)
+    if P.isValid(first) then focusNavigationRoot() end
+    refreshTriggerSurfaces()
     return true
 end
 
@@ -3000,8 +4167,10 @@ buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
     local scroll = construct(tree, "/Script/UMG.ScrollBox")
     local content = construct(tree, "/Script/UMG.VerticalBox")
     local title = makeText(tree, "", 18, COLORS.text, TEXT_LEFT)
+    local message = makeText(tree, "", 12, COLORS.muted, TEXT_LEFT)
     if overlay == nil or dim == nil or cardBox == nil or panel == nil
-        or scroll == nil or content == nil or title == nil then return false end
+        or scroll == nil or content == nil or title == nil
+        or message == nil then return false end
     local vw = tonumber(viewportWidth) or 1280.0
     local vh = tonumber(viewportHeight) or 720.0
     local width = math.max(320.0, math.min(480.0, vw - 48.0))
@@ -3009,7 +4178,7 @@ buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
     local optionWidth = math.max(288.0, width - 32.0)
     local ok = pcall(function()
         overlay:SetVisibility(VIS_COLLAPSED)
-        dim:SetBrushColor({ R = 0.0, G = 0.0, B = 0.0, A = 0.64 })
+        dim:SetBrushColor(COLORS.modal)
         local overlaySlot = root:AddChild(overlay)
         overlaySlot:SetAnchors({
             Minimum = { X = 0.0, Y = 0.0 },
@@ -3030,7 +4199,6 @@ buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
         panel:SetPadding({ Left = 16, Top = 16, Right = 16, Bottom = 16 })
         scroll:SetAlwaysShowScrollbar(false)
         scroll.AlwaysShowScrollbarTrack = false
-        scroll:SetScrollbarThickness({ X = 9.0, Y = 9.0 })
         align(scroll:AddChild(content), ALIGN_FILL, ALIGN_LEFT)
         align(panel:AddChild(scroll), ALIGN_FILL, ALIGN_FILL)
         local panelSlot = cardBox:AddChild(panel)
@@ -3046,9 +4214,14 @@ buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
         cardSlot:SetZOrder(1)
         local titleSlot = content:AddChild(title)
         setPadding(titleSlot, 4, 0, 4, 12)
+        setTextWrap(message, optionWidth - 8.0)
+        message:SetVisibility(VIS_COLLAPSED)
+        local messageSlot = content:AddChild(message)
+        setPadding(messageSlot, 4, 0, 4, 12)
         state.modalOptions = {}
         for index = 1, 3 do
-            local option = makeTrigger(tree, "", optionWidth, false, nil, 40.0)
+            local option = makeTrigger(tree, "", optionWidth, false, nil,
+                SIZE.modalOption, true)
             if option == nil then error("choice option is unavailable") end
             local optionSlot = content:AddChild(option.box)
             setPadding(optionSlot, 0, index == 1 and 0 or 4, 0, 0)
@@ -3059,6 +4232,7 @@ buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
     if not ok then return false end
     state.nestedOverlay = overlay
     state.nestedTitle = title
+    state.nestedMessage = message
     return true
 end
 
@@ -3066,8 +4240,13 @@ ensureChoiceModal = function()
     if P.isValid(state.nestedOverlay) then return true end
     if not P.isValid(state.widgetTree) or not P.isValid(state.root) then return false end
     local viewportWidth, viewportHeight = logicalViewportSize(state.controller)
-    return buildChoiceModal(state.widgetTree, state.root,
+    local built = buildChoiceModal(state.widgetTree, state.root,
         viewportWidth, viewportHeight)
+    if built and InputOwner.cookedInputActive()
+        and not InputOwner.bindActionButtons(state.directActionButtons) then
+        log("choice native action delegates unavailable; using mouse fallback")
+    end
+    return built
 end
 
 local function openAboutUrl(urlKey)
@@ -3085,15 +4264,18 @@ end
 local function aboutAssetPath(fileName)
     local approved = {
         ["pal-insight-preview.jpg"] = true,
+        ["quick-stack-preview.png"] = true,
         ["breeding-calculator-preview.png"] = true,
         ["curseforge.png"] = true,
         ["cratex.png"] = true,
         ["nexus.png"] = true,
         ["steam.png"] = true,
-        ["curseforge.png"] = true,
         ["x.png"] = true,
         ["discord.png"] = true,
         ["buy-me-a-coffee.png"] = true,
+        ["unicorn.png"] = true,
+        ["sports-medal.png"] = true,
+        ["red-heart.png"] = true,
     }
     fileName = tostring(fileName or "")
     if approved[fileName] ~= true then return nil end
@@ -3135,34 +4317,50 @@ end
 local function makeAboutLogoButton(tree, spec)
     spec = type(spec) == "table" and spec or {}
     local box = construct(tree, "/Script/UMG.SizeBox")
-    local overlay = construct(tree, "/Script/UMG.Overlay")
     local button = construct(tree, "/Script/UMG.Button")
-    local trigger = construct(tree, "/Script/UMG.CheckBox")
     local iconBox = construct(tree, "/Script/UMG.SizeBox")
-    if box == nil or overlay == nil or button == nil
-        or trigger == nil or iconBox == nil then return nil end
+    if box == nil or button == nil or iconBox == nil then
+        return nil
+    end
 
     local label = type(spec.label) == "string" and spec.label or nil
+    local textOnly = spec.textOnly == true and label ~= nil
     local vertical = label ~= nil and spec.orientation == "vertical"
     local horizontalLeft = label ~= nil and spec.orientation == "horizontal-left"
+    local horizontalCenter = label ~= nil
+        and spec.orientation == "horizontal-center"
     local requestedWidth = tonumber(spec.width)
+    local requestedHeight = tonumber(spec.height)
+    local requestedIconWidth = tonumber(spec.iconWidth)
+    local requestedIconHeight = tonumber(spec.iconHeight)
     local width = requestedWidth or (label ~= nil and 160.0 or 52.0)
-    local height = tonumber(spec.height)
-        or (label ~= nil and not vertical and SIZE.aboutLinkHeight or 52.0)
-    local iconWidth = tonumber(spec.iconWidth)
-        or (label ~= nil and not vertical and SIZE.aboutLinkIcon or 34.0)
-    local iconHeight = tonumber(spec.iconHeight)
-        or (label ~= nil and not vertical and SIZE.aboutLinkIcon or 34.0)
+    local height = label ~= nil and not vertical
+        and SIZE.aboutLinkHeight
+        or tonumber(spec.height) or 52.0
+    local iconWidth = label ~= nil and not vertical
+        and SIZE.aboutLinkIcon
+        or tonumber(spec.iconWidth) or 34.0
+    local iconHeight = label ~= nil and not vertical
+        and SIZE.aboutLinkIcon
+        or tonumber(spec.iconHeight) or 34.0
+    if horizontalCenter then
+        height = requestedHeight or height
+        iconWidth = requestedIconWidth or iconWidth
+        iconHeight = requestedIconHeight or iconHeight
+    end
     local content
     local labelWidget
-    local texture = aboutTexture(spec.asset)
-    local image = P.isValid(texture) and construct(tree, "/Script/UMG.Image") or nil
-    if image == nil then
+    local texture = not textOnly and aboutTexture(spec.asset) or nil
+    local image = not textOnly and P.isValid(texture)
+        and construct(tree, "/Script/UMG.Image") or nil
+    if not textOnly and image == nil then
         iconWidth = tonumber(spec.fallbackIconWidth) or iconWidth
         iconHeight = tonumber(spec.fallbackIconHeight) or iconHeight
     end
     local fallback = nil
-    if image ~= nil then
+    if textOnly then
+        content = nil
+    elseif image ~= nil then
         pcall(function() image:SetBrushFromTexture(texture, false) end)
         content = image
     else
@@ -3170,26 +4368,37 @@ local function makeAboutLogoButton(tree, spec)
             tonumber(spec.fallbackFontSize) or 13, COLORS.text, TEXT_CENTER)
         content = fallback
     end
-    if content == nil then return nil end
+    if not textOnly and content == nil then return nil end
 
     local ok = pcall(function()
         if requestedWidth ~= nil or label == nil then
             box:SetWidthOverride(width)
         end
         box:SetHeightOverride(height)
-        iconBox:SetWidthOverride(iconWidth)
-        iconBox:SetHeightOverride(iconHeight)
-        align(iconBox:AddChild(content), image ~= nil and ALIGN_FILL or ALIGN_CENTER,
-            image ~= nil and ALIGN_FILL or ALIGN_CENTER)
+        if not textOnly then
+            iconBox:SetWidthOverride(iconWidth)
+            iconBox:SetHeightOverride(iconHeight)
+            align(iconBox:AddChild(content),
+                image ~= nil and ALIGN_FILL or ALIGN_CENTER,
+                image ~= nil and ALIGN_FILL or ALIGN_CENTER)
+        end
 
         local buttonContent = iconBox
         if label ~= nil then
-            local contentPanel = construct(tree, vertical
-                and "/Script/UMG.VerticalBox" or "/Script/UMG.HorizontalBox")
-            labelWidget = makeText(tree, label, 11, COLORS.text,
-                horizontalLeft and TEXT_LEFT or TEXT_CENTER)
-            if contentPanel == nil or labelWidget == nil then error("labeled About content") end
-            if vertical then
+            local contentPanel = not textOnly and construct(tree, vertical
+                and "/Script/UMG.VerticalBox" or "/Script/UMG.HorizontalBox") or nil
+            labelWidget = makeText(tree, label,
+                tonumber(spec.labelFontSize) or 11, COLORS.text,
+                (horizontalLeft or horizontalCenter) and TEXT_LEFT
+                    or TEXT_CENTER)
+            if labelWidget == nil or (not textOnly and contentPanel == nil) then
+                error("labeled About content")
+            end
+            if textOnly then
+                labelWidget:SetAutoWrapText(true)
+                buttonContent = labelWidget
+            elseif vertical then
+                labelWidget:SetAutoWrapText(true)
                 align(contentPanel:AddChild(iconBox), ALIGN_CENTER, ALIGN_CENTER)
                 local labelSlot = contentPanel:AddChild(labelWidget)
                 setPadding(labelSlot, 0, SIZE.aboutLinkGap, 0, 0)
@@ -3197,21 +4406,27 @@ local function makeAboutLogoButton(tree, spec)
             else
                 local iconColumn = construct(tree, "/Script/UMG.SizeBox")
                 if iconColumn == nil then error("About icon column") end
-                iconColumn:SetWidthOverride(iconWidth + 8.0)
+                if horizontalCenter then
+                    iconColumn:SetWidthOverride(iconWidth + 8.0)
+                else
+                    iconBox:SetWidthOverride(SIZE.aboutLinkIcon)
+                    iconBox:SetHeightOverride(SIZE.aboutLinkIcon)
+                    iconColumn:SetWidthOverride(SIZE.aboutLinkIconColumn)
+                end
                 align(iconColumn:AddChild(iconBox), ALIGN_CENTER, ALIGN_CENTER)
                 align(contentPanel:AddChild(iconColumn), ALIGN_CENTER, ALIGN_CENTER)
                 local labelSlot = contentPanel:AddChild(labelWidget)
-                setFill(labelSlot)
+                if not horizontalCenter then setFill(labelSlot) end
                 setPadding(labelSlot, SIZE.aboutLinkGap * 0.5, 0,
-                    SIZE.aboutLinkGap * 0.5, 0)
+                    horizontalCenter and 0 or SIZE.aboutLinkGap * 0.5, 0)
                 align(labelSlot, ALIGN_LEFT, ALIGN_CENTER)
                 labelWidget:SetAutoWrapText(true)
             end
-            buttonContent = contentPanel
+            if not textOnly then buttonContent = contentPanel end
         end
 
-        button.bIsFocusable = false
-        button:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        button.bIsFocusable = true
+        button:SetToolTipText(FText(spec.tooltip or label or ""))
         local style = button.WidgetStyle
         local padding = label ~= nil and not vertical
             and { Left = 6, Top = 0, Right = 6, Bottom = 0 }
@@ -3220,17 +4435,20 @@ local function makeAboutLogoButton(tree, spec)
         style.PressedPadding = padding
         button.WidgetStyle = style
         styleHeaderButton(button, spec.role or "aboutLink", false, false, false)
-        align(button:AddChild(buttonContent), ALIGN_CENTER, ALIGN_CENTER)
-        align(overlay:AddChildToOverlay(button), ALIGN_FILL, ALIGN_FILL)
-        styleTrigger(trigger, false)
-        trigger.bIsFocusable = true
-        trigger:SetToolTipText(FText(spec.tooltip or label or ""))
-        align(overlay:AddChildToOverlay(trigger), ALIGN_FILL, ALIGN_FILL)
-        align(box:AddChild(overlay), ALIGN_FILL, ALIGN_FILL)
+        align(button:AddChild(buttonContent),
+            horizontalLeft and ALIGN_FILL or ALIGN_CENTER, ALIGN_CENTER)
+        if P.isValid(labelWidget) then
+            labelWidget:SetColorAndOpacity({
+                SpecifiedColor = COLORS.text,
+                ColorUseRule = 2,
+            })
+        end
+        box:AddChild(button)
     end)
     if not ok then return nil end
     local record = {
-        box = box, widget = trigger, visualButton = button,
+        box = box, widget = button,
+        visualButton = button, directButton = true,
         labelWidget = labelWidget or fallback, label = label,
         tooltip = spec.tooltip or label,
         urlKey = spec.urlKey,
@@ -3240,6 +4458,7 @@ local function makeAboutLogoButton(tree, spec)
         navRow = spec.navRow,
         navColumn = spec.navColumn,
     }
+    registerDirectActionButton(button)
     if spec.deferRegistration ~= true then
         state.aboutActions[#state.aboutActions + 1] = record
     end
@@ -3249,17 +4468,14 @@ end
 local function makeAboutAction(tree, label, urlKey, width, role, height, fontSize,
         navRow, navColumn)
     local box = construct(tree, "/Script/UMG.SizeBox")
-    local overlay = construct(tree, "/Script/UMG.Overlay")
     local button = construct(tree, "/Script/UMG.Button")
-    local trigger = construct(tree, "/Script/UMG.CheckBox")
     local text = makeText(tree, label, fontSize or 13, COLORS.text, TEXT_CENTER)
-    if box == nil or overlay == nil or button == nil or trigger == nil
-        or text == nil then return nil end
+    if box == nil or button == nil or text == nil then return nil end
     local ok = pcall(function()
         box:SetWidthOverride(width or 160.0)
         box:SetHeightOverride(height or 40.0)
-        button.bIsFocusable = false
-        button:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        button.bIsFocusable = true
+        button:SetToolTipText(FText(label or ""))
         local style = button.WidgetStyle
         local padding = { Left = 12, Top = 4, Right = 12, Bottom = 4 }
         style.NormalPadding = padding
@@ -3271,24 +4487,123 @@ local function makeAboutAction(tree, label, urlKey, width, role, height, fontSiz
         })
         styleHeaderButton(button, role or "about", false, false, false)
         align(button:AddChild(text), ALIGN_CENTER, ALIGN_CENTER)
-        align(overlay:AddChildToOverlay(button), ALIGN_FILL, ALIGN_FILL)
-        styleTrigger(trigger, false)
-        trigger.bIsFocusable = true
-        trigger:SetToolTipText(FText(label or ""))
-        align(overlay:AddChildToOverlay(trigger), ALIGN_FILL, ALIGN_FILL)
-        align(box:AddChild(overlay), ALIGN_FILL, ALIGN_FILL)
+        align(box:AddChild(button), ALIGN_FILL, ALIGN_FILL)
     end)
     if not ok then return nil end
     local record = {
-        box = box, widget = trigger, visualButton = button,
+        box = box, widget = button, visualButton = button,
+        directButton = true,
         labelWidget = text, label = label, urlKey = urlKey,
         kind = urlKey ~= nil and "link" or "close",
         role = role or "about",
         navRow = navRow,
         navColumn = navColumn,
     }
+    registerDirectActionButton(button)
     state.aboutActions[#state.aboutActions + 1] = record
     return record
+end
+
+local function buildAboutPreviewOverlay(tree, root, strings,
+        viewportWidth, viewportHeight)
+    local overlay = construct(tree, "/Script/UMG.CanvasPanel")
+    local dim = construct(tree, "/Script/UMG.Border")
+    local previewBox = construct(tree, "/Script/UMG.SizeBox")
+    local previewOutline = construct(tree, "/Script/UMG.Border")
+    local close = makeIconTrigger(tree, "×", strings.close, "close")
+    local hintBox = construct(tree, "/Script/UMG.SizeBox")
+    local hint = makeText(tree, "Esc / B · " .. tostring(strings.close or "Close"),
+        11, COLORS.muted, TEXT_CENTER)
+    if overlay == nil or dim == nil or previewBox == nil
+        or previewOutline == nil or close == nil or hintBox == nil
+        or hint == nil then return false end
+
+    local availableWidth = math.max(1.0,
+        (tonumber(viewportWidth) or 1280.0) - 64.0)
+    local availableHeight = math.max(1.0,
+        (tonumber(viewportHeight) or 720.0) - 104.0)
+    local aspect = 1668.0 / 932.0
+    local previewWidth = math.min(
+        SIZE.aboutPreviewMaxWidth, availableWidth, availableHeight * aspect)
+    local previewHeight = previewWidth / aspect
+
+    local texture = aboutTexture("breeding-calculator-preview.png")
+    local previewContent = P.isValid(texture)
+        and construct(tree, "/Script/UMG.Image") or nil
+    if previewContent ~= nil then
+        pcall(function() previewContent:SetBrushFromTexture(texture, false) end)
+    else
+        previewContent = makeText(tree,
+            strings.aboutCalculator or "Palworld Breeding Calculator",
+            13, COLORS.text, TEXT_CENTER)
+    end
+    if previewContent == nil then return false end
+
+    local ok = pcall(function()
+        overlay:SetVisibility(VIS_COLLAPSED)
+        dim:SetBrushColor(COLORS.modal)
+        local overlaySlot = root:AddChild(overlay)
+        overlaySlot:SetAnchors({
+            Minimum = { X = 0.0, Y = 0.0 },
+            Maximum = { X = 1.0, Y = 1.0 },
+        })
+        overlaySlot:SetOffsets({ Left = 0.0, Top = 0.0, Right = 0.0, Bottom = 0.0 })
+        overlaySlot:SetZOrder(4)
+        local dimSlot = overlay:AddChild(dim)
+        dimSlot:SetAnchors({
+            Minimum = { X = 0.0, Y = 0.0 },
+            Maximum = { X = 1.0, Y = 1.0 },
+        })
+        dimSlot:SetOffsets({ Left = 0.0, Top = 0.0, Right = 0.0, Bottom = 0.0 })
+        dimSlot:SetZOrder(0)
+
+        previewBox:SetWidthOverride(previewWidth)
+        previewBox:SetHeightOverride(previewHeight)
+        local previewSlot = overlay:AddChild(previewBox)
+        previewSlot:SetAnchors({
+            Minimum = { X = 0.5, Y = 0.5 },
+            Maximum = { X = 0.5, Y = 0.5 },
+        })
+        previewSlot:SetAlignment({ X = 0.5, Y = 0.5 })
+        previewSlot:SetPosition({ X = 0.0, Y = -12.0 })
+        previewSlot:SetSize({ X = previewWidth, Y = previewHeight })
+        previewSlot:SetZOrder(1)
+        previewOutline:SetBrushColor(COLORS.border)
+        previewOutline:SetPadding({ Left = 1, Top = 1, Right = 1, Bottom = 1 })
+        align(previewOutline:AddChild(previewContent), ALIGN_FILL, ALIGN_FILL)
+        align(previewBox:AddChild(previewOutline), ALIGN_FILL, ALIGN_FILL)
+
+        local closeSlot = overlay:AddChild(close.box)
+        closeSlot:SetAnchors({
+            Minimum = { X = 0.5, Y = 0.5 },
+            Maximum = { X = 0.5, Y = 0.5 },
+        })
+        closeSlot:SetAlignment({ X = 1.0, Y = 0.0 })
+        closeSlot:SetSize({ X = SIZE.headerAction, Y = SIZE.headerAction })
+        closeSlot:SetPosition({
+            X = previewWidth * 0.5 - 8.0,
+            Y = -previewHeight * 0.5 + 8.0,
+        })
+        closeSlot:SetZOrder(2)
+
+        hintBox:SetWidthOverride(previewWidth)
+        hintBox:SetHeightOverride(24.0)
+        align(hintBox:AddChild(hint), ALIGN_CENTER, ALIGN_CENTER)
+        local hintSlot = overlay:AddChild(hintBox)
+        hintSlot:SetAnchors({
+            Minimum = { X = 0.5, Y = 0.5 },
+            Maximum = { X = 0.5, Y = 0.5 },
+        })
+        hintSlot:SetAlignment({ X = 0.5, Y = 0.0 })
+        hintSlot:SetPosition({ X = 0.0, Y = previewHeight * 0.5 })
+        hintSlot:SetSize({ X = previewWidth, Y = 24.0 })
+        hintSlot:SetZOrder(2)
+    end)
+    if not ok then return false end
+    state.aboutPreviewOverlay = overlay
+    state.aboutPreviewCloseWidget = close.widget
+    state.aboutPreviewCloseAction = close
+    return true
 end
 
 moveAboutFocus = function(horizontal, vertical)
@@ -3368,6 +4683,7 @@ activateAboutAction = function()
         tonumber(state.aboutFocusIndex) or 1]
     if type(action) ~= "table" then return false end
     if action.kind == "close" then return closeAboutModal(true) end
+    if action.kind == "preview" then return openAboutPreview() end
     if action.kind == "roster" then
         return openAboutRoster(action.rosterMode)
     end
@@ -3381,37 +4697,64 @@ activateAboutAction = function()
     return false
 end
 
-closeAboutRoster = function(restoreFocus)
-    local wasOpen = state.aboutRosterOpen == true
-    state.aboutRosterOpen = false
-    state.aboutRosterMode = nil
-    if P.isValid(state.aboutRosterOverlay) then
-        pcall(function() state.aboutRosterOverlay:SetVisibility(VIS_COLLAPSED) end)
-    end
-    if P.isValid(state.aboutRosterCloseWidget) then
-        pcall(function() state.aboutRosterCloseWidget:SetIsChecked(false) end)
+closeAboutPreview = function(restoreFocus, refreshVisuals)
+    local wasOpen = state.aboutPreviewOpen == true
+    if not wasOpen then return false end
+    state.pendingAboutPointerClose = nil
+    state.aboutPreviewOpen = false
+    state.aboutPreviewSourceIndex = nil
+    state.aboutRevision = state.aboutRevision + 1
+    if P.isValid(state.aboutPreviewOverlay) then
+        pcall(function() state.aboutPreviewOverlay:SetVisibility(VIS_COLLAPSED) end)
     end
     if restoreFocus == true then focusNavigationRoot() end
+    if refreshVisuals ~= false then refreshTriggerSurfaces() end
+    return true
+end
+
+openAboutPreview = function()
+    if state.aboutOpen ~= true or not P.isValid(state.aboutPreviewOverlay) then
+        return false
+    end
+    closeAboutRoster(false, false)
+    state.pendingAboutPointerClose = nil
+    state.aboutPreviewSourceIndex = state.aboutFocusIndex
+    state.aboutPreviewOpen = true
+    state.aboutRevision = state.aboutRevision + 1
+    pcall(function() state.aboutPreviewOverlay:SetVisibility(VIS_VISIBLE) end)
+    focusNavigationRoot()
     refreshTriggerSurfaces()
-    return wasOpen
+    return true
+end
+
+closeAboutRoster = function(restoreFocus, refreshVisuals)
+    local wasOpen = state.aboutRosterOpen == true
+    if not wasOpen then return false end
+    local mode = state.aboutRosterMode
+    local overlay = (state.aboutRosterOverlays or {})[mode]
+    state.pendingAboutPointerClose = nil
+    state.aboutRosterOpen = false
+    state.aboutRosterMode = nil
+    state.aboutRevision = state.aboutRevision + 1
+    if P.isValid(overlay) then
+        pcall(function() overlay:SetVisibility(VIS_COLLAPSED) end)
+    end
+    if restoreFocus == true then focusNavigationRoot() end
+    if refreshVisuals ~= false then refreshTriggerSurfaces() end
+    return true
 end
 
 openAboutRoster = function(mode)
-    if state.aboutOpen ~= true or not P.isValid(state.aboutRosterOverlay)
+    if state.aboutOpen ~= true
         or (mode ~= "thanks" and mode ~= "supporters") then return false end
-    local strings = Localization.settings()
-    local thanks = mode == "thanks"
+    local overlay = (state.aboutRosterOverlays or {})[mode]
+    if not P.isValid(overlay) then return false end
+    state.pendingAboutPointerClose = nil
     state.aboutRosterMode = mode
     state.aboutRosterOpen = true
+    state.aboutRevision = state.aboutRevision + 1
     pcall(function()
-        state.aboutRosterTitle:SetText(FText(thanks
-            and strings.aboutSpecialThanks or strings.aboutSupporters))
-        state.aboutRosterDescription:SetText(FText(thanks
-            and strings.aboutSpecialThanksDescription
-            or strings.aboutSupportersDescription))
-        state.aboutRosterEmpty:SetText(FText(thanks
-            and strings.aboutSpecialThanksEmpty or strings.aboutSupportersEmpty))
-        state.aboutRosterOverlay:SetVisibility(VIS_VISIBLE)
+        overlay:SetVisibility(VIS_VISIBLE)
     end)
     focusNavigationRoot()
     refreshTriggerSurfaces()
@@ -3420,20 +4763,23 @@ end
 
 closeAboutModal = function(restoreFocus)
     local wasOpen = state.aboutOpen == true
-    closeAboutRoster(false)
+    state.pendingAboutPointerClose = nil
+    local previewClosed = closeAboutPreview(false, false)
+    local rosterClosed = closeAboutRoster(false, false)
     state.aboutOpen = false
-    if P.isValid(state.aboutOverlay) then
+    if wasOpen then state.aboutRevision = state.aboutRevision + 1 end
+    if wasOpen and P.isValid(state.aboutOverlay) then
         pcall(function() state.aboutOverlay:SetVisibility(VIS_COLLAPSED) end)
     end
-    for _, action in ipairs(state.aboutActions or {}) do
-        if P.isValid(action.widget) then
-            pcall(function() action.widget:SetIsChecked(false) end)
-        end
-    end
+    local focusRestored = false
     if restoreFocus == true and state.aboutReturnFocusIndex ~= nil then
-        focusEntry(state.aboutReturnFocusIndex, state.lastInputDevice, false)
+        focusRestored = focusEntry(
+            state.aboutReturnFocusIndex, state.lastInputDevice, false)
     end
     state.aboutReturnFocusIndex = nil
+    if focusRestored ~= true and (wasOpen or previewClosed or rosterClosed) then
+        refreshTriggerSurfaces()
+    end
     return wasOpen
 end
 
@@ -3445,9 +4791,15 @@ openAboutModal = function()
         commitNumberEditor(edit.control, "about-open", true)
     end
     state.aboutReturnFocusIndex = state.focusIndex
-    state.aboutFocusIndex = 1
-    state.aboutPreferredColumn = 2
+    state.aboutFocusIndex = tonumber(state.aboutDefaultFocusIndex) or 1
+    local defaultAction = (state.aboutActions or {})[state.aboutFocusIndex]
+    state.aboutPreferredColumn = type(defaultAction) == "table"
+        and (tonumber(defaultAction.navColumn) or 1) or 1
+    state.pendingAboutPointerClose = nil
+    state.aboutPreviewOpen = false
+    state.aboutPreviewSourceIndex = nil
     state.aboutOpen = true
+    state.aboutRevision = state.aboutRevision + 1
     pcall(function()
         state.aboutOverlay:SetVisibility(VIS_VISIBLE)
         if P.isValid(state.aboutScroll) then state.aboutScroll:SetScrollOffset(0.0) end
@@ -3462,8 +4814,13 @@ ensureAboutModal = function()
     if not state.open or not P.isValid(state.widgetTree)
         or not P.isValid(state.root) then return false end
     local viewportWidth, viewportHeight = logicalViewportSize(state.controller)
-    return buildAboutModal(state.widgetTree, state.root, currentStrings(),
+    local built = buildAboutModal(state.widgetTree, state.root, currentStrings(),
         viewportWidth, viewportHeight)
+    if built and InputOwner.cookedInputActive()
+        and not InputOwner.bindActionButtons(state.directActionButtons) then
+        log("About native action delegates unavailable; using mouse fallback")
+    end
+    return built
 end
 
 buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
@@ -3489,48 +4846,31 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
         COLORS.muted, TEXT_LEFT)
     local close = makeIconTrigger(tree, "×", strings.close, "close")
     local closeHint = makeText(tree, "", 11, COLORS.muted, TEXT_CENTER)
-    local rosterOverlay = construct(tree, "/Script/UMG.CanvasPanel")
-    local rosterDim = construct(tree, "/Script/UMG.Border")
-    local rosterBox = construct(tree, "/Script/UMG.SizeBox")
-    local rosterOutline = construct(tree, "/Script/UMG.Border")
-    local rosterPanel = construct(tree, "/Script/UMG.Border")
-    local rosterContent = construct(tree, "/Script/UMG.VerticalBox")
-    local rosterHeader = construct(tree, "/Script/UMG.HorizontalBox")
-    local rosterScroll = construct(tree, "/Script/UMG.ScrollBox")
-    local rosterBody = construct(tree, "/Script/UMG.VerticalBox")
-    local rosterTitle = makeText(tree, strings.aboutSpecialThanks or "", 18,
-        COLORS.text, TEXT_LEFT)
-    local rosterDescription = makeText(tree,
-        strings.aboutSpecialThanksDescription or "", 11, COLORS.muted, TEXT_LEFT)
-    local rosterEmptyCard = construct(tree, "/Script/UMG.Border")
-    local rosterEmpty = makeText(tree, strings.aboutSpecialThanksEmpty or "", 13,
-        COLORS.muted, TEXT_CENTER)
-    local rosterClose = makeIconTrigger(tree, "×", strings.close, "close")
     if overlay == nil or dim == nil or cardBox == nil or outline == nil
         or panel == nil or content == nil or header == nil or identity == nil
         or closeStack == nil or closeHintBox == nil or closeHint == nil
         or titleRow == nil or versionBox == nil or versionBadge == nil
         or scroll == nil or body == nil or title == nil or version == nil
-        or summary == nil or close == nil or rosterOverlay == nil
-        or rosterDim == nil or rosterBox == nil or rosterOutline == nil
-        or rosterPanel == nil or rosterContent == nil or rosterHeader == nil
-        or rosterScroll == nil or rosterBody == nil
-        or rosterTitle == nil or rosterDescription == nil
-        or rosterEmptyCard == nil or rosterEmpty == nil
-        or rosterClose == nil then return false end
+        or summary == nil or close == nil then return false end
 
     state.aboutActions = {}
     state.aboutFocusIndex = 1
+    state.aboutDefaultFocusIndex = nil
     state.aboutPreferredColumn = 2
     state.aboutScroll = scroll
     state.aboutActionHint = closeHint
+    state.aboutRosterOverlays = {}
+    state.aboutRosterCloseWidgets = {}
+    state.aboutRosterCloseActions = {}
 
     local width = math.min(SIZE.aboutWidth,
         math.max(320.0, (tonumber(viewportWidth) or 1280.0) - 48.0))
     local maxHeight = math.min(SIZE.aboutHeight,
         math.max(360.0, (tonumber(viewportHeight) or 720.0) - 48.0))
-    local aboutContentWidth = math.max(1.0, width - 2.0 - 32.0)
-    local scrollContentWidth = math.max(1.0, aboutContentWidth - 13.0)
+    local aboutContentWidth = math.max(1.0, width
+        - 2.0 * SIZE.windowOutline - 32.0)
+    local scrollContentWidth = math.max(
+        1.0, aboutContentWidth - SIZE.scrollbarGutter)
     local aboutCardInnerWidth = math.max(1.0,
         scrollContentWidth - (SIZE.aboutSectionGap * 2.0))
     local summaryWrapWidth = math.max(120.0,
@@ -3538,10 +4878,10 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
     local creatorCopyWrapWidth = math.max(120.0, aboutCardInnerWidth
         - (SIZE.aboutCreatorLinkWidth * 2.0)
         - (SIZE.aboutSectionGap * 2.0))
-    local supportCopyWrapWidth = math.max(120.0, aboutCardInnerWidth
-        - SIZE.aboutSupportActionWidth - SIZE.aboutSectionGap)
-    local linkHeadingWrapWidth = math.max(96.0,
-        ((aboutCardInnerWidth - 8.0) * 0.5) - 24.0)
+    local communityColumnWidth = SIZE.aboutCommunityWidth
+    local supportCopyWrapWidth = math.max(96.0, aboutCardInnerWidth
+        - communityColumnWidth - SIZE.aboutLinkGap
+        - SIZE.aboutSupportActionWidth - 36.0)
     local rosterWidth = math.min(SIZE.aboutRosterWidth,
         math.max(320.0, (tonumber(viewportWidth) or 1280.0) - 64.0))
     local rosterMaxHeight = math.min(SIZE.aboutRosterMaxHeight,
@@ -3571,6 +4911,105 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
         return card, stack
     end
 
+    local function addCreditGroup(parent, label, names, accent, singleColumn)
+        if type(names) ~= "table" or #names == 0 then return true end
+        local group = construct(tree, "/Script/UMG.Border")
+        local groupStack = construct(tree, "/Script/UMG.VerticalBox")
+        local columns = construct(tree, "/Script/UMG.HorizontalBox")
+        local creditColumns = {}
+        local columnCount = singleColumn == true and 1
+            or (rosterWidth >= 560.0 and 3 or 2)
+        if group == nil or groupStack == nil or columns == nil then
+            return false
+        end
+        for index = 1, columnCount do
+            creditColumns[index] = construct(tree, "/Script/UMG.VerticalBox")
+            if creditColumns[index] == nil then return false end
+        end
+        group:SetBrushColor(mixLinearColor(COLORS.control, accent, 0.12))
+        group:SetPadding({ Left = 12, Top = 10, Right = 12, Bottom = 10 })
+        align(group:AddChild(groupStack), ALIGN_FILL, ALIGN_FILL)
+        local groupSlot = parent:AddChild(group)
+        setPadding(groupSlot, 0, 0, 0, 8)
+        addCopy(groupStack, label, 11, accent, 0, rosterWidth - 58.0)
+        local columnsSlot = groupStack:AddChild(columns)
+        setPadding(columnsSlot, 0, 6, 0, 0)
+        setFill(columnsSlot)
+        for index, column in ipairs(creditColumns) do
+            local columnSlot = columns:AddChild(column)
+            setFill(columnSlot)
+            if index < columnCount then
+                setPadding(columnSlot, 0, 0, 8, 0)
+            end
+        end
+        local function displayName(entry)
+            if type(entry) ~= "table" then return tostring(entry) end
+            local prefix = ""
+            if type(entry.utf8Prefix) == "table" then
+                local ok, value = pcall(function()
+                    return string.char(table.unpack(entry.utf8Prefix))
+                end)
+                if ok then prefix = value end
+            end
+            return prefix .. (prefix ~= "" and " " or "")
+                .. tostring(entry.name or "")
+        end
+        local function creditIconAsset(entry)
+            if type(entry) ~= "table" or type(entry.utf8Prefix) ~= "table" then
+                return nil
+            end
+            local bytes = entry.utf8Prefix
+            if #bytes == 4 and bytes[1] == 0xF0 and bytes[2] == 0x9F
+                and bytes[3] == 0xA6 and bytes[4] == 0x84 then
+                return "unicorn.png"
+            end
+            return nil
+        end
+        for index, entry in ipairs(names) do
+            local column = creditColumns[((index - 1) % columnCount) + 1]
+            local name = type(entry) == "table"
+                and tostring(entry.name or "") or tostring(entry)
+            local iconAsset = creditIconAsset(entry)
+            local iconTexture = iconAsset ~= nil
+                and aboutTexture(iconAsset) or nil
+            local mounted = false
+            if P.isValid(iconTexture) then
+                local row = construct(tree, "/Script/UMG.HorizontalBox")
+                local iconBox = construct(tree, "/Script/UMG.SizeBox")
+                local image = construct(tree, "/Script/UMG.Image")
+                local labelWidget = makeText(tree, name, 12,
+                    COLORS.text, TEXT_LEFT)
+                if row ~= nil and iconBox ~= nil and image ~= nil
+                    and labelWidget ~= nil then
+                    local applied = pcall(function()
+                        image:SetBrushFromTexture(iconTexture, false)
+                    end)
+                    if applied then
+                        iconBox:SetWidthOverride(12.0)
+                        iconBox:SetHeightOverride(12.0)
+                        align(iconBox:AddChild(image), ALIGN_FILL, ALIGN_FILL)
+                        local iconSlot = row:AddChild(iconBox)
+                        setPadding(iconSlot, 0, 0, SIZE.aboutLinkGap * 0.5, 0)
+                        align(iconSlot, ALIGN_LEFT, ALIGN_CENTER)
+                        align(row:AddChild(labelWidget), ALIGN_LEFT, ALIGN_CENTER)
+                        local rowSlot = column:AddChild(row)
+                        setPadding(rowSlot, 0, 2, 0, 2)
+                        mounted = true
+                    end
+                end
+            end
+            if not mounted then
+                local labelWidget = makeText(tree, displayName(entry), 12,
+                    COLORS.text, TEXT_LEFT)
+                if labelWidget == nil then return false end
+                local labelSlot = column:AddChild(labelWidget)
+                setPadding(labelSlot, 0, 2, 0, 2)
+                align(labelSlot, ALIGN_LEFT, ALIGN_CENTER)
+            end
+        end
+        return true
+    end
+
     local function addAction(parent, label, urlKey, width, left, height,
             kind, rosterMode, top, fontSize)
         local action = makeAboutAction(tree, label, urlKey, width, "about", height,
@@ -3584,9 +5023,128 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
         return action
     end
 
+    local function buildRosterOverlay(mode)
+        local rosterOverlay = construct(tree, "/Script/UMG.CanvasPanel")
+        local rosterDim = construct(tree, "/Script/UMG.Border")
+        local rosterBox = construct(tree, "/Script/UMG.SizeBox")
+        local rosterOutline = construct(tree, "/Script/UMG.Border")
+        local rosterPanel = construct(tree, "/Script/UMG.Border")
+        local rosterContent = construct(tree, "/Script/UMG.VerticalBox")
+        local rosterHeader = construct(tree, "/Script/UMG.HorizontalBox")
+        local rosterScroll = construct(tree, "/Script/UMG.ScrollBox")
+        local rosterBody = construct(tree, "/Script/UMG.VerticalBox")
+        local thanks = mode == "thanks"
+        local titleValue = thanks and strings.aboutSpecialThanks
+            or strings.aboutSupporters
+        local descriptionValue = thanks and strings.aboutSpecialThanksDescription
+            or strings.aboutSupportersDescription
+        local emptyValue = thanks and strings.aboutSpecialThanksEmpty
+            or strings.aboutSupportersEmpty
+        local rosterTitle = makeText(tree, titleValue or "", 18,
+            COLORS.text, TEXT_LEFT)
+        local rosterDescription = makeText(tree, descriptionValue or "", 11,
+            COLORS.muted, TEXT_LEFT)
+        local rosterClose = makeIconTrigger(tree, "×", strings.close, "close")
+        if rosterOverlay == nil or rosterDim == nil or rosterBox == nil
+            or rosterOutline == nil or rosterPanel == nil
+            or rosterContent == nil or rosterHeader == nil
+            or rosterScroll == nil or rosterBody == nil
+            or rosterTitle == nil or rosterDescription == nil
+            or rosterClose == nil then return false end
+
+        state.aboutRosterOverlays[mode] = rosterOverlay
+        state.aboutRosterCloseWidgets[mode] = rosterClose.widget
+        state.aboutRosterCloseActions[mode] = rosterClose
+        local ok = pcall(function()
+            rosterOverlay:SetVisibility(VIS_COLLAPSED)
+            rosterDim:SetBrushColor(COLORS.modal)
+            local overlaySlot = root:AddChild(rosterOverlay)
+            overlaySlot:SetAnchors({
+                Minimum = { X = 0.0, Y = 0.0 },
+                Maximum = { X = 1.0, Y = 1.0 },
+            })
+            overlaySlot:SetOffsets({
+                Left = 0.0, Top = 0.0, Right = 0.0, Bottom = 0.0,
+            })
+            overlaySlot:SetZOrder(4)
+
+            local dimSlot = rosterOverlay:AddChild(rosterDim)
+            dimSlot:SetAnchors({
+                Minimum = { X = 0.0, Y = 0.0 },
+                Maximum = { X = 1.0, Y = 1.0 },
+            })
+            dimSlot:SetOffsets({
+                Left = 0.0, Top = 0.0, Right = 0.0, Bottom = 0.0,
+            })
+            dimSlot:SetZOrder(0)
+
+            rosterBox:SetWidthOverride(rosterWidth)
+            rosterBox:SetMaxDesiredHeight(rosterMaxHeight)
+            local boxSlot = rosterOverlay:AddChild(rosterBox)
+            boxSlot:SetAnchors({
+                Minimum = { X = 0.5, Y = 0.5 },
+                Maximum = { X = 0.5, Y = 0.5 },
+            })
+            boxSlot:SetAlignment({ X = 0.5, Y = 0.5 })
+            boxSlot:SetPosition({ X = 0.0, Y = 0.0 })
+            boxSlot:SetAutoSize(true)
+            boxSlot:SetZOrder(1)
+
+            rosterOutline:SetBrushColor(COLORS.border)
+            rosterOutline:SetPadding({ Left = 1, Top = 1, Right = 1, Bottom = 1 })
+            rosterPanel:SetBrushColor(COLORS.content)
+            rosterPanel:SetPadding({ Left = 16, Top = 16, Right = 16, Bottom = 16 })
+            align(rosterPanel:AddChild(rosterContent), ALIGN_FILL, ALIGN_FILL)
+            align(rosterOutline:AddChild(rosterPanel), ALIGN_FILL, ALIGN_FILL)
+            align(rosterBox:AddChild(rosterOutline), ALIGN_FILL, ALIGN_FILL)
+
+            local titleSlot = rosterHeader:AddChild(rosterTitle)
+            setFill(titleSlot)
+            align(titleSlot, ALIGN_LEFT, ALIGN_CENTER)
+            align(rosterHeader:AddChild(rosterClose.box), ALIGN_RIGHT, ALIGN_CENTER)
+            local headerSlot = rosterContent:AddChild(rosterHeader)
+            setPadding(headerSlot, 0, 0, 0, 8)
+
+            setTextWrap(rosterDescription, rosterWidth - 34.0)
+            local descriptionSlot = rosterContent:AddChild(rosterDescription)
+            setPadding(descriptionSlot, 0, 0, 0, 12)
+
+            rosterScroll:SetAlwaysShowScrollbar(false)
+            rosterScroll.AlwaysShowScrollbarTrack = false
+            align(rosterScroll:AddChild(rosterBody), ALIGN_FILL, ALIGN_LEFT)
+            local scrollSlot = rosterContent:AddChild(rosterScroll)
+            setFill(scrollSlot)
+            align(scrollSlot, ALIGN_FILL, ALIGN_FILL)
+        end)
+        if not ok then return false end
+
+        local credits = ABOUT_CREDITS[mode] or {}
+        local hasCredits = type(credits.nexus) == "table" and #credits.nexus > 0
+            or type(credits.steam) == "table" and #credits.steam > 0
+        if hasCredits then
+            if not addCreditGroup(rosterBody, "NEXUS MODS", credits.nexus,
+                    COLORS.actionWarning)
+                or not addCreditGroup(rosterBody, "STEAM WORKSHOP", credits.steam,
+                    COLORS.actionInfo) then return false end
+        else
+            local emptyCard = construct(tree, "/Script/UMG.Border")
+            local emptyText = makeText(tree, emptyValue or "", 13,
+                COLORS.muted, TEXT_CENTER)
+            if emptyCard == nil or emptyText == nil then return false end
+            local mounted = pcall(function()
+                emptyCard:SetBrushColor(COLORS.control)
+                emptyCard:SetPadding({ Left = 16, Top = 20, Right = 16, Bottom = 20 })
+                align(emptyCard:AddChild(emptyText), ALIGN_CENTER, ALIGN_CENTER)
+                align(rosterBody:AddChild(emptyCard), ALIGN_FILL, ALIGN_FILL)
+            end)
+            if not mounted then return false end
+        end
+        return true
+    end
+
     local ok = pcall(function()
         overlay:SetVisibility(VIS_COLLAPSED)
-        dim:SetBrushColor({ R = 0.0, G = 0.0, B = 0.0, A = 0.64 })
+        dim:SetBrushColor(COLORS.modal)
         local overlaySlot = root:AddChild(overlay)
         overlaySlot:SetAnchors({
             Minimum = { X = 0.0, Y = 0.0 },
@@ -3649,70 +5207,287 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
 
         scroll:SetAlwaysShowScrollbar(false)
         scroll.AlwaysShowScrollbarTrack = false
-        scroll:SetScrollbarThickness({ X = 9.0, Y = 9.0 })
-        scroll.ScrollbarPadding = { Left = 2, Top = 2, Right = 2, Bottom = 2 }
         align(scroll:AddChild(body), ALIGN_FILL, ALIGN_LEFT)
         local scrollSlot = content:AddChild(scroll)
         setFill(scrollSlot)
         align(scrollSlot, ALIGN_FILL, ALIGN_FILL)
 
         local productsCard, products = makeCard()
-        local productsRow = construct(tree, "/Script/UMG.HorizontalBox")
+        local productShelfInnerWidth = math.max(1.0,
+            scrollContentWidth - 24.0)
+        local compactProductShelf = productShelfInnerWidth < 376.0
+        local productsRow = construct(tree, compactProductShelf
+            and "/Script/UMG.VerticalBox" or "/Script/UMG.HorizontalBox")
         if productsCard == nil or products == nil or productsRow == nil then
             error("About product shelf unavailable")
         end
-        productsCard:SetBrushColor(mixLinearColor(
-            COLORS.content, COLORS.actionInfo, 0.16))
-        productsCard:SetPadding({ Left = 8, Top = 8, Right = 8, Bottom = 8 })
+        local productCardColor = mixLinearColor(
+            COLORS.content, COLORS.control, 0.18)
+        local productFrameColor = COLORS.outline
         addCopy(products, strings.aboutProducts or "CRATEXNET PALWORLD TOOLS",
-            11, COLORS.accent, 0, aboutCardInnerWidth)
+            13, COLORS.text, 0, productShelfInnerWidth)
         local productsRowSlot = products:AddChild(productsRow)
-        setPadding(productsRowSlot, 0, 4, 0, 0)
+        setPadding(productsRowSlot, 0, 8, 0, 0)
         align(productsRowSlot, ALIGN_FILL, ALIGN_CENTER)
         local productGap = SIZE.aboutLinkGap
-        local productWidth = math.max(120.0,
-            (aboutCardInnerWidth - (productGap * 2.0)) / 3.0)
-        local function addProduct(spec, column)
-            spec.width = productWidth
-            spec.height = 78.0
-            spec.orientation = "vertical"
-            spec.navRow = 1
-            spec.navColumn = column
-            local status = spec.current
-                and (strings.aboutCurrent or "Current")
-                or (strings.aboutOpen or "Open")
-            spec.label = spec.title .. "\n" .. status
-            spec.tooltip = spec.title
-            spec.role = spec.current and "primary" or "aboutLink"
-            local action = makeAboutLogoButton(tree, spec)
+        local productWidth = compactProductShelf and productShelfInnerWidth
+            or math.max(120.0,
+                (productShelfInnerWidth - (productGap * 2.0)) / 3.0)
+        local productOutlineWidth = SIZE.aboutProductCurrentOutline
+        local productInnerWidth = math.max(112.0,
+            productWidth - 12.0 - (productOutlineWidth * 2.0))
+        local productImageWidth = math.max(96.0, math.min(
+            productInnerWidth - 4.0, 92.0 * (1668.0 / 932.0)))
+        local productImageHeight = productImageWidth * (932.0 / 1668.0)
+        local productActionHeight = SIZE.aboutProductLinkHeight
+        local productActionGap = SIZE.aboutProductLinkGap
+        local productPlatformCellWidth = math.max(productActionHeight,
+            (productInnerWidth - (productActionGap * 2.0)) / 3.0)
+        local function addProductLink(stack, spec, width, visibleLabel,
+                navRow, navColumn, leftGap)
+            local iconSize = visibleLabel ~= nil and 16.0
+                or SIZE.aboutProductLinkIcon
+            local action = makeAboutLogoButton(tree, {
+                asset = spec.asset, fallback = spec.fallback,
+                label = visibleLabel, tooltip = spec.label,
+                urlKey = spec.urlKey, width = width,
+                height = productActionHeight,
+                iconWidth = iconSize, iconHeight = iconSize,
+                labelFontSize = 10, textOnly = spec.textOnly,
+                orientation = visibleLabel ~= nil and "horizontal-center" or nil,
+                navRow = navRow, navColumn = navColumn,
+                role = "productLink",
+            })
             if action == nil then return false end
-            local slot = productsRow:AddChild(action.box)
-            if column == 1 then setPadding(slot, 0, 0, productGap, 0)
-            elseif column == 3 then setPadding(slot, productGap, 0, 0, 0)
+            local slot = stack:AddChild(action.box)
+            setPadding(slot, 0,
+                0, 0, visibleLabel ~= nil and 6 or 0)
+            align(slot, ALIGN_CENTER, ALIGN_CENTER)
+            return true
+        end
+        local function makeProductMedia(spec)
+            local mediaBox = construct(tree, "/Script/UMG.SizeBox")
+            local mediaStack = construct(tree, "/Script/UMG.VerticalBox")
+            local imageStageBox = construct(tree, "/Script/UMG.SizeBox")
+            local imageStage = construct(tree, "/Script/UMG.Border")
+            local imageOverlay = construct(tree, "/Script/UMG.Overlay")
+            local imageBox = construct(tree, "/Script/UMG.SizeBox")
+            local titleBox = construct(tree, "/Script/UMG.SizeBox")
+            local titleSurface = construct(tree, "/Script/UMG.Border")
+            local titleWidget = makeText(tree, spec.title, 10,
+                COLORS.text, TEXT_CENTER)
+            if mediaBox == nil or mediaStack == nil
+                or imageStageBox == nil or imageStage == nil or imageOverlay == nil
+                or imageBox == nil or titleBox == nil or titleSurface == nil
+                or titleWidget == nil then return nil end
+            local mediaWidth = math.max(1.0, tonumber(spec.iconWidth))
+            local mediaHeight = math.max(1.0, tonumber(spec.iconHeight))
+            local media
+            local textureApplied = false
+            if spec.preview == true then
+                local preview = makeAboutLogoButton(tree, {
+                    asset = spec.asset, fallback = spec.fallback,
+                    tooltip = spec.previewTooltip,
+                    width = mediaWidth, height = mediaHeight,
+                    iconWidth = math.max(1.0, mediaWidth - 4.0),
+                    iconHeight = math.max(1.0, mediaHeight - 4.0),
+                    kind = "preview", role = "brand",
+                    navRow = spec.previewNavRow,
+                    navColumn = spec.previewNavColumn,
+                })
+                media = preview ~= nil and preview.box or nil
+            else
+                local texture = aboutTexture(spec.asset)
+                if P.isValid(texture) then
+                    local image = construct(tree, "/Script/UMG.Image")
+                    if image ~= nil then
+                        local applied = pcall(function()
+                            image:SetBrushFromTexture(texture, false)
+                        end)
+                        if applied then
+                            media = image
+                            textureApplied = true
+                        end
+                    end
+                end
+            end
+            if media == nil then
+                media = makeText(tree, tostring(spec.fallback or "?"),
+                    13, COLORS.text, TEXT_CENTER)
+            end
+            if media == nil then return nil end
+            setTextWrap(titleWidget, productInnerWidth - 8.0)
+            local ok = pcall(function()
+                mediaBox:SetWidthOverride(productInnerWidth)
+                mediaBox:SetHeightOverride(130.0)
+                imageStageBox:SetWidthOverride(productInnerWidth)
+                imageStageBox:SetHeightOverride(mediaHeight)
+                imageStage:SetBrushColor(COLORS.transparent)
+                local imageVisual
+                if spec.preview == true then
+                    imageVisual = media
+                else
+                    imageBox:SetWidthOverride(mediaWidth)
+                    imageBox:SetHeightOverride(mediaHeight)
+                    align(imageBox:AddChild(media),
+                        textureApplied and ALIGN_FILL or ALIGN_CENTER,
+                        textureApplied and ALIGN_FILL or ALIGN_CENTER)
+                    imageVisual = imageBox
+                end
+                align(imageOverlay:AddChild(imageVisual),
+                    ALIGN_CENTER, ALIGN_CENTER)
+                align(imageStage:AddChild(imageOverlay), ALIGN_FILL, ALIGN_FILL)
+                align(imageStageBox:AddChild(imageStage), ALIGN_FILL, ALIGN_FILL)
+                align(mediaStack:AddChild(imageStageBox),
+                    ALIGN_FILL, ALIGN_CENTER)
+                titleBox:SetHeightOverride(math.max(30.0, 130.0 - mediaHeight))
+                titleSurface:SetBrushColor(COLORS.transparent)
+                titleSurface:SetPadding({
+                    Left = 10, Top = SIZE.aboutLinkGap,
+                    Right = 10, Bottom = 0,
+                })
+                align(titleSurface:AddChild(titleWidget),
+                    ALIGN_FILL, ALIGN_CENTER)
+                align(titleBox:AddChild(titleSurface), ALIGN_FILL, ALIGN_FILL)
+                align(mediaStack:AddChild(titleBox), ALIGN_FILL, ALIGN_FILL)
+                align(mediaBox:AddChild(mediaStack), ALIGN_FILL, ALIGN_FILL)
+            end)
+            return ok and mediaBox or nil
+        end
+        local function addProduct(spec, column)
+            local current = spec.current == true
+            local productBox = construct(tree, "/Script/UMG.SizeBox")
+            local productFrame = construct(tree, "/Script/UMG.Border")
+            local productContent = construct(tree, "/Script/UMG.Border")
+            local productStack = construct(tree, "/Script/UMG.VerticalBox")
+            if productBox == nil or productFrame == nil
+                or productContent == nil or productStack == nil then return false end
+            local mediaBox = makeProductMedia(spec)
+            if mediaBox == nil then return false end
+            local ok = pcall(function()
+                productBox:SetWidthOverride(productWidth)
+                productBox:SetHeightOverride(SIZE.aboutProductCardHeight)
+                productFrame:SetBrushColor(current and mixLinearColor(
+                    productFrameColor, COLORS.borderFocus, 0.60)
+                    or productFrameColor)
+                productFrame:SetPadding({
+                    Left = productOutlineWidth, Top = productOutlineWidth,
+                    Right = productOutlineWidth, Bottom = productOutlineWidth,
+                })
+                productContent:SetBrushColor(current and mixLinearColor(
+                    productCardColor, COLORS.actionInfo, 0.07)
+                    or productCardColor)
+                align(productFrame:AddChild(productContent),
+                    ALIGN_FILL, ALIGN_FILL)
+                align(productContent:AddChild(productStack),
+                    ALIGN_FILL, ALIGN_FILL)
+                align(productBox:AddChild(productFrame), ALIGN_FILL, ALIGN_FILL)
+                local mediaSlot = productStack:AddChild(mediaBox)
+                setPadding(mediaSlot, 0, 0, 0, 0)
+                align(mediaSlot, ALIGN_FILL, ALIGN_CENTER)
+            end)
+            if not ok then return false end
+            local productSpacer = construct(tree, "/Script/UMG.SizeBox")
+            if productSpacer == nil then return false end
+            local spacerSlot = productStack:AddChild(productSpacer)
+            setFill(spacerSlot)
+            local links = spec.links or {}
+            local productFooter = construct(tree, "/Script/UMG.Border")
+            if productFooter == nil then return false end
+            productFooter:SetBrushColor(COLORS.transparent)
+            productFooter:SetPadding({ Left = 6, Top = 3, Right = 6, Bottom = 3 })
+            if #links == 3 then
+                local platformRow = construct(tree, "/Script/UMG.HorizontalBox")
+                if platformRow == nil then return false end
+                align(productFooter:AddChild(platformRow),
+                    ALIGN_FILL, ALIGN_CENTER)
+                local baseColumn = tonumber(spec.navColumnBase) or 0
+                local navRow = tonumber(spec.navRow) or 2
+                for index, link in ipairs(links) do
+                    local cell = construct(tree, "/Script/UMG.SizeBox")
+                    if cell == nil then return false end
+                    cell:SetWidthOverride(productPlatformCellWidth)
+                    local cellSlot = platformRow:AddChild(cell)
+                    align(cellSlot, ALIGN_CENTER, ALIGN_CENTER)
+                    if index < #links then
+                        setPadding(cellSlot, 0, 0, productActionGap, 0)
+                    end
+                    if not addProductLink(cell, link,
+                            productActionHeight, nil, navRow,
+                            baseColumn + index, false) then
+                        return false
+                    end
+                end
+            else
+                for index, link in ipairs(links) do
+                    if not addProductLink(productFooter, link,
+                            productInnerWidth, link.label,
+                            tonumber(spec.navRow) or 2,
+                            (tonumber(spec.navColumnBase) or 0) + index,
+                            index > 1) then
+                        return false
+                    end
+                end
+            end
+            local footerSlot = productStack:AddChild(productFooter)
+            align(footerSlot, ALIGN_FILL, ALIGN_CENTER)
+            local slot = productsRow:AddChild(productBox)
+            if compactProductShelf and column < 3 then
+                setPadding(slot, 0, 0, 0, productGap)
+            elseif not compactProductShelf and column == 1 then
+                setPadding(slot, 0, 0, productGap, 0)
+            elseif not compactProductShelf and column == 2 then
+                setPadding(slot, 0, 0, productGap, 0)
             end
             align(slot, ALIGN_CENTER, ALIGN_CENTER)
             return true
         end
-        local workshopBuild = SteamVote.ready()
         if not addProduct({
                 asset = "pal-insight-preview.jpg", fallback = "PI",
                 title = "Pal Insight",
-                urlKey = workshopBuild and "palInsightWorkshop" or "palInsight",
-                iconWidth = 42.0, iconHeight = 42.0,
-            }, 1)
-            or not addProduct({
-                asset = "cratex.png", fallback = "QS", title = "Quick Stack",
-                urlKey = workshopBuild and "quickStackWorkshop"
-                    or "quickStackNexus",
-                current = true, iconWidth = 42.0, iconHeight = 42.0,
+                iconWidth = productImageHeight,
+                iconHeight = productImageHeight,
+                navRow = 1, navColumnBase = 0,
+                links = {
+                    { asset = "steam.png", fallback = "S",
+                        label = "Steam Workshop", urlKey = "palInsightWorkshop" },
+                    { asset = "nexus.png", fallback = "N",
+                        label = "Nexus Mods", urlKey = "palInsight" },
+                    { asset = "curseforge.png", fallback = "CF",
+                        label = "CurseForge", urlKey = "palInsightCurseForge" },
+                },
+            }, 1) then error("Pal Insight product card unavailable") end
+        state.aboutDefaultFocusIndex = #state.aboutActions + 1
+        if not addProduct({
+                asset = "quick-stack-preview.png", fallback = "QS",
+                title = "Pal Insight: Quick Stack", current = true,
+                iconWidth = productImageHeight,
+                iconHeight = productImageHeight,
+                navRow = 1, navColumnBase = 3,
+                links = {
+                    { asset = "steam.png", fallback = "S",
+                        label = "Steam Workshop", urlKey = "quickStackWorkshop" },
+                    { asset = "nexus.png", fallback = "N",
+                        label = "Nexus Mods", urlKey = "quickStackNexus" },
+                    { asset = "curseforge.png", fallback = "CF",
+                        label = "CurseForge", urlKey = "quickStackCurseForge" },
+                },
             }, 2)
             or not addProduct({
                 asset = "breeding-calculator-preview.png", fallback = "BC",
                 title = strings.aboutCalculator or "Palworld Breeding Calculator",
-                urlKey = "calculator", iconWidth = 68.0, iconHeight = 38.0,
-            }, 3) then
-            error("About product action unavailable")
-        end
+                iconWidth = productImageWidth, iconHeight = productImageHeight,
+                preview = true,
+                previewTooltip = strings.aboutCalculator
+                    or "Palworld Breeding Calculator",
+                previewNavRow = 1, previewNavColumn = 6,
+                navRow = 1, navColumnBase = 6,
+                links = {
+                    { textOnly = true, label = strings.aboutVisitCalculator
+                            or "View breeding tool",
+                        urlKey = "calculator" },
+                },
+            }, 3) then error("About product card unavailable") end
 
         local _, creator = makeCard()
         if creator == nil then error("About creator card unavailable") end
@@ -3729,7 +5504,7 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
             width = SIZE.aboutCreatorLinkWidth,
             height = (SIZE.aboutLinkHeight * 2.0) + SIZE.aboutLinkGap,
             iconWidth = 48.0, iconHeight = 48.0, orientation = "vertical",
-            navRow = 2, navColumn = 1,
+            navRow = 4, navColumn = 1,
         })
         if website == nil then
             error("About website action unavailable")
@@ -3742,135 +5517,127 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
         setPadding(creatorCopySlot, 0, 0, 12, 0)
         align(creatorCopySlot, ALIGN_FILL, ALIGN_CENTER)
         addCopy(creatorCopy, strings.aboutCreator or "Creator", 13,
-            COLORS.muted, 0, creatorCopyWrapWidth)
+            COLORS.text, 0, creatorCopyWrapWidth)
         addCopy(creatorCopy, "cratexnet", 14, COLORS.text, 2,
             creatorCopyWrapWidth)
         addCopy(creatorCopy, strings.aboutCreatorDescription or "", 11,
             COLORS.muted, 4, creatorCopyWrapWidth)
-        local creatorActionsSlot = creatorRow:AddChild(creatorActions)
-        align(creatorActionsSlot, ALIGN_RIGHT, ALIGN_CENTER)
-        local thanks = makeAboutLogoButton(tree, {
-            fallback = "★", fallbackFontSize = 14,
-            label = strings.aboutSpecialThanks,
-            tooltip = strings.aboutSpecialThanks,
-            width = SIZE.aboutCreatorLinkWidth,
-            orientation = "horizontal-left", kind = "roster",
-            rosterMode = "thanks", role = "thanks", navRow = 2, navColumn = 2,
-        })
-        local supporters = makeAboutLogoButton(tree, {
-            fallback = "♥", fallbackFontSize = 13,
-            label = strings.aboutSupporters,
-            tooltip = strings.aboutSupporters,
-            width = SIZE.aboutCreatorLinkWidth,
-            orientation = "horizontal-left", kind = "roster",
-            rosterMode = "supporters", role = "supporters",
-            navRow = 3, navColumn = 2,
-        })
-        if thanks == nil or supporters == nil then
+        local function addRosterAction(label, asset, fallback, mode, role, navRow)
+            local action = makeAboutLogoButton(tree, {
+                asset = asset, fallback = fallback, fallbackFontSize = 14,
+                iconWidth = 22, iconHeight = 22,
+                label = label, tooltip = label,
+                width = SIZE.aboutCreatorLinkWidth,
+                orientation = "horizontal-left", kind = "roster",
+                deferRegistration = true,
+                rosterMode = mode, role = role,
+                navRow = navRow, navColumn = 2,
+            })
+            if action == nil then return false end
+            local actionSlot = creatorActions:AddChild(action.box)
+            align(actionSlot, ALIGN_CENTER, ALIGN_CENTER)
+            local halfGap = SIZE.aboutLinkGap * 0.5
+            if navRow == 4 then
+                setPadding(actionSlot, 0, 0, 0, halfGap)
+            else
+                setPadding(actionSlot, 0, halfGap, 0, 0)
+            end
+            state.aboutActions[#state.aboutActions + 1] = action
+            return true
+        end
+        if not addRosterAction(strings.aboutSpecialThanks,
+                "sports-medal.png", "✦", "thanks", "thanks", 4)
+            or not addRosterAction(strings.aboutSupporters,
+                "red-heart.png", "♥", "supporters", "supporters", 5) then
             error("About roster actions unavailable")
         end
-        local halfRosterGap = SIZE.aboutLinkGap * 0.5
-        local thanksSlot = creatorActions:AddChild(thanks.box)
-        setPadding(thanksSlot, 0, 0, 0, halfRosterGap)
-        align(thanksSlot, ALIGN_FILL, ALIGN_CENTER)
-        local supportersSlot = creatorActions:AddChild(supporters.box)
-        setPadding(supportersSlot, 0, halfRosterGap, 0, 0)
-        align(supportersSlot, ALIGN_FILL, ALIGN_CENTER)
+        local creatorActionsSlot = creatorRow:AddChild(creatorActions)
+        align(creatorActionsSlot, ALIGN_CENTER, ALIGN_CENTER)
 
-        local linkShelf = construct(tree, "/Script/UMG.HorizontalBox")
-        local downloadsCard = construct(tree, "/Script/UMG.Border")
-        local downloads = construct(tree, "/Script/UMG.VerticalBox")
-        local downloadActions = construct(tree, "/Script/UMG.HorizontalBox")
+        local communityAndSupport = construct(tree, "/Script/UMG.HorizontalBox")
+        local communityBox = construct(tree, "/Script/UMG.SizeBox")
         local communityCard = construct(tree, "/Script/UMG.Border")
-        local community = construct(tree, "/Script/UMG.VerticalBox")
-        local communityActions = construct(tree, "/Script/UMG.HorizontalBox")
-        if linkShelf == nil or downloadsCard == nil or downloads == nil
-            or downloadActions == nil or communityCard == nil
-            or community == nil or communityActions == nil then
-            error("About link shelf unavailable")
-        end
-        local shelfSlot = body:AddChild(linkShelf)
-        setPadding(shelfSlot, 0, 0, 0, SIZE.aboutSectionGap)
-        align(shelfSlot, ALIGN_FILL, ALIGN_FILL)
-        for index, pair in ipairs({
-            { downloadsCard, downloads }, { communityCard, community },
-        }) do
-            pair[1]:SetBrushColor(mixLinearColor(
-                COLORS.content, COLORS.control, 0.30))
-            pair[1]:SetPadding({ Left = 12, Top = SIZE.aboutCardPaddingY,
-                Right = 12, Bottom = SIZE.aboutCardPaddingY })
-            align(pair[1]:AddChild(pair[2]), ALIGN_FILL, ALIGN_FILL)
-            local cardSlot = linkShelf:AddChild(pair[1])
-            setFill(cardSlot)
-            if index == 1 then setPadding(cardSlot, 0, 0, 4, 0)
-            else setPadding(cardSlot, 4, 0, 0, 0) end
-        end
-        addCopy(downloads, strings.aboutDownloads or "Downloads & feedback",
-            13, COLORS.muted, 0, linkHeadingWrapWidth)
-        local downloadSlot = downloads:AddChild(downloadActions)
-        setPadding(downloadSlot, 0, 8, 0, 0)
-        align(downloadSlot, ALIGN_FILL, ALIGN_CENTER)
-        local function addLogo(parent, spec)
-            local action = makeAboutLogoButton(tree, spec)
-            if action == nil then return nil end
-            local slot = parent:AddChild(action.box)
-            setFill(slot)
-            local halfGap = SIZE.aboutLinkGap * 0.5
-            setPadding(slot, halfGap, 0, halfGap, 0)
-            align(slot, ALIGN_FILL, ALIGN_CENTER)
-            return action
-        end
-        if not addLogo(downloadActions, {
-                asset = "nexus.png", fallback = "N", label = "Nexus Mods",
-                tooltip = "Nexus Mods", urlKey = "quickStackNexus",
-                orientation = "horizontal-left", navRow = 4, navColumn = 1,
-            })
-            or not addLogo(downloadActions, {
-                asset = "steam.png", fallback = "S", label = "Steam Workshop",
-                tooltip = "Steam Workshop", urlKey = "quickStackWorkshop",
-                orientation = "horizontal-left", navRow = 4, navColumn = 2,
-            })
-            or not addLogo(downloadActions, {
-                asset = "curseforge.png", fallback = "CF", label = "CurseForge",
-                tooltip = "CurseForge", urlKey = "quickStackCurseForge",
-                orientation = "horizontal-left", navRow = 4, navColumn = 3,
-            }) then
-            error("About download action unavailable")
-        end
-        addCopy(community, strings.aboutCommunity or "Community", 13,
-            COLORS.muted, 0, linkHeadingWrapWidth)
-        local communitySlot = community:AddChild(communityActions)
-        setPadding(communitySlot, 0, 8, 0, 0)
-        align(communitySlot, ALIGN_FILL, ALIGN_CENTER)
-        if not addLogo(communityActions, {
-                asset = "x.png", fallback = "X", label = "X",
-                tooltip = "X", urlKey = "x", orientation = "horizontal-left",
-                navRow = 5, navColumn = 1,
-            })
-            or not addLogo(communityActions, {
-                asset = "discord.png", fallback = "D", label = "Discord",
-                tooltip = "Discord", urlKey = "discord",
-                orientation = "horizontal-left", navRow = 5, navColumn = 2,
-            }) then
-            error("About community action unavailable")
-        end
-
-        local supportCard, support = makeCard(false)
+        local communityStack = construct(tree, "/Script/UMG.VerticalBox")
+        local communityRow = construct(tree, "/Script/UMG.HorizontalBox")
+        local supportCard = construct(tree, "/Script/UMG.Border")
+        local supportStack = construct(tree, "/Script/UMG.VerticalBox")
         local supportRow = construct(tree, "/Script/UMG.HorizontalBox")
         local supportCopy = construct(tree, "/Script/UMG.VerticalBox")
-        if supportCard == nil or support == nil or supportRow == nil
-            or supportCopy == nil then error("About support card unavailable") end
+        if communityAndSupport == nil or communityBox == nil
+            or communityCard == nil or communityStack == nil
+            or communityRow == nil or supportCard == nil
+            or supportStack == nil or supportRow == nil
+            or supportCopy == nil then
+            error("About community and support unavailable")
+        end
+        communityBox:SetWidthOverride(communityColumnWidth)
+        communityCard:SetBrushColor(mixLinearColor(
+            COLORS.content, COLORS.control, 0.30))
+        communityCard:SetPadding({ Left = 12, Top = 12, Right = 12, Bottom = 12 })
+        align(communityCard:AddChild(communityStack), ALIGN_FILL, ALIGN_FILL)
+        align(communityBox:AddChild(communityCard), ALIGN_FILL, ALIGN_FILL)
+        align(communityAndSupport:AddChild(communityBox), ALIGN_CENTER, ALIGN_FILL)
+        addCopy(communityStack, strings.aboutCommunity or "Community",
+            13, COLORS.text, 0, communityColumnWidth - 24.0)
+        local communityRowSlot = communityStack:AddChild(communityRow)
+        setPadding(communityRowSlot, 0, 8, 0, 0)
+        align(communityRowSlot, ALIGN_FILL, ALIGN_CENTER)
+
         supportCard:SetBrushColor(mixLinearColor(
             COLORS.content, COLORS.control, 0.30))
-        align(support:AddChild(supportRow), ALIGN_FILL, ALIGN_CENTER)
+        supportCard:SetPadding({ Left = 12, Top = 12, Right = 12, Bottom = 12 })
+        align(supportCard:AddChild(supportStack), ALIGN_FILL, ALIGN_FILL)
+        local supportCardSlot = communityAndSupport:AddChild(supportCard)
+        setFill(supportCardSlot)
+        setPadding(supportCardSlot, SIZE.aboutLinkGap, 0, 0, 0)
+        align(supportCardSlot, ALIGN_FILL, ALIGN_FILL)
+        addCopy(supportStack, strings.aboutSupport or "Support",
+            13, COLORS.text, 0,
+            aboutCardInnerWidth - communityColumnWidth - SIZE.aboutLinkGap - 24.0)
+        local supportRowSlot = supportStack:AddChild(supportRow)
+        setPadding(supportRowSlot, 0, 8, 0, 0)
+        align(supportRowSlot, ALIGN_FILL, ALIGN_CENTER)
+        local function addCommunityAction(spec, leftGap)
+            local action = makeAboutLogoButton(tree, spec)
+            if action == nil then return nil end
+            local column = construct(tree, "/Script/UMG.SizeBox")
+            if column == nil then return nil end
+            local columnSlot = communityRow:AddChild(column)
+            setFill(columnSlot)
+            local halfGap = SIZE.aboutLinkGap * 0.5
+            if leftGap then
+                setPadding(columnSlot, halfGap, 0, 0, 0)
+            else
+                setPadding(columnSlot, 0, 0, halfGap, 0)
+            end
+            align(columnSlot, ALIGN_FILL, ALIGN_CENTER)
+            align(column:AddChild(action.box), ALIGN_CENTER, ALIGN_CENTER)
+            return action
+        end
+        if not addCommunityAction({
+                asset = "x.png", fallback = "X",
+                tooltip = "X", urlKey = "x",
+                width = SIZE.aboutLinkHeight,
+                height = SIZE.aboutLinkHeight,
+                iconWidth = 24.0, iconHeight = 24.0,
+                navRow = 6, navColumn = 1,
+            }, false)
+            or not addCommunityAction({
+                asset = "discord.png", fallback = "D",
+                tooltip = "Discord", urlKey = "discord",
+                width = SIZE.aboutLinkHeight,
+                height = SIZE.aboutLinkHeight,
+                iconWidth = 24.0, iconHeight = 24.0,
+                navRow = 6, navColumn = 2,
+            }, true) then
+            error("About community action unavailable")
+        end
         local supportCopySlot = supportRow:AddChild(supportCopy)
         setFill(supportCopySlot)
-        setPadding(supportCopySlot, 0, 0, 12, 0)
+        setPadding(supportCopySlot, 0, 0, 8, 0)
         align(supportCopySlot, ALIGN_FILL, ALIGN_CENTER)
-        addCopy(supportCopy, strings.aboutSupport or "Support", 13,
-            COLORS.text, 0, supportCopyWrapWidth)
         addCopy(supportCopy, strings.aboutSupportDescription or "", 11,
-            COLORS.muted, 5, supportCopyWrapWidth)
+            COLORS.muted, 0, supportCopyWrapWidth)
         local bmc = makeAboutLogoButton(tree, {
             asset = "buy-me-a-coffee.png", fallback = "BMC",
             tooltip = "Buy Me a Coffee", urlKey = "bmc", role = "brand",
@@ -3878,12 +5645,14 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
             height = SIZE.aboutSupportActionHeight,
             iconWidth = SIZE.aboutSupportLogoWidth,
             iconHeight = SIZE.aboutSupportLogoHeight,
-            navRow = 6, navColumn = 2,
+            navRow = 6, navColumn = 3,
         })
         if bmc == nil then
             error("About support action unavailable")
         end
         align(supportRow:AddChild(bmc.box), ALIGN_CENTER, ALIGN_CENTER)
+        local shelfSlot = body:AddChild(communityAndSupport)
+        align(shelfSlot, ALIGN_FILL, ALIGN_FILL)
 
         state.aboutActions[#state.aboutActions + 1] = {
             box = close.box, widget = close.widget,
@@ -3891,74 +5660,14 @@ buildAboutModal = function(tree, root, strings, viewportWidth, viewportHeight)
             kind = "close", role = "close", label = strings.close,
             tooltip = strings.close, navRow = 7, navColumn = 2,
         }
-        rosterOverlay:SetVisibility(VIS_COLLAPSED)
-        rosterDim:SetBrushColor({ R = 0.0, G = 0.0, B = 0.0, A = 0.72 })
-        local rosterOverlaySlot = root:AddChild(rosterOverlay)
-        rosterOverlaySlot:SetAnchors({
-            Minimum = { X = 0.0, Y = 0.0 },
-            Maximum = { X = 1.0, Y = 1.0 },
-        })
-        rosterOverlaySlot:SetOffsets({
-            Left = 0.0, Top = 0.0, Right = 0.0, Bottom = 0.0,
-        })
-        rosterOverlaySlot:SetZOrder(4)
-        local rosterDimSlot = rosterOverlay:AddChild(rosterDim)
-        rosterDimSlot:SetAnchors({
-            Minimum = { X = 0.0, Y = 0.0 },
-            Maximum = { X = 1.0, Y = 1.0 },
-        })
-        rosterDimSlot:SetOffsets({
-            Left = 0.0, Top = 0.0, Right = 0.0, Bottom = 0.0,
-        })
-        rosterDimSlot:SetZOrder(0)
-        rosterBox:SetWidthOverride(rosterWidth)
-        rosterBox:SetMaxDesiredHeight(rosterMaxHeight)
-        rosterOutline:SetBrushColor(COLORS.outline)
-        rosterOutline:SetPadding({ Left = 1, Top = 1, Right = 1, Bottom = 1 })
-        rosterPanel:SetBrushColor(COLORS.content)
-        rosterPanel:SetPadding({ Left = 16, Top = 16, Right = 16, Bottom = 16 })
-        align(rosterPanel:AddChild(rosterContent), ALIGN_FILL, ALIGN_FILL)
-        align(rosterOutline:AddChild(rosterPanel), ALIGN_FILL, ALIGN_FILL)
-        align(rosterBox:AddChild(rosterOutline), ALIGN_FILL, ALIGN_FILL)
-        local rosterBoxSlot = rosterOverlay:AddChild(rosterBox)
-        rosterBoxSlot:SetAnchors({
-            Minimum = { X = 0.5, Y = 0.5 },
-            Maximum = { X = 0.5, Y = 0.5 },
-        })
-        rosterBoxSlot:SetAlignment({ X = 0.5, Y = 0.5 })
-        rosterBoxSlot:SetPosition({ X = 0.0, Y = 0.0 })
-        rosterBoxSlot:SetAutoSize(true)
-        rosterBoxSlot:SetZOrder(1)
-        local rosterTitleSlot = rosterHeader:AddChild(rosterTitle)
-        setFill(rosterTitleSlot)
-        align(rosterTitleSlot, ALIGN_LEFT, ALIGN_CENTER)
-        align(rosterHeader:AddChild(rosterClose.box), ALIGN_RIGHT, ALIGN_CENTER)
-        local rosterHeaderSlot = rosterContent:AddChild(rosterHeader)
-        setPadding(rosterHeaderSlot, 0, 0, 0, 8)
-        setTextWrap(rosterDescription, rosterWidth - 34.0)
-        local rosterDescriptionSlot = rosterContent:AddChild(rosterDescription)
-        setPadding(rosterDescriptionSlot, 0, 0, 0, 12)
-        rosterScroll:SetAlwaysShowScrollbar(false)
-        rosterScroll.AlwaysShowScrollbarTrack = false
-        rosterScroll:SetScrollbarThickness({ X = 9.0, Y = 9.0 })
-        align(rosterScroll:AddChild(rosterBody), ALIGN_FILL, ALIGN_LEFT)
-        local rosterScrollSlot = rosterContent:AddChild(rosterScroll)
-        setFill(rosterScrollSlot)
-        align(rosterScrollSlot, ALIGN_FILL, ALIGN_FILL)
-        rosterEmptyCard:SetBrushColor(COLORS.control)
-        rosterEmptyCard:SetPadding({ Left = 16, Top = 20, Right = 16, Bottom = 20 })
-        align(rosterEmptyCard:AddChild(rosterEmpty), ALIGN_CENTER, ALIGN_CENTER)
-        align(rosterBody:AddChild(rosterEmptyCard), ALIGN_FILL, ALIGN_FILL)
     end)
     if not ok or #(state.aboutActions or {}) < 2 then return false end
+    if not buildRosterOverlay("thanks")
+        or not buildRosterOverlay("supporters") then return false end
+    if not buildAboutPreviewOverlay(tree, root, strings,
+            viewportWidth, viewportHeight) then return false end
     state.aboutOverlay = overlay
     state.aboutCloseWidget = close.widget
-    state.aboutRosterOverlay = rosterOverlay
-    state.aboutRosterTitle = rosterTitle
-    state.aboutRosterDescription = rosterDescription
-    state.aboutRosterEmpty = rosterEmpty
-    state.aboutRosterCloseWidget = rosterClose.widget
-    state.aboutRosterCloseAction = rosterClose
     return true
 end
 
@@ -3977,11 +5686,17 @@ logicalViewportSize = function(controller)
 end
 
 local function clearWindowReferences()
+    cancelNavigationRepeat()
+    InputOwner.unbindActionButtons()
+    InputOwner.unbindToggleControls()
+    state.shortcutFocusRestoreToken = state.shortcutFocusRestoreToken + 1
+    state.shortcutFocusRestoreCallback = nil
     state.widget = nil
     state.widgetTree = nil
     state.root = nil
     state.controls = {}
     state.triggerSurfaces = {}
+    state.directActionButtons = {}
     state.headerActionVisuals = {}
     state.statusText = nil
     state.modeText = nil
@@ -3998,17 +5713,20 @@ local function clearWindowReferences()
     state.aboutReturnFocusIndex = nil
     state.aboutActions = {}
     state.aboutFocusIndex = 1
+    state.aboutDefaultFocusIndex = nil
     state.aboutPreferredColumn = 1
     state.aboutActionHint = nil
     state.aboutScroll = nil
-    state.aboutRosterOverlay = nil
-    state.aboutRosterTitle = nil
-    state.aboutRosterDescription = nil
-    state.aboutRosterEmpty = nil
-    state.aboutRosterCloseWidget = nil
-    state.aboutRosterCloseAction = nil
+    state.aboutRosterOverlays = {}
+    state.aboutRosterCloseWidgets = {}
+    state.aboutRosterCloseActions = {}
     state.aboutRosterOpen = false
     state.aboutRosterMode = nil
+    state.aboutPreviewOverlay = nil
+    state.aboutPreviewCloseWidget = nil
+    state.aboutPreviewCloseAction = nil
+    state.aboutPreviewOpen = false
+    state.aboutPreviewSourceIndex = nil
     state.steamVoteControl = nil
     state.steamVoteNoneWidget = nil
     state.steamVoteDownWidget = nil
@@ -4024,9 +5742,14 @@ local function clearWindowReferences()
     state.scroll = nil
     state.nestedOverlay = nil
     state.nestedTitle = nil
+    state.nestedMessage = nil
     state.modalOptions = {}
     state.activeChoice = nil
+    state.choiceReturnFocusIndex = nil
+    state.pointerAction = nil
+    state.pendingAboutPointerClose = nil
     state.numberEdit = nil
+    state.toggleEventsSuppressed = false
     state.modalIndex = 1
     state.focusEntries = {}
     state.focusIndex = 1
@@ -4050,7 +5773,7 @@ local function windowContext(controller)
     }
 end
 
-local function windowCacheMatches(controller)
+windowCacheMatches = function(controller)
     local cache = state.windowCache
     local context = windowContext(controller)
     if type(cache) ~= "table" or cache.ready ~= true or context == nil
@@ -4098,6 +5821,8 @@ local function prepareWindowForOpen(mode)
     local strings = currentStrings()
     closeChoiceModal(false)
     closeAboutModal(false)
+    state.pointerAction = nil
+    state.pendingAboutPointerClose = nil
     state.numberEdit = nil
     resetControlsToConfig()
     state.focusIndex = 1
@@ -4110,8 +5835,7 @@ local function prepareWindowForOpen(mode)
     end
     if P.isValid(state.modeText) then
         pcall(function()
-            state.modeText:SetText(FText(strings.title .. " · "
-                .. (mode == "hosted" and strings.hosted or strings.standalone)))
+            state.modeText:SetText(FText(strings.creator or "by cratexnet"))
         end)
     end
     state.footerMode = mode
@@ -4120,12 +5844,10 @@ local function prepareWindowForOpen(mode)
     for _, record in ipairs(state.triggerSurfaces or {}) do
         record.visualSignature = nil
         record.selected = false
-        if P.isValid(record.widget) then
-            pcall(function() record.widget:SetIsChecked(false) end)
-        end
     end
     local shown = pcall(function()
         state.widget.bIsFocusable = true
+        state.widget:SetRenderOpacity(0.0)
         state.widget:SetVisibility(VIS_VISIBLE)
     end)
     refreshTriggerSurfaces()
@@ -4172,14 +5894,18 @@ local function buildSettingsWindow(controller, mode)
         math.max(320.0, viewportWidth - 48.0))
     local height = math.min(math.max(500.0, viewportHeight * 0.60), 640.0,
         math.max(320.0, viewportHeight - 48.0))
-    local contentWidth = math.max(1.0, width - 2.0 - 32.0 - 13.0)
+    local contentWidth = math.max(1.0, width
+        - 2.0 * SIZE.windowOutline - 32.0 - SIZE.scrollbarGutter)
     state.contentWidth = contentWidth
     state.controls = {}
     state.triggerSurfaces = {}
     state.nestedOverlay = nil
     state.nestedTitle = nil
+    state.nestedMessage = nil
     state.modalOptions = {}
     state.activeChoice = nil
+    state.choiceReturnFocusIndex = nil
+    state.pointerAction = nil
     state.modalIndex = 1
     state.focusEntries = {}
     state.focusIndex = 1
@@ -4204,7 +5930,10 @@ local function buildSettingsWindow(controller, mode)
         cardBox:SetWidthOverride(width)
         cardBox:SetHeightOverride(height)
         outline:SetBrushColor(COLORS.outline)
-        outline:SetPadding({ Left = 1, Top = 1, Right = 1, Bottom = 1 })
+        outline:SetPadding({
+            Left = SIZE.windowOutline, Top = SIZE.windowOutline,
+            Right = SIZE.windowOutline, Bottom = SIZE.windowOutline,
+        })
         card:SetBrushColor(COLORS.window)
         local cardSurfaceSlot = outline:AddChild(card)
         align(cardSurfaceSlot, ALIGN_FILL, ALIGN_FILL)
@@ -4239,8 +5968,7 @@ local function buildSettingsWindow(controller, mode)
         local version = makeText(tree,
             "v" .. tostring(state.version), 11, COLORS.textMuted, TEXT_CENTER)
         local modeText = makeText(tree,
-            strings.title .. " · "
-                .. (mode == "hosted" and strings.hosted or strings.standalone),
+            strings.creator or "by cratexnet",
             11, COLORS.textMuted, TEXT_LEFT)
         local voteBox = makeSteamVoteControl(tree, strings)
         local aboutAction = makeIconTrigger(tree, "ⓘ", strings.about, "about")
@@ -4327,20 +6055,27 @@ local function buildSettingsWindow(controller, mode)
         setPadding(headerSlot, 0, 0, 0, 8)
 
         scroll:SetAlwaysShowScrollbar(false)
-        scroll:SetScrollbarThickness({ X = 9.0, Y = 9.0 })
-        scroll.ScrollbarPadding = { Left = 2, Top = 2, Right = 2, Bottom = 2 }
+        scroll.AlwaysShowScrollbarTrack = false
+        scroll:SetScrollbarThickness({
+            X = SIZE.scrollbarThickness, Y = SIZE.scrollbarThickness,
+        })
+        scroll:SetScrollbarPadding({
+            Left = SIZE.scrollbarPadding, Top = SIZE.scrollbarPadding,
+            Right = SIZE.scrollbarPadding, Bottom = SIZE.scrollbarPadding,
+        })
         contentFrame:SetBrushColor(COLORS.content)
         contentFrame:SetPadding({ Left = 0, Top = 0, Right = 0, Bottom = 0 })
         local frameScrollSlot = contentFrame:AddChild(scroll)
         align(frameScrollSlot, ALIGN_FILL, ALIGN_FILL)
-        contentViewport:SetWidthOverride(contentWidth + 13.0)
+        contentViewport:SetWidthOverride(contentWidth + SIZE.scrollbarGutter)
         local viewportFrameSlot = contentViewport:AddChild(contentFrame)
         align(viewportFrameSlot, ALIGN_FILL, ALIGN_FILL)
         local contentViewportSlot = layout:AddChild(contentViewport)
         setFill(contentViewportSlot)
         align(contentViewportSlot, ALIGN_FILL, ALIGN_FILL)
         contentBox:SetWidthOverride(contentWidth)
-        contentBox:SetMinDesiredHeight(math.max(240.0, height - 250.0))
+        contentBox:SetMinDesiredHeight(math.max(
+            SIZE.contentMinimum, height - 250.0))
         local contentSlot = contentBox:AddChild(body)
         align(contentSlot, ALIGN_FILL, ALIGN_FILL)
         local bodySlot = scroll:AddChild(contentBox)
@@ -4373,6 +6108,10 @@ local function buildSettingsWindow(controller, mode)
                 strings.holyWater, 1, 100, false) then
             error("settings rows cannot be created")
         end
+        local pageEnd = construct(tree, "/Script/UMG.SizeBox")
+        if pageEnd == nil then error("settings page end spacing is unavailable") end
+        pageEnd:SetHeightOverride(SIZE.pageEdge)
+        body:AddChild(pageEnd)
 
         if state.steamVoteControl ~= nil and voteBox ~= nil then
             registerFocusable(state.steamVoteControl, voteBox)
@@ -4484,15 +6223,38 @@ local function acquireInput(controller, widget, mode)
         allowWithoutBridge = true,
         modalUIOnly = true,
         hostedParent = mode == "hosted",
-        onPressed = function(keyName, source) handlePressed(keyName, nil, source) end,
-        onReleased = function(keyName) handleReleased(keyName) end,
-        onAxisX = function(value) handleAxis("x", value) end,
-        onAxisY = function(value) handleAxis("y", value) end,
+        exclusiveController = mode ~= "hosted",
+        onPressed = function(keyName, source)
+            if tostring(keyName):find("Gamepad_", 1, true) == 1 then
+                return dispatchControllerPressed(keyName, source or "actor")
+            end
+            return handlePressed(keyName, nil, source)
+        end,
+        onReleased = function(keyName, source)
+            if tostring(keyName):find("Gamepad_", 1, true) == 1 then
+                return dispatchControllerReleased(keyName, source or "actor")
+            end
+            return handleReleased(keyName)
+        end,
+        onAxisX = function(value) handleAxis("x", value, "actor") end,
+        onAxisY = function(value) handleAxis("y", value, "actor") end,
+        onClicked = function() activateHoveredDirectAction() end,
+        onToggleChanged = function()
+            commitNativeToggleChanges("toggle-native")
+        end,
         onClose = function(source) SettingsUI.close(source) end,
     })
     if not acquired then
         if retainedTransaction ~= true then state.controller = nil end
         return false, acquireError, retainedTransaction == true
+    end
+    if not InputOwner.bindActionButtons(state.directActionButtons)
+        and InputOwner.cookedInputActive() then
+        log("native action delegates unavailable; using mouse fallback")
+    end
+    if not InputOwner.bindToggleControls(state.controls)
+        and InputOwner.cookedInputActive() then
+        log("native toggle delegates unavailable; using poll fallback")
     end
     return true, nil
 end
@@ -4504,6 +6266,8 @@ function SettingsUI.configure(options)
     state.configPath = options.configPath
     state.registerShortcut = options.registerShortcut
     state.shortcutConflict = options.shortcutConflict
+    state.readHostedControllerSnapshot = options.readHostedControllerSnapshot
+    state.ackHostedControllerSnapshot = options.ackHostedControllerSnapshot
     state.log = options.log
     state.onApplied = options.onApplied
     state.onClosed = options.onClosed
@@ -4512,12 +6276,15 @@ function SettingsUI.configure(options)
     installPreviewKeyHook()
     installKeyUpHook()
     installSelectorSelectedKeyHook()
+    installPointerHooks()
 end
 
 function SettingsUI.prepare()
     local prepareStarted = os.clock()
-    local inputHooksReady = installPreviewKeyHook() and installKeyUpHook()
+    local inputHooksReady = installPreviewKeyHook()
+        and installKeyUpHook()
         and installSelectorSelectedKeyHook()
+    installPointerHooks()
     local controller = P.currentController()
     if state.open and (not P.isValid(controller)
             or not windowCacheMatches(controller)) then
@@ -4564,6 +6331,7 @@ function SettingsUI.prepare()
 end
 
 function SettingsUI.open(mode, options)
+    options = type(options) == "table" and options or {}
     local openStarted = os.clock()
     local prewarm = state.lastPrepareDiagnostics
     local includePrewarm = type(prewarm) == "table" and prewarm.didWork == true
@@ -4577,6 +6345,10 @@ function SettingsUI.open(mode, options)
     local buildFinished = openStarted
     local prepareFinished = openStarted
     mode = mode == "hosted" and "hosted" or "standalone"
+    local initialInputDevice = options.initialInputDevice
+    if initialInputDevice ~= "gamepad" and initialInputDevice ~= "mouse" then
+        initialInputDevice = "keyboard"
+    end
     if state.open then
         if state.mode == mode then return true, nil end
         return false, "settings surface is already open"
@@ -4588,6 +6360,7 @@ function SettingsUI.open(mode, options)
         or not installSelectorSelectedKeyHook() then
         return false, "focus-scoped settings input is unavailable"
     end
+    installPointerHooks()
     hookFinished = os.clock()
     local reuseWindow = windowCacheMatches(controller)
     cacheFinished = os.clock()
@@ -4608,17 +6381,32 @@ function SettingsUI.open(mode, options)
         rememberWindowCache(controller)
     end
     buildFinished = os.clock()
+    state.lifecycle = "opening"
+    state.windowSession = state.windowSession + 1
     state.generation = state.generation + 1
     state.mode = mode
     state.open = true
+    state.closeRecoveryDeadline = 0.0
+    state.closeRecoveryRetryAt = 0.0
+    state.closeRecoveryReason = nil
+    state.nextContextCheckAt = 0.0
     state.gamepadBackDown = false
     state.gamepadAcceptDown = false
+    state.controllerInputOwner = nil
     state.controllerDown = {}
+    state.controllerInputSources = {}
+    state.lastHostedControllerEdgeRevision = nil
+    state.nativeControllerInitialized = false
     state.axisArmed = { x = true, y = true }
+    state.axisValues = { x = 0.0, y = 0.0 }
+    state.pointerAction = nil
+    state.pendingAboutPointerClose = nil
+    cancelNavigationRepeat()
     state.synchronousNavigationUntil = {}
     state.trailingReleaseUntil = {}
     if not prepareWindowForOpen(mode) then
         state.open = false
+        state.lifecycle = "closed"
         state.mode = nil
         discardWindowCache()
         return false, "settings window cannot be activated"
@@ -4628,14 +6416,19 @@ function SettingsUI.open(mode, options)
         controller, widget, mode)
     if not acquired then
         if retainedTransaction == true then
+            state.lifecycle = "recovering"
+            state.closeRecoveryDeadline = os.clock() + 3.0
+            state.closeRecoveryRetryAt = os.clock() + 0.25
+            state.closeRecoveryReason = "open-rollback"
             setStatus(currentStrings().inputRestoreFailed
                 or "Could not restore input. The panel remains open; try Close again.", true)
-            for _, keyName in ipairs(CONTROLLER_KEYS) do
+            for _, keyName in ipairs(state.controllerKeys) do
                 state.controllerDown[keyName] = inputKeyDown(controller, keyName) == true
             end
             state.pollPending = false
             schedulePoll()
-            focusEntry(1, "keyboard", true)
+            focusEntry(1, initialInputDevice, true)
+            pcall(function() state.widget:SetRenderOpacity(1.0) end)
             log("settings open rollback retained a visible modal transaction")
             -- The child still owns at least part of the modal transaction. Keep
             -- the host suspended and expose the same panel as the recovery
@@ -4643,6 +6436,7 @@ function SettingsUI.open(mode, options)
             return true, nil
         end
         state.open = false
+        state.lifecycle = "closed"
         state.mode = nil
         state.controller = nil
         pcall(function()
@@ -4651,12 +6445,15 @@ function SettingsUI.open(mode, options)
         end)
         return false, acquireError or "settings input ownership cannot be acquired"
     end
-    for _, keyName in ipairs(CONTROLLER_KEYS) do
+    for _, keyName in ipairs(state.controllerKeys) do
         state.controllerDown[keyName] = inputKeyDown(controller, keyName) == true
     end
+    focusEntry(1, initialInputDevice, true)
+    state.lifecycle = "open"
+    pcall(function() state.widget:SetRenderOpacity(1.0) end)
+    refreshInputFocusVisuals()
     state.pollPending = false
     schedulePoll()
-    focusEntry(1, "keyboard", true)
     if capturePerformance then
         local bridge = InputOwner.lastAcquireDiagnostics() or {}
         local finished = os.clock()
@@ -4683,36 +6480,27 @@ function SettingsUI.open(mode, options)
     return true, nil
 end
 
-function SettingsUI.close(reason)
-    if not state.open then return true end
-    local escapeClose = reason == "escape"
-    if escapeClose then InputOwner.armEscapeClose(reason) end
-    local closedMode = state.mode
-    local widget = state.widget
-    local controller = state.controller
-    local numberControl = focusedNumberControl()
-    if numberControl ~= nil then
-        commitNumberEditor(numberControl, "number-close")
-    end
-    closeChoiceModal(false)
-    closeAboutModal(false)
-    if not InputOwner.release({
-            hostUnavailable = reason == "host-unavailable",
-        }) then
-        if escapeClose then InputOwner.cancelEscapeClose() end
-        focusNavigationRoot()
-        setStatus(currentStrings().inputRestoreFailed
-            or "Could not restore input. The panel remains open; try Close again.", true)
-        log("settings close could not restore input; modal transaction retained")
-        return false
-    end
+completeClose = function(closedMode, reason, widget, controller, escapeClose)
     local preserveWindow = windowCacheMatches(controller)
     state.open = false
+    state.lifecycle = "closed"
     state.mode = nil
     state.generation = state.generation + 1
+    state.closeRecoveryDeadline = 0.0
+    state.closeRecoveryRetryAt = 0.0
+    state.closeRecoveryReason = nil
+    state.nextContextCheckAt = 0.0
+    cancelNavigationRepeat()
     stopPoll()
     state.gamepadBackDown = false
     state.gamepadAcceptDown = false
+    state.controllerInputOwner = nil
+    state.controllerDown = {}
+    state.controllerInputSources = {}
+    state.lastHostedControllerEdgeRevision = nil
+    state.axisValues = { x = 0.0, y = 0.0 }
+    state.pointerAction = nil
+    state.pendingAboutPointerClose = nil
     state.synchronousNavigationUntil = {}
     if preserveWindow and P.isValid(widget) then
         local hidden = pcall(function()
@@ -4731,6 +6519,52 @@ function SettingsUI.close(reason)
     if type(state.onClosed) == "function" then state.onClosed(closedMode, reason) end
     log("settings closed (" .. tostring(reason or "request") .. ")")
     return true
+end
+
+function SettingsUI.close(reason)
+    if not state.open then return true end
+    if state.lifecycle == "closing" then return false end
+    local escapeClose = reason == "escape"
+    if escapeClose then InputOwner.armEscapeClose(reason) end
+    local closedMode = state.mode
+    local widget = state.widget
+    local controller = state.controller
+    state.lifecycle = "closing"
+    cancelNavigationRepeat()
+    local numberControl = focusedNumberControl()
+    if numberControl ~= nil then
+        commitNumberEditor(numberControl, "number-close")
+    end
+    closeChoiceModal(false)
+    closeAboutModal(false)
+    local unavailableOwner = reason == "host-unavailable"
+        or reason == "context-changed"
+        or state.closeRecoveryReason == "host-unavailable"
+        or state.closeRecoveryReason == "context-changed"
+    if not InputOwner.release({
+            hostUnavailable = unavailableOwner,
+        }) then
+        if escapeClose then InputOwner.cancelEscapeClose() end
+        local now = os.clock()
+        state.lifecycle = "recovering"
+        if (tonumber(state.closeRecoveryDeadline) or 0.0) <= now then
+            state.closeRecoveryDeadline = now + 3.0
+        end
+        state.closeRecoveryRetryAt = now + 0.25
+        if reason == "host-unavailable" then
+            state.closeRecoveryReason = reason
+        else
+            state.closeRecoveryReason = state.closeRecoveryReason or reason
+        end
+        pcall(function() state.widget:SetRenderOpacity(1.0) end)
+        focusNavigationRoot()
+        setStatus(currentStrings().inputRestoreFailed
+            or "Could not restore input. The panel remains open; try Close again.", true)
+        refreshInputFocusVisuals()
+        log("settings close could not restore input; modal transaction retained")
+        return false
+    end
+    return completeClose(closedMode, reason, widget, controller, escapeClose)
 end
 
 function SettingsUI.toggle(mode)

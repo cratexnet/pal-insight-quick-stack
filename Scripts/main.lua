@@ -61,7 +61,7 @@ local TAG = "[PalInsightQuickStack] "
 local VERSION = "1.0.0"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
-local SETTINGS_HOST_PROTOCOL_VERSION = 1
+local SETTINGS_HOST_PROTOCOL_VERSION = 2
 local SETTINGS_HOST_PREFIX = "PalInsightSettingsHost."
 local SETTINGS_HOST_LEASE_SECONDS = 1.5
 local SHARED_POLL_MS = 500
@@ -396,20 +396,33 @@ local function signalSettingsHostRequest()
     return settingsHostWrite("HostRequestSignalRevision", revision)
 end
 
-local function livePalInsightHost()
+local function livePalInsightRuntime()
     local protocol = select(1, settingsHostRead("ProtocolVersion"))
-    local ready = select(1, settingsHostRead("HostReady"))
     local heartbeat = tonumber((select(1, settingsHostRead("HostHeartbeat"))))
     local generation = nonNegativeRevision(
         select(1, settingsHostRead("HostGeneration")))
     local runtimeVersion = select(1, settingsHostRead("HostRuntimeVersion"))
     local live = protocol == SETTINGS_HOST_PROTOCOL_VERSION
-        and ready == true
         and heartbeat ~= nil
         and os.clock() - heartbeat <= SETTINGS_HOST_LEASE_SECONDS
         and generation ~= nil and generation > 0
         and type(runtimeVersion) == "string" and runtimeVersion ~= ""
     return live, live and generation or nil
+end
+
+local function livePalInsightHost()
+    local live, generation = livePalInsightRuntime()
+    local ready = select(1, settingsHostRead("HostReady")) == true
+    return live and ready, live and ready and generation or nil
+end
+
+local function livePalInsightF6Owner()
+    local live, generation = livePalInsightRuntime()
+    if not live then return false end
+    local owner = select(1, settingsHostRead("F6Owner"))
+    local ownerGeneration = nonNegativeRevision(select(1,
+        settingsHostRead("F6OwnerGeneration")))
+    return owner == "PalInsight" and ownerGeneration == generation
 end
 
 local function requestCurrentQuickStackToggle()
@@ -425,8 +438,7 @@ local function requestCurrentQuickStackToggle()
 end
 
 local function toggleSettingsForCurrentRuntime()
-    local hostLive = livePalInsightHost()
-    if hostLive then
+    if livePalInsightF6Owner() then
         if SettingsUI.mode() == "standalone"
             and not SettingsUI.close("host-takeover") then
             return false, "standalone settings could not yield to Pal Insight"
@@ -494,9 +506,11 @@ local function registerSettingsShortcut()
         return false, errorMessage
     end
     state.settingsShortcutRegistered = true
-    settingsHostWrite("F6Owner", "QuickStack")
-    settingsHostWrite("F6OwnerGeneration", state.settingsHostGeneration)
     settingsHostWrite("F6BehaviorVersion", 2)
+    if not livePalInsightF6Owner() then
+        settingsHostWrite("F6OwnerGeneration", state.settingsHostGeneration)
+        settingsHostWrite("F6Owner", "QuickStack")
+    end
     return true, nil
 end
 
@@ -725,12 +739,16 @@ local function reconcileSettingsHostRequests()
         settingsHostRead("OpenExtensionSettingsHostGeneration")))
     local requestTargetGeneration = nonNegativeRevision(select(1,
         settingsHostRead("OpenExtensionSettingsTargetGeneration")))
+    local requestInputDevice = select(1,
+        settingsHostRead("OpenExtensionSettingsInputDevice"))
     local hostLive, liveHostGeneration = livePalInsightHost()
     if select(1, settingsHostRead("ProtocolVersion"))
             ~= SETTINGS_HOST_PROTOCOL_VERSION
         or requestId ~= "quickStack"
         or requestTargetGeneration ~= state.settingsHostGeneration
         or requestHostGeneration ~= liveHostGeneration
+        or (requestInputDevice ~= "keyboard" and requestInputDevice ~= "mouse"
+            and requestInputDevice ~= "gamepad")
         or not hostLive then
         acknowledgeHostedFailure(
             openRevision, "host-unavailable", requestHostGeneration)
@@ -740,6 +758,7 @@ local function reconcileSettingsHostRequests()
     state.settingsHostPanelHostGeneration = requestHostGeneration
     local opened, openError = SettingsUI.open("hosted", {
         requestRevision = openRevision,
+        initialInputDevice = requestInputDevice,
     })
     if opened then
         publishHostedAcknowledgementContext(requestHostGeneration)
@@ -907,6 +926,74 @@ SettingsUI.configure({
     configPath = state.configPath,
     registerShortcut = registerConfiguredKey,
     shortcutConflict = shortcutConflictFor,
+    readHostedControllerSnapshot = function()
+        if state.settingsHostPanelRevision == nil
+            or state.settingsHostPanelHostGeneration == nil then return nil end
+        local revision = nonNegativeRevision(select(1,
+            settingsHostRead("ExtensionControllerRevision")))
+        if revision == nil then return nil end
+        local hostGeneration = nonNegativeRevision(select(1,
+            settingsHostRead("ExtensionControllerHostGeneration")))
+        local quickStackGeneration = nonNegativeRevision(select(1,
+            settingsHostRead("ExtensionControllerQuickStackGeneration")))
+        local openRevision = nonNegativeRevision(select(1,
+            settingsHostRead("ExtensionControllerOpenRevision")))
+        local connected = select(1,
+            settingsHostRead("ExtensionControllerConnected")) == true
+        local buttons = tonumber((select(1,
+            settingsHostRead("ExtensionControllerButtons"))))
+        local leftX = tonumber((select(1,
+            settingsHostRead("ExtensionControllerLeftX"))))
+        local leftY = tonumber((select(1,
+            settingsHostRead("ExtensionControllerLeftY"))))
+        local edgeRevision = nonNegativeRevision(select(1,
+            settingsHostRead("ExtensionControllerEdgeRevision")))
+        local pressedEdges = tonumber((select(1,
+            settingsHostRead("ExtensionControllerPressedEdges"))))
+        local releasedEdges = tonumber((select(1,
+            settingsHostRead("ExtensionControllerReleasedEdges"))))
+        local committedRevision = nonNegativeRevision(select(1,
+            settingsHostRead("ExtensionControllerRevision")))
+        if revision ~= committedRevision
+            or hostGeneration ~= state.settingsHostPanelHostGeneration
+            or quickStackGeneration ~= state.settingsHostGeneration
+            or openRevision ~= state.settingsHostPanelRevision
+            or type(buttons) ~= "number" or buttons < 0 or buttons > 0xFFFF
+            or buttons % 1 ~= 0
+            or edgeRevision == nil
+            or type(pressedEdges) ~= "number" or pressedEdges < 0
+            or pressedEdges > 0xFFFF or pressedEdges % 1 ~= 0
+            or type(releasedEdges) ~= "number" or releasedEdges < 0
+            or releasedEdges > 0xFFFF or releasedEdges % 1 ~= 0
+            or (leftX ~= -1 and leftX ~= 0 and leftX ~= 1)
+            or (leftY ~= -1 and leftY ~= 0 and leftY ~= 1) then
+            return nil
+        end
+        return {
+            revision = revision,
+            connected = connected,
+            buttons = buttons,
+            leftX = leftX,
+            leftY = leftY,
+            edgeRevision = edgeRevision,
+            pressedEdges = pressedEdges,
+            releasedEdges = releasedEdges,
+        }
+    end,
+    ackHostedControllerSnapshot = function(edgeRevision)
+        edgeRevision = nonNegativeRevision(edgeRevision)
+        if edgeRevision == nil or state.settingsHostPanelRevision == nil
+            or state.settingsHostPanelHostGeneration == nil then return false end
+        return settingsHostWrite("ExtensionControllerEdgeAckHostGeneration",
+                state.settingsHostPanelHostGeneration)
+            and settingsHostWrite(
+                "ExtensionControllerEdgeAckQuickStackGeneration",
+                state.settingsHostGeneration)
+            and settingsHostWrite("ExtensionControllerEdgeAckOpenRevision",
+                state.settingsHostPanelRevision)
+            and settingsHostWrite("ExtensionControllerEdgeAckRevision",
+                edgeRevision)
+    end,
     log = log,
     onApplied = function()
         QuickStack.configure(state.config, log, debugLog)

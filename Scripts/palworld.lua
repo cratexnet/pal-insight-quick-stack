@@ -90,6 +90,9 @@ end
 
 function Palworld.nameString(value)
     if value == nil then return nil end
+    if type(value) == "string" then
+        return value ~= "" and value or nil
+    end
     local ok, result = pcall(function() return value:ToString() end)
     if not ok or type(result) ~= "string" or result == "" then return nil end
     return result

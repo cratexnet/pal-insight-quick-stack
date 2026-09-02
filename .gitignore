@@ -7,3 +7,5 @@ dist/
 .playwright-cli/
 /native/steam_vote/build/
 /native/steam_vote/bin/
+/native/settings_input/build/
+/native/settings_input/bin/

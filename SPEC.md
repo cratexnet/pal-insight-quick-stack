@@ -288,11 +288,15 @@ change `Tab` -> `R` exclusion reporting or the independent World Tree Holy Water
 top-up rule.
 
 The shortcut selector rejects `F6`, `Escape`, and `LeftMouseButton`, because
-those inputs are owned by the settings surface itself. A chord already owned by
-another UE4SS callback remains selectable, but the settings surface shows the
-same possible-conflict warning used by Pal Insight. A retained callback that
-belongs to this Quick Stack runtime must not be reported as an external
-conflict.
+those inputs are owned by the settings surface itself. Rejection is silent in
+the visible settings UI: the selector restores the last persisted valid chord
+without showing a save-failure status. Validation still rejects the candidate
+internally. Conflict presentation is refreshed only after that rollback and
+must describe the persisted valid chord, never the rejected transient input.
+A chord already owned by another UE4SS callback remains selectable, but the
+settings surface shows the same possible-conflict warning used by Pal Insight.
+A retained callback that belongs to this Quick Stack runtime must not be
+reported as an external conflict.
 
 ## Optional Pal Insight Integration
 
@@ -309,9 +313,10 @@ conflict.
   routing and non-Workshop packages omit it. Quick Stack does not ship a
   duplicate cooked UI PAK.
 - When Pal Insight is live, Pal Insight is the sole physical `F6` action owner.
-  Any earlier process-lifetime Quick Stack callback becomes inert instead of
-  forwarding the same press. `F5` remains Quick Stack's gameplay action and is
-  unaffected.
+  Ownership follows Pal Insight's generation and heartbeat rather than its
+  transient actor-backed UI readiness. Any earlier process-lifetime Quick Stack
+  callback becomes inert instead of forwarding the same press. `F5` remains
+  Quick Stack's gameplay action and is unaffected.
 - Pal Insight's top-level `Extensions` page always contains one Quick Stack
   catalog row. A compatible runtime shows its version and opens the same Quick
   Stack-owned surface as a separate hosted panel. Missing or incompatible
@@ -328,38 +333,129 @@ conflict.
   keyboard, and controller. `W/S`, arrows, and controller directions navigate;
   Enter/Space or controller Accept activates; Escape or controller Back cancels
   the active selector/choice first and otherwise closes the surface. Focused
-  rows are scrolled into view.
+  rows are scrolled into view. `Shift+Tab` navigates backward. Holding vertical
+  keyboard directions, the controller D-pad, or the left stick repeats after a
+  bounded initial delay and stops immediately on release, direction change,
+  modal transition, or settings-session invalidation.
+- Real pointer movement changes the active input family without requiring a
+  click. While the settings surface owns modal input, cursor visibility is an
+  invariant: pointer events repair it immediately and the open-only control pump
+  provides a bounded fallback when Slate does not deliver a movement event.
+  Pointer hover and activation target only the native control under the cursor;
+  they do not promote that control into the persistent keyboard/controller
+  selection. Choice close, shortcut capture completion, and mouse number-edit
+  completion restore the selection that existed before the pointer transaction.
 - The fixed Header matches Pal Insight's settings chrome: the optional Steam
   Workshop vote control precedes About, Restore Defaults, and Close in that
   order, using the same native UMG Button brushes, dimensions, spacing, icon
-  canvases, semantic hover/pressed colors, and focus treatment. A transparent
-  compatibility input layer may sit above those buttons so standalone Quick
-  Stack retains its existing mouse route; it must not replace or visually alter
-  the Pal Insight presentation. The Footer is informational only. About opens a
+  canvases, semantic hover/pressed colors, and focus treatment. While focus is
+  in this Header action row, keyboard/controller Left and Right move through
+  the currently interactive actions in display order and wrap at both ends;
+  Up and Down retain the existing vertical settings navigation. Every shared
+  action surface uses Pal Insight's direct `SizeBox -> Button` tree; choice
+  buttons, nested-modal options, the Steam vote action, About actions, and
+  modal close actions must not add a transparent `CheckBox` proxy. When the
+  cooked bridge is available, each direct Button's native `OnClicked` delegate
+  is the sole mouse action owner. The process-lifetime `LeftMouseButton`
+  binding is only a standalone compatibility fallback and is suppressed while
+  native delegates are live; both routes share one hovered-action executor and
+  must never run for the same click. Toggle rows use the focusable
+  native `CheckBox`; keyboard/controller activation performs an explicit state
+  change, while native mouse changes are observed through an idempotent typed
+  `OnCheckStateChanged` bridge and the open-panel pump remains only a fallback.
+  Shortcut rows preserve Pal Insight's selector geometry and capture
+  transaction: the activating click/key is rejected as a candidate, invalid
+  values restore the persisted chord, and capture releases focus before any
+  unrelated setting can commit. Number rows use Pal Insight's layered resting
+  Button plus a focusable, read-only `EditableTextBox` presentation. Mouse,
+  keyboard, and controller editing all mutate one settings-owned integer buffer
+  through the root preview filter; the Slate editor never opens a desktop text
+  input or IME context. Only the bounded integer operations required by the
+  active mode are accepted, and letters, paste, and composition triggers are
+  consumed. Pointer click still enters the visible edit state, where direct
+  digits, Backspace, Delete, selection-replace, and Enter remain available. The
+  text beneath Header actions is a virtual
+  focus hint for keyboard and controller only; mouse hover keeps the button
+  Tooltip and hover styling but leaves that hint empty. Restore Defaults opens
+  a nested confirmation
+  modal instead of applying immediately. Cancel is selected by default; only
+  the explicit confirmation restores all Quick Stack settings, including the
+  shortcut. Escape or controller Back cancels and returns focus to Restore
+  Defaults. The Footer is informational only. About opens a
   Quick Stack-owned modal and all three actions remain operable by mouse,
   keyboard, and controller. The About modal is not a placeholder: it identifies
   Quick Stack, recommends Pal Insight without implying that Quick Stack depends
   on it, and uses the same three-column creator hierarchy as Pal Insight. The
   CrateX.app action is on the left, the creator biography is in the center, and
   Special Thanks plus Supporters remain fixed on the right even when their
-  rosters are empty. Each roster opens as a nested modal with an explicit empty
-  state instead of changing the About layout. The modal also exposes Quick
+  rosters are empty. Those two roster actions use the same shared direct-Button
+  contract, construction order, content fill, padding, focusability, semantic
+  style, and action registration as Pal Insight. Their leading symbols use the
+  shared medal and heart image assets so meaning and alignment do not depend on
+  the active font.
+  Each roster opens as a nested modal with the same geometry,
+  typography, grouping, empty state, close action, focus treatment, and static
+  per-mode content structure as Pal Insight; it must not substitute a shared
+  dynamic approximation. Credit symbols and their image fallbacks use the same
+  credit-entry representation as Pal Insight. The modal also exposes Quick
   Stack's Nexus Mods, Steam Workshop, and CurseForge pages, X, Discord, and Buy
-  Me a Coffee. Its copy is complete in all 17 supported locales; external
-  destinations open outside the game, while the modal keeps input ownership and
-  remains open.
+  Me a Coffee. Community occupies a compact fixed `160`-unit left card and is
+  split internally into two equal columns, each centering one `52x52`
+  icon-only X or Discord action; tooltips, accessible names, and focus hints
+  retain the action semantics without permanent labels. Support fills the
+  remaining width so the wrapped Buy Me a Coffee copy has priority over unused
+  Community whitespace. Its copy uses the same warm, adventure-oriented
+  sentence pattern as Pal Insight, with Quick Stack named as the product. Copy
+  is complete in all 17 supported locales; external destinations open outside
+  the game, while the modal keeps input ownership and remains open.
+- The three product columns use identical geometry and one neutral shared
+  section surface; individual columns do not add a persistent card surface. The
+  current product is identified by a one-unit, subdued accent outline around
+  the entire product column, including media, title, and links, plus a very
+  light info tint inside that column. Non-current columns reserve the same
+  transparent inset so the highlight never changes media height, title
+  position, or link alignment. Each Mod platform row is split into three equal
+  cells, with one centered `30x30` icon-only button per cell; the buttons must
+  not stretch into wide rectangles. The Breeding Calculator's CrateX.app icon
+  and localized “View breeding tool” action are centered as one group. Visible labels must always use
+  their localized or brand text and must never expose font-size metadata.
+- Every settings primitive shared with Pal Insight follows the same current F6
+  design system: window and scrollbar geometry, typography, section rhythm,
+  whole-row hover and virtual focus, checkbox states, fixed-column Choice
+  arrows, number and shortcut capture states, conflict-note spacing, modal
+  selection, Header actions, Footer key guides, and About surfaces. Product
+  structure remains intentionally different: Quick Stack has one settings page
+  instead of Pal Insight's tab deck, and its Footer exposes only operations that
+  the Quick Stack panel can actually perform.
+- Closing About restores the exact parent settings selection captured before
+  opening it. That virtual selection remains visible for mouse, keyboard, and
+  controller alike; pointer hover is transient and must not erase it.
 - Workshop voting is owned by a Quick Stack-specific native helper and targets
   Quick Stack Workshop item `3792968111`; it must never read or change Pal
   Insight item `3778493118`. The visual states and interaction rules match Pal
   Insight: an outline thumb for no vote, an inverted Chillet with a black down
   thumb for a down vote, and a normal Chillet with a gold up thumb for an up
-  vote. Only no-vote/down-vote states can submit an up vote. Non-Workshop
+  vote. Every state must preserve the thumb silhouette; a solid color rectangle
+  is not an acceptable fallback. The Chillet portrait keeps its fixed canvas
+  but receives angle-aware optical vertical compensation for the asymmetric
+  source art and an angle-aware horizontal mirror so both the upright and
+  inverted portrait face the adjacent thumb; the thumb remains geometrically
+  centered. Only no-vote/down-vote states can submit an up vote. Non-Workshop
   packages omit the helper and therefore omit the control.
 - Opening and closing are transactional. An open acknowledgement is published
   only after the widget and modal input lease are both live. A closed
   acknowledgement is published only after input isolation and the prior input
   context are restored; a failed restore leaves a visible recovery surface
-  instead of silently acknowledging success.
+  instead of silently acknowledging success. Every delayed input/edit action is
+  scoped to the current settings session, widget, world, and controller. The
+  opening widget remains fully transparent while modal ownership and the
+  authoritative first-row selection are established, ignores opening-phase
+  synthetic pointer-family changes, and becomes opaque only after that first
+  selection has been styled. The
+  open-only pump closes a stale surface when any of those owners changes. A
+  bounded close-recovery watchdog retries transient restoration failures, then
+  releases the modal lease through a fail-open emergency path rather than
+  leaving an unrecoverable input lock.
 - The settings widget is reused only while its world, local controller, locale,
   viewport size, and widget identity still match. Closing hides the valid
   cached tree after releasing input; a mismatch discards it before rebuilding,
@@ -371,18 +467,24 @@ conflict.
   the actual open transaction may retry only the missing preparation work. The
   Workshop vote Pal portrait follows the same bounded retry rule; a warm open
   never calls `LoadAsset` to repair it.
-- Numeric fields retain direct integer entry, but the focused root owns
-  keyboard/controller editing and rejects composition-triggering text.
-  Left/Right and A/D adjust the value without reaching a native text editor or
-  desktop IME. Digits, numpad digits, Backspace, and Delete update an
-  integer-only buffer while focus remains on the settings root. Pointer
-  activation enters the same buffer instead of opening a separate Slate text
-  session, so all input families share one deterministic path.
+- Numeric fields retain direct integer entry. Pointer activation swaps the
+  resting Button for the layered, read-only integer presentation and focuses it
+  without creating a text-input or IME context; repeated pointer clicks preserve
+  the same settings-owned edit transaction. Root `OnPreviewKeyDown` handles
+  digits, numpad digits, Backspace, Delete, unmodified `Ctrl+A`, commit, cancel,
+  and bounded adjustment directly while consuming letters, paste, composition
+  triggers, and every unsupported key. Keyboard/controller activation uses the
+  same integer buffer while keeping focus on the settings root. Commit, cancel,
+  navigation, close, and focus restoration all terminate exactly one edit
+  transaction.
 - Focus-scoped UMG preview input is the primary keyboard owner. Global keybinds
   remain only as a compatibility fallback: their scalar events are bounded and
   marshalled to the game thread, while the existing open-panel pump can drain a
   lost wake without blocking later input. Cooked controller axis events dispatch
-  directly through a type-checked handler. Preview/cooked ownership suppresses
+  directly through a type-checked handler. Cooked controller key parameters
+  accept both reflected `FName` wrappers and direct Lua strings; standalone
+  polling remains the fallback, and both routes feed the same D-pad, stick,
+  Accept, and Back handlers. Preview/cooked ownership suppresses
   the corresponding delayed global event for the same physical press.
 - The settings surface is a true modal owner. It applies `UIOnly`, keeps a
   visible full-viewport hit-test shield below the card, and returns `Handled`
@@ -417,7 +519,8 @@ inert peer. Stale generations and expired leases are ignored.
 Load order is symmetric. If Pal Insight registers `F6` first, Quick Stack sees
 the occupied chord and does not add a duplicate callback. If Quick Stack
 registers first, Pal Insight later becomes the sole live action owner and the
-retained Quick Stack callback becomes inert while the host lease is live. After
+retained Quick Stack callback becomes inert while the runtime ownership lease is
+live, even during a temporary actor/UI readiness gap. After
 a Quick Stack hot reload, a retained callback targets only the newest Quick
 Stack generation while no Pal Insight host is live. Quick Stack publishes a
 versioned cooperative-F6 capability so Pal Insight can distinguish this behavior

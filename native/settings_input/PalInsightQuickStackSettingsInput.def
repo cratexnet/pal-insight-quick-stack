@@ -1,0 +1,16 @@
+LIBRARY PalInsightQuickStackSettingsInput
+EXPORTS
+    pal_quick_stack_input_initialize
+    pal_quick_stack_input_is_hooked
+    pal_quick_stack_input_is_connected
+    pal_quick_stack_input_modal_on
+    pal_quick_stack_input_modal_off
+    pal_quick_stack_input_heartbeat
+    pal_quick_stack_input_take_watchdog_release
+    pal_quick_stack_input_shutdown
+    pal_quick_stack_input_state_0
+    pal_quick_stack_input_state_1
+    pal_quick_stack_input_state_2
+    pal_quick_stack_input_state_3
+    pal_quick_stack_input_state_4
+    pal_quick_stack_input_state_5

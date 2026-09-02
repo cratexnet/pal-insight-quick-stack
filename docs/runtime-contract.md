@@ -117,6 +117,9 @@ configuration.
 
 The private `PalInsightSettingsHost.*` scalar protocol publishes protocol
 version, runtime version, generation, readiness, and heartbeat for both sides.
+Pal Insight's generation-scoped `F6` owner claim uses the runtime heartbeat and
+does not disappear merely because its actor-backed `HostReady` value is briefly
+false.
 Every open/close transaction is scoped to both live generations, and its
 revision is written last. Stale requests, stale acknowledgements, expired
 heartbeats, and incompatible protocol versions fail closed. The existing 500 ms
@@ -134,7 +137,8 @@ flag are refreshed every 80 ms only while this fast path is active; there is no
 While Pal Insight is live, its callback is the sole physical `F6` action owner.
 If Quick Stack registered first, that unavoidable process-lifetime callback
 publishes its cooperative behavior version and becomes inert after observing a
-live Pal Insight lease; it does not forward the same press. Without a live host,
+live Pal Insight ownership lease; it does not forward the same press. Without a
+live owner,
 it opens standalone Quick Stack or forwards only to the newest Quick Stack
 generation after a hot reload. If Pal Insight registered first, Quick Stack does
 not add another callback. Thus two retained callbacks may exist after the
@@ -170,14 +174,19 @@ is not ready, the actual open transaction retries only the missing work; idle
 host reconciliation never retries the full preparation path.
 
 The active panel applies `SetInputMode_UIOnlyEx`, owns a full-viewport hit-test
-shield, and holds composable move/look ignore leases. Preview key-down and
+shield, holds composable move/look ignore leases, and in standalone mode keeps a
+process-level native controller filter active even when the cooked bridge is
+available. Preview key-down and
 key-up handlers consume every panel-owned keyboard/controller event. In
 standalone mode a single Escape transaction also guards Palworld's native
 `CanOpenAnyUI`, `OnTriggerEscape`, and radial-menu query routes until the same
 physical release settles, so closing Quick Stack cannot open the system Escape
 menu underneath it. Release is
-transactional: the previously observed input mode, focus, cursor, and only the
-move/look layers acquired by this session are restored before close succeeds.
+transactional: the previously observed input mode, focus, cursor, native filter,
+and only the move/look layers acquired by this session are restored before close
+succeeds. Watchdog recovery uses the same verified stages; a failed stage keeps
+the visible recovery transaction and backs off instead of clearing ownership or
+decrementing a counted move/look lease twice.
 
 With an unchanged world/controller/locale/viewport, a warm open performs no
 asset load, hook registration, widget creation, viewport mount, or full-tree

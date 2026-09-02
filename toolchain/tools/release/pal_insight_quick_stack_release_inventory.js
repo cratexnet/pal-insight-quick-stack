@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -13,19 +14,26 @@ const SUPPORTED_LOCALES = Object.freeze([
   'pt-br', 'ru', 'tr', 'pl', 'id', 'es-419', 'th', 'vi',
 ]);
 const ABOUT_FILES = Object.freeze([
+  'assets/about/breeding-calculator-preview.png',
   'assets/about/buy-me-a-coffee.png',
   'assets/about/cratex.png',
+  'assets/about/curseforge.png',
   'assets/about/discord.png',
   'assets/about/fluentui-emoji-LICENSE.txt',
   'assets/about/nexus.png',
   'assets/about/pal-insight-preview.jpg',
+  'assets/about/quick-stack-preview.png',
+  'assets/about/red-heart.png',
+  'assets/about/sports-medal.png',
   'assets/about/steam.png',
+  'assets/about/unicorn.png',
   'assets/about/x.png',
 ]);
 const RUNTIME_FILES = Object.freeze([
   'Scripts/config.lua',
   'Scripts/localization.lua',
   'Scripts/main.lua',
+  'Scripts/native_settings_input.lua',
   'Scripts/notifications.lua',
   'Scripts/pal_insight_bridge.lua',
   'Scripts/palworld.lua',
@@ -35,6 +43,12 @@ const RUNTIME_FILES = Object.freeze([
   'Scripts/steam_vote.lua',
   ...ABOUT_FILES,
   'enabled.txt',
+]);
+const COMMON_NATIVE_FILES = Object.freeze([
+  {
+    source: 'native/settings_input/bin/PalInsightQuickStackSettingsInput.dll',
+    target: 'Scripts/PalInsightQuickStackSettingsInput.dll',
+  },
 ]);
 const WORKSHOP_ONLY_FILES = Object.freeze([
   {
@@ -48,6 +62,14 @@ const WORKSHOP_ONLY_FILES = Object.freeze([
     target: `assets/steam-workshop-feedback/${name}`,
   })),
 ]);
+const WORKSHOP_FEEDBACK_SHA256 = Object.freeze({
+  'thumb-down-filled.png':
+    '3a44ad63f1ab98ff0644e72052338620a9e3688fadf8d2922613b23c69f7bd48',
+  'thumb-up-filled.png':
+    '4f23ca4dd9fcc0008370219656599a573fa76979572be686517bc512d6d1297e',
+  'thumb-up-outline.png':
+    'fcf5a99286067eb2c9fee797e21c09c9ea783a403998e713a480a4c60b41a932',
+});
 const PUBLIC_DOCUMENTS = Object.freeze([
   'CHANGELOG.md',
   'CREDITS.md',
@@ -126,22 +148,33 @@ function assertQuickStackSettings(root) {
   const main = fs.readFileSync(absolute(root, 'Scripts/main.lua'), 'utf8');
   assert.match(main, /local SettingsUI = require\("settings_ui"\)/,
     'Quick Stack must ship its canonical settings surface');
-  assert.match(main, /local SETTINGS_HOST_PROTOCOL_VERSION = 1\b/,
+  assert.match(main, /local SETTINGS_HOST_PROTOCOL_VERSION = 2\b/,
     'settings hosting must use the accepted private protocol version');
   for (const field of [
     'QuickStackGeneration', 'QuickStackHeartbeat',
     'OpenExtensionSettingsHostGeneration',
     'OpenExtensionSettingsTargetGeneration',
+    'OpenExtensionSettingsInputDevice',
     'CloseExtensionSettingsHostGeneration',
     'CloseExtensionSettingsTargetGeneration',
     'ExtensionSettingsAckHostGeneration',
     'ExtensionSettingsAckQuickStackGeneration',
+    'ExtensionControllerEdgeRevision',
+    'ExtensionControllerPressedEdges',
+    'ExtensionControllerReleasedEdges',
+    'ExtensionControllerEdgeAckRevision',
     'HostSettingsOpen',
     'HostRequestSignalRevision',
   ]) {
     assert.ok(main.includes(`"${field}"`),
       `settings host contract is missing ${field}`);
   }
+  assert.match(main,
+    /local function livePalInsightRuntime\([\s\S]*HostHeartbeat[\s\S]*local function livePalInsightF6Owner\([\s\S]*F6OwnerGeneration/,
+    'F6 ownership must follow the Pal Insight runtime lease, not transient UI readiness');
+  assert.match(main,
+    /settingsHostWrite\("F6BehaviorVersion", 2\)[\s\S]*if not livePalInsightF6Owner\(\) then[\s\S]*settingsHostWrite\("F6Owner", "QuickStack"\)/,
+    'Quick Stack must not overwrite a live Pal Insight F6 owner');
   assert.match(main, /local\s+SHARED_API_VERSION\s*=\s*3\b/,
     'shared settings contract must use API version 3');
   for (const setting of ['IncludeExcludedItems', 'IncludeNewItems']) {
@@ -237,6 +270,11 @@ function assertQuickStackSettings(root) {
     'writable configuration must validate the Holy Water minimum range');
   const settingsUi = fs.readFileSync(
     absolute(root, 'Scripts/settings_ui.lua'), 'utf8');
+  const settingsBridge = fs.readFileSync(
+    absolute(root, 'Scripts/pal_insight_bridge.lua'), 'utf8');
+  const bridgeRelease = settingsBridge.slice(
+    settingsBridge.indexOf('function Bridge.release(options)'),
+    settingsBridge.indexOf('\nreturn Bridge'));
   assert.match(settingsUi,
     /function SettingsUI\.open\(mode,[\s\S]*buildSettingsWindow/,
     'standalone and hosted entry points must use one settings surface');
@@ -267,14 +305,73 @@ function assertQuickStackSettings(root) {
     /makeSteamVoteControl[\s\S]*makeIconTrigger\(tree, "ⓘ"[\s\S]*makeIconTrigger\(tree, "↻"[\s\S]*makeIconTrigger\(tree, "×"/,
     'settings Header action order must match Pal Insight');
   assert.match(settingsUi,
-    /local function makeIconTrigger[\s\S]*?\/Script\/UMG\.Button[\s\S]*?\/Script\/UMG\.CheckBox[\s\S]*?VIS_HIT_TEST_INVISIBLE[\s\S]*?styleHeaderButton/,
-    'settings Header actions must retain Pal Insight Button visuals over the compatibility input layer');
+    /local function makeIconTrigger[\s\S]*?\/Script\/UMG\.Button[\s\S]*?button\.bIsFocusable = true[\s\S]*?styleHeaderButton[\s\S]*?box:AddChild\(button\)/,
+    'settings Header actions must use Pal Insight direct Button controls');
   assert.match(settingsUi,
-    /local function makeSteamVoteAction[\s\S]*?\/Script\/UMG\.Button[\s\S]*?\/Script\/UMG\.CheckBox[\s\S]*?VIS_HIT_TEST_INVISIBLE[\s\S]*?styleHeaderButton/,
-    'Steam voting must retain Pal Insight Button visuals over the compatibility input layer');
+    /local function makeSteamVoteAction[\s\S]*?\/Script\/UMG\.Button[\s\S]*?button\.bIsFocusable = true[\s\S]*?styleHeaderButton/,
+    'Steam voting must use Pal Insight direct Button controls');
+  assert.equal((settingsUi.match(/\/Script\/UMG\.CheckBox/g) || []).length, 1,
+    'only native toggle rows may construct CheckBox controls');
+  assert.equal((settingsUi.match(
+    /^\s*registerDirectActionButton\((?:surface|button|displayButton)\)/gm) || []).length, 6,
+    'every direct Button constructor must publish its native action surface');
+  assert.match(settingsBridge,
+    /BRIDGE_DEFAULT_PATH[\s\S]*function Bridge\.bindActionButtons\(buttons\)[\s\S]*delegateBridge\(\)[\s\S]*OnClicked:Add\([\s\S]*bridge, "PalInsightSearchClearClicked"\)[\s\S]*function Bridge\.nativeActionDelegatesReady/,
+    'direct Buttons must use the stable Pal Insight native default object');
+  assert.match(settingsBridge,
+    /local function actionDelegatesReady\(\)[\s\S]*actionDelegateBridgeAddress[\s\S]*actionDelegateExpectedCount[\s\S]*function Bridge\.nativeActionDelegatesReady\(\)[\s\S]*state\.active == true and actionDelegatesReady\(\)/,
+    'native click ownership must validate the stable owner and cached Buttons');
+  assert.match(settingsBridge,
+    /name = "LeftMouseButton", value = Key\.LEFT_MOUSE_BUTTON/,
+    'standalone settings must register the process-lifetime mouse fallback');
+  assert.match(settingsBridge,
+    /item\.keyName == "LeftMouseButton"[\s\S]*nativeActionDelegatesReady\(\)[\s\S]*dispatchEvent\("onClicked", "mouse", "global"\)/,
+    'standalone mouse fallback must be disabled whenever native delegates own clicks');
   assert.match(settingsUi,
-    /voteBlack\s*=\s*\{\s*R\s*=\s*0\.0,[\s\S]*?voteGold\s*=\s*\{\s*R\s*=\s*1\.0,\s*G\s*=\s*0\.7379109859,\s*B\s*=\s*0\.0051819999/,
-    'Steam voting must use the same black and gold colors as Pal Insight');
+    /local function activateHoveredDirectAction\(\)[\s\S]*onClicked = function\(\) activateHoveredDirectAction\(\) end[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
+    'native and fallback clicks must share one hovered action executor');
+  assert.match(settingsUi,
+    /local function activateHoveredDirectAction\(\)[\s\S]*control\.kind == "choice"[\s\S]*openChoiceModal\(control\)/,
+    'choice Buttons must open their selector through an explicit mouse action route');
+  assert.match(settingsBridge,
+    /BRIDGE_TOGGLE_CHANGED_FUNCTION[\s\S]*toggleChangedHook[\s\S]*toggleDelegateBridgeAddress[\s\S]*function Bridge\.bindToggleControls\(controls\)[\s\S]*delegateBridge\(\)[\s\S]*OnCheckStateChanged:Add\([\s\S]*bridge, "PalInsightSettingsToggleChanged"\)/,
+    'native CheckBox changes must use the stable Pal Insight typed delegate');
+  assert.match(settingsUi,
+    /local function commitNativeToggleChanges\(source\)[\s\S]*control\.kind == "toggle"[\s\S]*commitToggle\(control, source[\s\S]*onToggleChanged = function\(\)[\s\S]*commitNativeToggleChanges\("toggle-native"\)[\s\S]*InputOwner\.bindToggleControls\(state\.controls\)/,
+    'CheckBox events must commit immediately with an idempotent poll fallback');
+  assert.match(settingsUi,
+    /local function commitToggle\(control, source\)[\s\S]*value == control\.last[\s\S]*applyControlPatch\([\s\S]*SetIsChecked\(previous\)[\s\S]*local function activateToggle\(control, source\)[\s\S]*SetIsChecked\(target\)[\s\S]*commitToggle\(control/,
+    'toggle observation and explicit activation must remain separate');
+  assert.doesNotMatch(bridgeRelease,
+    /unbindActionButtons\(\)|unbindToggleControls\(\)/,
+    'release must preserve stable delegates for the cached settings tree');
+  assert.match(settingsUi,
+    /local function clearWindowReferences\(\)[\s\S]*InputOwner\.unbindActionButtons\(\)[\s\S]*InputOwner\.unbindToggleControls\(\)/,
+    'discarding the cached settings tree must unbind its stable delegates');
+  assert.match(settingsUi,
+    /ensureChoiceModal = function\(\)[\s\S]*buildChoiceModal[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
+    'lazy choice and reset actions must join the active native click owner');
+  assert.match(settingsUi,
+    /ensureAboutModal = function\(\)[\s\S]*buildAboutModal[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
+    'lazy About actions must join the active native click owner');
+  assert.doesNotMatch(settingsUi, /OnPreviewMouseButtonDown/,
+    'the failed root Preview mouse adapter must not compete with Button OnClicked');
+  const shortcutWarning = settingsUi.slice(
+    settingsUi.indexOf('refreshShortcutConflictWarning = function()'),
+    settingsUi.indexOf('local function resetControlsToConfig'));
+  assert.match(shortcutWarning, /Key = state\.config\.Key[\s\S]*Alt = state\.config\.Alt/,
+    'shortcut warnings must describe the committed configuration');
+  assert.doesNotMatch(shortcutWarning, /selectedChord\(/,
+    'transient selector captures must not create shortcut conflict warnings');
+  assert.doesNotMatch(settingsUi, /thumb:SetColorAndOpacity\(thumbColor\)/,
+    'Steam voting must preserve the alpha silhouette of its pre-colored icons');
+  for (const [asset, expected] of Object.entries(WORKSHOP_FEEDBACK_SHA256)) {
+    const bytes = fs.readFileSync(absolute(root,
+      `assets/steam-workshop-feedback/${asset}`));
+    const actual = crypto.createHash('sha256').update(bytes).digest('hex');
+    assert.equal(actual, expected,
+      `Steam voting must use the approved pre-colored ${asset}`);
+  }
   assert.match(settingsUi,
     /local function refreshSteamVotePalVisuals[\s\S]*?SetBrushFromTexture[\s\S]*?SetVisibility\(VIS_VISIBLE\)[\s\S]*?function SettingsUI\.prepare\(\)[\s\S]*?refreshSteamVotePalVisuals\(\)/,
     'the Chillet portrait must retry during low-frequency settings preparation');
@@ -298,28 +395,48 @@ function assertQuickStackSettings(root) {
     /if applied then[\s\S]*?FooterGuide\.refreshFooterHelp\((?:true|false)\)/,
     'settings footer must refresh after the Quick Stack shortcut changes');
   for (const urlKey of [
-    'website', 'palInsight', 'quickStackNexus', 'quickStackWorkshop',
+    'website', 'calculator', 'palInsight', 'palInsightWorkshop',
+    'palInsightCurseForge', 'quickStackNexus', 'quickStackWorkshop',
     'quickStackCurseForge', 'x', 'discord', 'bmc',
   ]) {
     assert.match(settingsUi, new RegExp(`\\b${urlKey}\\s*=`),
       `Quick Stack About is missing the ${urlKey} destination`);
   }
   assert.match(settingsUi,
-    /buildAboutModal\s*=\s*function[\s\S]*?\/Script\/UMG\.ScrollBox[\s\S]*?strings\.aboutSummary[\s\S]*?strings\.aboutCreatorDescription[\s\S]*?strings\.aboutDownloads[\s\S]*?strings\.aboutCommunity[\s\S]*?strings\.aboutSupport/,
-    'Quick Stack About must contain product, creator, download, community, and support content');
+    /buildAboutModal\s*=\s*function[\s\S]*?\/Script\/UMG\.ScrollBox[\s\S]*?strings\.aboutSummary[\s\S]*?strings\.aboutProducts[\s\S]*?Pal Insight: Quick Stack[\s\S]*?strings\.aboutCreatorDescription[\s\S]*?strings\.aboutCommunity[\s\S]*?strings\.aboutSupport[\s\S]*?strings\.aboutSupportDescription/,
+    'Quick Stack About must contain the product shelf, creator, Community, and Support content');
   assert.match(settingsUi,
-    /local function makeAboutAction[\s\S]*?\/Script\/UMG\.Button[\s\S]*?\/Script\/UMG\.CheckBox[\s\S]*?state\.aboutActions/,
-    'Quick Stack About actions must share the native visual and compatibility input layers');
+    /local function makeAboutAction[\s\S]*?\/Script\/UMG\.Button[\s\S]*?button\.bIsFocusable = true[\s\S]*?box:AddChild\(button\)[\s\S]*?state\.aboutActions/,
+    'Quick Stack About actions must use Pal Insight direct Button controls');
   assert.match(settingsUi,
     /local function aboutAssetPath[\s\S]*?assets\/about\/[\s\S]*?local function aboutTexture[\s\S]*?ImportFileAsTexture2D/,
     'Quick Stack About must load its packaged visual assets');
   assert.match(settingsUi,
-    /local function makeAboutLogoButton[\s\S]*?\/Script\/UMG\.Image[\s\S]*?SetBrushFromTexture[\s\S]*?\/Script\/UMG\.Button[\s\S]*?\/Script\/UMG\.CheckBox/,
-    'Quick Stack About logo actions must retain image visuals and compatibility input');
+    /local function makeAboutLogoButton[\s\S]*?\/Script\/UMG\.Button[\s\S]*?\/Script\/UMG\.Image[\s\S]*?SetBrushFromTexture[\s\S]*?button\.bIsFocusable = true[\s\S]*?box:AddChild\(button\)/,
+    'Quick Stack About logo actions must retain images inside direct Buttons');
+  assert.doesNotMatch(settingsUi,
+    /construct\(tree, "\/Script\/UMG\.EditableTextBox"\)/,
+    'integer settings must not create a writable Slate or IME text client');
+  assert.match(settingsUi,
+    /local function addNumberRow\([\s\S]*\/Script\/UMG\.Button[\s\S]*widget = displayButton/,
+    'number rows must expose one direct Button as their controlled presentation');
+  assert.match(settingsUi,
+    /beginNumberEditor = function\(control, mode\)[\s\S]*buffer = tostring\(control\.value\)[\s\S]*focusNavigationRoot\(\)[\s\S]*handleNumberPreview = function[\s\S]*edit\.buffer[\s\S]*controlDown == true[\s\S]*keyName == "A"/,
+    'mouse activation and keyboard/controller editing must share one root-owned integer buffer');
+  assert.match(settingsUi,
+    /local function applyControlPatch\(patch, source\)[\s\S]*candidate\[key\] = value[\s\S]*local function commitChoice[\s\S]*\[control\.key\] = control\.values\[index\][\s\S]*local function commitToggle[\s\S]*\[control\.key\] = value/,
+    'each settings primitive must commit only its own persisted field');
+  assert.doesNotMatch(settingsUi, /applyFromControls/,
+    'one control must not validate transient state from unrelated controls');
+  assert.match(settingsUi,
+    /local reserved = chord\.Key == "F6"[\s\S]*chord\.Key == "LeftMouseButton"[\s\S]*setSelectorChord\(control\.widget, persisted\)[\s\S]*scheduleShortcutFocusRestore\(control\)/,
+    'reserved shortcut captures must restore persisted state before focus');
   for (const asset of [
-    'pal-insight-preview.jpg', 'cratex.png', 'nexus.png', 'steam.png',
-    'curseforge.png',
-    'x.png', 'discord.png', 'buy-me-a-coffee.png',
+    'pal-insight-preview.jpg', 'quick-stack-preview.png',
+    'breeding-calculator-preview.png',
+    'cratex.png', 'nexus.png', 'steam.png', 'curseforge.png',
+    'x.png', 'discord.png', 'unicorn.png', 'buy-me-a-coffee.png',
+    'sports-medal.png', 'red-heart.png',
   ]) {
     assert.ok(settingsUi.includes(`\"${asset}\"`),
       `Quick Stack About does not render ${asset}`);
@@ -331,8 +448,11 @@ function assertQuickStackSettings(root) {
     /strings\.aboutProducts[\s\S]*?title = "Pal Insight"[\s\S]*?strings\.aboutCreatorDescription[\s\S]*?strings\.aboutSpecialThanks[\s\S]*?strings\.aboutSupporters/,
     'Quick Stack About must retain the product shelf and fixed creator actions');
   assert.match(settingsUi,
-    /aboutRosterOpen[\s\S]*?openAboutRoster\s*=\s*function[\s\S]*?aboutSpecialThanksEmpty[\s\S]*?aboutSupportersEmpty[\s\S]*?closeAboutRoster/,
-    'Quick Stack About rosters must remain fixed nested modals with empty states');
+    /aboutRosterOverlays\s*=\s*\{\}[\s\S]*?aboutRosterCloseActions\s*=\s*\{\}[\s\S]*?local function buildRosterOverlay\(mode\)[\s\S]*?aboutSpecialThanksEmpty[\s\S]*?aboutSupportersEmpty[\s\S]*?buildRosterOverlay\("thanks"\)[\s\S]*?buildRosterOverlay\("supporters"\)/,
+    'Quick Stack About rosters must remain separate fixed modals with empty states');
+  assert.match(settingsUi,
+    /closeAboutRoster\s*=\s*function[\s\S]*?aboutRosterMode[\s\S]*?aboutRosterOverlays[\s\S]*?openAboutRoster\s*=\s*function\(mode\)[\s\S]*?aboutRosterOverlays/,
+    'Quick Stack About rosters must open and close through their mode-owned surfaces');
   assert.match(main, /local HOST_REQUEST_POLL_MS = 16\b/,
     'hosted settings requests must use the one-frame request path');
   assert.match(main,
@@ -433,7 +553,7 @@ function assertLocalizationCoverage(root) {
       const expectedFormats = rows.get('en').get(key).match(/%[dfs]/g) || [];
       const actualFormats = rows.get(locale).get(key).match(/%[dfs]/g) || [];
       assert.deepEqual(actualFormats, expectedFormats,
-        `localization ${locale}.${key} format fields differ from English`);
+      `localization ${locale}.${key} format fields differ from English`);
     }
   }
   const settingsRows = localeRows(source, 'local SETTINGS_STRINGS =');
@@ -486,6 +606,7 @@ function assertLocalizationCoverage(root) {
     'local ABOUT_CONTENT_STRINGS =');
   const aboutContentKeys = [
     'aboutSummary', 'aboutIntegration', 'aboutProducts', 'aboutCalculator',
+    'aboutVisitCalculator',
     'aboutCurrent', 'aboutOpen', 'aboutCreator',
     'aboutCreatorDescription',
     'aboutDownloads', 'aboutCommunity', 'aboutSupport',
@@ -504,7 +625,7 @@ function assertLocalizationCoverage(root) {
   const inputHelpKeys = [
     'inputHelpTitle', 'inputDeviceKeyboardMouse', 'inputDeviceGamepad',
     'navigate', 'adjust', 'confirm', 'toggleSettings',
-    'returnToPalInsight', 'closeAllSettings',
+    'returnToPalInsight', 'closeAllSettings', 'shortcutKeyboardMouseOnly',
   ];
   assert.deepEqual([...inputHelpRows.keys()].sort(),
     [...SUPPORTED_LOCALES].sort(),
@@ -526,6 +647,18 @@ function assertLocalizationCoverage(root) {
     'detailed results must block pointer input across the full viewport');
   const bridge = fs.readFileSync(
     absolute(root, 'Scripts/pal_insight_bridge.lua'), 'utf8');
+  assert.match(bridge,
+    /if exclusiveController and not hostedParent then[\s\S]*NativeSettingsInput\.acquire\(\)/,
+    'standalone settings must always acquire process-level controller isolation');
+  const emergencyRelease = bridge.slice(
+    bridge.indexOf('function Bridge.emergencyRelease(options)'),
+    bridge.indexOf('\nreturn Bridge'));
+  assert.doesNotMatch(emergencyRelease,
+    /SetIgnoreMoveInput\(false\)|SetIgnoreLookInput\(false\)/,
+    'emergency release must not decrement the counted input-isolation lease twice');
+  assert.match(emergencyRelease,
+    /local cookedReleased[\s\S]*local isolationReleased[\s\S]*local restored[\s\S]*local nativeReleased[\s\S]*clearModalOwnership\(\)/,
+    'emergency release must verify every modal ownership stage before clearing state');
   assert.match(bridge, /local\s+CAPABILITY_VERSION\s*=\s*2\b/,
     'result-dialog bridge must require independent modal capability version 2');
   for (const mode of [
@@ -597,6 +730,8 @@ function assertWorkshopMetadata(root, version) {
 
 function assertPrebuild(root) {
   assertFilesExist(root, RUNTIME_FILES, 'release runtime');
+  assertFilesExist(root, COMMON_NATIVE_FILES.map((entry) => entry.source),
+    'common native runtime');
   const version = readRuntimeVersion(root);
   assertReleaseVersion(version);
   assertReleaseDiagnosticsDisabled(root);
@@ -606,13 +741,16 @@ function assertPrebuild(root) {
     [...PUBLIC_DOCUMENTS, RELEASE_METADATA, WORKSHOP_INFO, WORKSHOP_THUMBNAIL],
     'release source');
   assertFilesExist(root, [
+    'native/settings_input/pal_insight_quick_stack_settings_input.cpp',
+    'native/settings_input/PalInsightQuickStackSettingsInput.def',
+    'native/settings_input/build.ps1',
     'native/steam_vote/pal_insight_quick_stack_steam_vote.cpp',
     'native/steam_vote/PalInsightQuickStackSteamVote.def',
     'native/steam_vote/build.ps1',
     'assets/steam-workshop-feedback/thumb-up-outline.png',
     'assets/steam-workshop-feedback/thumb-up-filled.png',
     'assets/steam-workshop-feedback/thumb-down-filled.png',
-  ], 'Steam Workshop vote source');
+  ], 'native helper source');
   assertReleaseMetadata(root, version);
   assertWorkshopMetadata(root, version);
   return version;
@@ -629,6 +767,7 @@ function createChannelPlan(channel) {
       ...RUNTIME_FILES
         .filter((relative) => relative !== 'enabled.txt')
         .map((relative) => ({ source: relative, target: relative })),
+      ...COMMON_NATIVE_FILES,
       ...WORKSHOP_ONLY_FILES,
     );
     return entries;
@@ -640,6 +779,10 @@ function createChannelPlan(channel) {
   entries.push(...RUNTIME_FILES.map((relative) => ({
     source: relative,
     target: `${PORTABLE_RUNTIME_ROOT}/${relative}`,
+  })));
+  entries.push(...COMMON_NATIVE_FILES.map((entry) => ({
+    source: entry.source,
+    target: `${PORTABLE_RUNTIME_ROOT}/${entry.target}`,
   })));
   return entries;
 }
@@ -714,6 +857,7 @@ if (require.main === module) {
 
 module.exports = {
   ABOUT_FILES,
+  COMMON_NATIVE_FILES,
   PACKAGE_NAME,
   PORTABLE_RUNTIME_ROOT,
   PUBLIC_DOCUMENTS,
