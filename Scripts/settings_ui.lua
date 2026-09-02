@@ -3341,6 +3341,47 @@ local function hoveredWidget(widget)
     return hovered
 end
 
+local function isRootSettingControl(control)
+    if type(control) ~= "table" or control.focusIndex == nil
+        or control.passive == true then return false end
+    return control.kind == "toggle" or control.kind == "choice"
+        or control.kind == "number" or control.kind == "shortcut"
+end
+
+local function pointerControlHovered(control)
+    if not isRootSettingControl(control) then return false end
+    if control.kind == "number" then
+        return hoveredWidget(control.displayButton)
+            or hoveredWidget(control.widget)
+    end
+    return hoveredWidget(control.widget)
+end
+
+local function hoveredRootPointerControl()
+    if not state.open or (state.lifecycle ~= "open"
+        and state.lifecycle ~= "recovering")
+        or state.aboutOpen == true or state.activeChoice ~= nil then return nil end
+    for _, control in ipairs(state.controls or {}) do
+        if isRootSettingControl(control) and pointerControlHovered(control) then
+            return control
+        end
+    end
+    for _, control in ipairs(state.controls or {}) do
+        if isRootSettingControl(control)
+            and hoveredWidget(control.rowFrame) then return control end
+    end
+    return nil
+end
+
+local function promoteHoveredRootSelection()
+    local control = hoveredRootPointerControl()
+    if control == nil then return false end
+    cancelNavigationRepeat()
+    FooterGuide.markInputDevice("mouse")
+    state.focusIndex = control.focusIndex
+    return true
+end
+
 local function hoveredPointerAction()
     if not state.open or (state.lifecycle ~= "open"
         and state.lifecycle ~= "recovering") then return nil end
@@ -3511,11 +3552,13 @@ end
 
 local function activateHoveredDirectAction()
     if not state.open then return false end
+    local selectionHandled = promoteHoveredRootSelection()
     local cached = state.pointerAction
     local action = capturePointerAction() or cached
     if not pointerActionIsCurrent(action) then
         state.pointerAction = nil
-        return false
+        if selectionHandled then refreshInputFocusVisuals() end
+        return selectionHandled
     end
     cancelNavigationRepeat()
     state.pointerAction = nil
@@ -3553,8 +3596,8 @@ local function activateHoveredDirectAction()
             handled = activateControl(control, "mouse", returnFocusIndex)
         end
     end
-    if handled == true then refreshInputFocusVisuals() end
-    return handled
+    if handled == true or selectionHandled then refreshInputFocusVisuals() end
+    return handled == true or selectionHandled
 end
 
 local function keyUpHook(context, _geometryParam, keyEventParam)

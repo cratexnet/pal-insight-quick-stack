@@ -150,6 +150,12 @@ assert.match(settingsUi,
   /local function activateHoveredDirectAction\(\)[\s\S]*onClicked = function\(\) activateHoveredDirectAction\(\) end[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
   'the settings surface must route both native and fallback clicks through one hovered action owner');
 assert.match(settingsUi,
+  /local function hoveredRootPointerControl\(\)[\s\S]*isRootSettingControl\(control\)[\s\S]*pointerControlHovered\(control\)[\s\S]*return control[\s\S]*hoveredWidget\(control\.rowFrame\)[\s\S]*return control/,
+  'a root settings click must prefer the exact control and then fall back to its row surface');
+assert.match(settingsUi,
+  /local function promoteHoveredRootSelection\(\)[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*local function activateHoveredDirectAction\(\)[\s\S]*local selectionHandled = promoteHoveredRootSelection\(\)[\s\S]*if not pointerActionIsCurrent\(action\) then[\s\S]*return selectionHandled/,
+  'a row-only click must update the shared navigation origin without requiring a control action');
+assert.match(settingsUi,
   /action\.scope == "root"[\s\S]*local control = action\.owner[\s\S]*state\.focusIndex = control\.focusIndex[\s\S]*local returnFocusIndex = state\.focusIndex/,
   'a direct pointer action must promote its root setting before activation');
 assert.match(settingsUi,
