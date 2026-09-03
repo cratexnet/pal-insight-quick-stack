@@ -2,7 +2,7 @@
 
 [b]One key, one clean backpack.[/b]
 
-Press [b]F5[/b] while standing inside your current base. Quick Stack moves matching items from your normal inventory into compatible [b]private storage[/b] in that base.
+Press [b]F5[/b] while standing inside your current base. Quick Stack moves matching items from your normal inventory into compatible storage in that base.
 
 It is a standalone, client-side UE4SS Lua mod. [url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight[/url] is optional.
 
@@ -11,7 +11,7 @@ It is a standalone, client-side UE4SS Lua mod. [url=https://www.nexusmods.com/pa
 [list]
 [*]Uses only storage objects from the base you are currently inside.
 [*]Respects Quick Move exclusions added through Inventory [b]Tab > R[/b] by default, with optional rules to include ignored items or always keep Pal Eggs.
-[*]Never selects Guild Chests as automatic destinations.
+[*]Can optionally use an accessible Guild Chest in the current guild base. This setting is off by default.
 [*]Prefers incubators for eligible Pal Eggs, then existing matching stacks, then compatible private storage whose filters accept the item.
 [*]Shows a native-style result card for items stored, items excluded by you, and items that could not be stored because of storage space or settings.
 [*]Follows Palworld's current interface language across all 17 languages included with the game.
@@ -71,6 +71,7 @@ unchanged.
 [*]Ancient Civilization Relics use Ancient Relic Recyclers first; [code]RelicRouting[/code] can keep any remainder in the inventory, fall back to ordinary storage, or leave all relics for manual placement
 [*]Each Ancient Relic Recycler is topped up to [code]WorldTreeHolyWaterMinimum[/code] World Tree Holy Water (default 10, range 1-100); the remainder follows ordinary-storage rules
 [*][code]IncludeNewItems = false[/code] restricts ordinary storage to containers that already hold the same item; it does not disable empty incubators or recycler slots
+[*][code]IncludeGuildChest = true[/code] allows an accessible Guild Chest in the current guild base; it is disabled by default
 [/list]
 
 These rules affect only the current Quick Stack job. [code]IncludeExcludedItems[/code] never modifies Palworld's ignored-item list.

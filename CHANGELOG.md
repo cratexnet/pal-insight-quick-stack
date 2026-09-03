@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 - 2026-09-03
 
-- Added a default-off `IncludeGuildChest` setting. When enabled, Quick Stack
-  can use an accessible Guild Chest in the current guild base, with guild-role
-  checks, shared-container deduplication, bounded replication readiness, and
-  submission-time revalidation.
+### Added
+
+- Added a default-off `IncludeGuildChest` setting to the standalone and Pal
+  Insight-hosted settings panels.
+- When enabled, Quick Stack can use an accessible Guild Chest in the current
+  guild base. Guild-role access, current-base ownership, shared-container
+  identity, filters, permissions, capacity, and replication readiness are
+  validated before moving items.
 
 ## 1.0.0 - 2026-09-03
 
