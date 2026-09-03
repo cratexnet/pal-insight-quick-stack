@@ -16,6 +16,9 @@ return {
     -- Also stack items that do not yet exist in ordinary storage.
     IncludeNewItems = true,
 
+    -- Also use an accessible Guild Chest in the current base.
+    IncludeGuildChest = false,
+
     -- "IncubatorOnly", "IncubatorThenStorage", or "ManualPlacement".
     PalEggRouting = "IncubatorOnly",
 

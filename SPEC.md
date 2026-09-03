@@ -49,8 +49,10 @@ settings as an optional convenience and discovery path.
 4. Only the local player's common inventory is in scope. Equipment, food,
    sphere, key-item, and unrelated containers must not be scanned as fallback.
 5. The current base is the only destination scope.
-6. Guild Chests are never automatic destinations; Quick Stack only writes to
-   the player's ordinary current-base storage and optional incubators.
+6. Guild Chests are automatic destinations only when the default-off
+   `IncludeGuildChest` setting is enabled, the current base contains a live
+   Guild Chest for the local player's guild, and the player's guild role is
+   allowed to access it.
 7. Runtime ambiguity fails closed: no move is attempted if local-player,
    current-base, common-inventory, exclusion-list, permission, or destination
    state cannot be read completely.
@@ -124,8 +126,15 @@ earlier recyclers are filled first. Water above the configured minimum
 continues through the ordinary storage route; ignored-item and ordinary-storage
 settings still apply.
 
-Guild Chests are excluded before any generic storage-class match and cannot
-become a destination under any setting combination.
+Guild Chests are excluded before any generic storage-class match while
+`IncludeGuildChest = false`. When enabled, they remain a distinct
+`guild_storage` destination: Quick Stack verifies the local guild, Guild Chest
+role access and current-base ownership, obtains the shared container through
+`IPalMapObjectItemContainerAccessInterface`, waits for bounded replication
+readiness when necessary, and deduplicates all matching entities by the shared
+container GUID. The same guild/access/container identity checks repeat before
+submission. Missing or ambiguous state skips Guild Chest routing without
+weakening ordinary-storage routing.
 
 Ancient Relic Recyclers preserve stable current-base discovery order. Within
 the ordinary-storage route, when multiple destinations are otherwise
@@ -264,6 +273,7 @@ return {
     ResultDisplay = "Default",
     IncludeExcludedItems = false,
     IncludeNewItems = true,
+    IncludeGuildChest = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -769,7 +779,10 @@ the prototype uses:
 - F5 produces the same final placement as the reference configuration for
   ordinary items, filtered empty containers, and incubator-first eggs.
 - Inventory `Tab` -> `R` exclusions remain untouched, including excluded eggs.
-- Guild Chests receive zero automatic move requests.
+- Guild Chests receive zero automatic move requests by default. When
+  `IncludeGuildChest = true`, only a role-accessible current-base Guild Chest
+  belonging to the local player's guild may receive requests, and its shared
+  container GUID is planned only once.
 - The job aborts rather than guessing when required local state is incomplete.
 - Static audit finds no `FindAllOf` in the warm F5 route.
 - Runtime capture on the representative base meets the per-slice budget or the
@@ -781,7 +794,7 @@ the prototype uses:
 - Existing `0.1.x` values in `PalInsightQuickStack-config.lua` migrate without
   deleting or modifying the legacy file.
 - Standalone `F6` opens Quick Stack's own settings surface and can change and
-  persist the shortcut, result-display choice, two storage-rule toggles, Pal
+  persist the shortcut, result-display choice, three storage-rule toggles, Pal
   Egg route, Ancient Civilization Relic route, and World Tree Holy Water
   threshold without Pal Insight.
 - When both mods are present and compatible, Pal Insight's `Extensions` page

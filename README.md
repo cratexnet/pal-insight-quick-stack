@@ -117,6 +117,7 @@ return {
     ResultDisplay = "Default",
     IncludeExcludedItems = false,
     IncludeNewItems = true,
+    IncludeGuildChest = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -129,6 +130,7 @@ return {
   关闭的结果窗。结果窗需要兼容版本的 Pal Insight，缺失或接管失败时安全降级为文字。
 - `IncludeExcludedItems`：也收纳通过 `Tab → R` 忽略的物品，但不修改忽略列表。
 - `IncludeNewItems`：也使用尚未存有同种物品、但筛选允许的普通仓库空位。
+- `IncludeGuildChest`：也使用当前基地中有权限访问的公会箱；默认关闭。
 - `PalEggRouting`：`IncubatorOnly` 只使用孵化器；`IncubatorThenStorage` 在孵化器
   不存在或已满时继续使用兼容的普通仓库；`ManualPlacement` 完全跳过帕鲁蛋，留给
   玩家手动放置。

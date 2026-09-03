@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added a default-off `IncludeGuildChest` setting. When enabled, Quick Stack
+  can use an accessible Guild Chest in the current guild base, with guild-role
+  checks, shared-container deduplication, bounded replication readiness, and
+  submission-time revalidation.
+
 ## 1.0.0 - 2026-09-03
 
 Quick Stack 1.0.0 is the first stable release, adding configurable storage

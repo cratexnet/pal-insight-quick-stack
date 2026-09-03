@@ -114,6 +114,13 @@ function Palworld.enumValue(value)
     return converted
 end
 
+local function booleanValue(value)
+    value = Palworld.unwrap(value)
+    if type(value) == "boolean" then return value end
+    if type(value) == "number" then return value ~= 0 end
+    return nil
+end
+
 function Palworld.readNameSet(array)
     local count = Palworld.arrayLength(array)
     if count == nil then return nil, "name array is unreadable" end
@@ -345,6 +352,136 @@ function Palworld.identityMatches(job)
         and current.baseKey == job.baseKey
 end
 
+function Palworld.resolveGuildChestContext(job)
+    local utility = Palworld.utility()
+    if utility == nil then return nil, "PalUtility CDO is unavailable" end
+
+    local playerUid
+    local uidOk = pcall(function()
+        playerUid = Palworld.unwrap(utility:GetLocalPlayerUID(job.pawn))
+    end)
+    local playerUidParts = uidOk and Palworld.guidParts(playerUid) or nil
+    local playerUidKey = Palworld.guidKey(playerUidParts)
+    if playerUidKey == nil or playerUidKey == Palworld.ZERO_GUID then
+        return nil, "local player ID is unavailable"
+    end
+
+    local guild
+    pcall(function()
+        guild = Palworld.unwrap(utility:GetGuildByPlayerUId(job.pawn, playerUid))
+    end)
+    if not Palworld.isValid(guild) then
+        pcall(function() guild = Palworld.unwrap(job.playerState.GuildBelongTo) end)
+    end
+    if not Palworld.isValid(guild) then return nil, "local guild is unavailable" end
+
+    local guildId
+    local guildIdOk = pcall(function()
+        guildId = Palworld.guidParts(Palworld.unwrap(guild:GetId()))
+    end)
+    if not guildIdOk or guildId == nil then
+        pcall(function() guildId = Palworld.guidParts(guild.ID) end)
+    end
+    local guildKey = Palworld.guidKey(guildId)
+    if guildKey == nil or guildKey == Palworld.ZERO_GUID then
+        return nil, "local guild ID is unavailable"
+    end
+    local guildAddress = Palworld.objectAddress(guild)
+    if guildAddress == nil then return nil, "local guild identity is unavailable" end
+
+    local allowed
+    local accessOk = pcall(function()
+        allowed = guild:CheckGuildChestAccess(playerUid)
+    end)
+    allowed = accessOk and booleanValue(allowed)
+    if allowed == nil then
+        return nil, "Guild Chest permission is unavailable"
+    end
+    if not allowed then
+        return nil, "guild role cannot access the Guild Chest"
+    end
+
+    return {
+        guild = guild,
+        guildAddress = guildAddress,
+        guildKey = guildKey,
+        baseAddress = job.baseAddress,
+        playerUid = playerUid,
+    }, nil
+end
+
+function Palworld.guildChestEligible(concrete, context)
+    if not Palworld.isValid(concrete) or type(context) ~= "table"
+        or not Palworld.isValid(context.guild)
+        or Palworld.objectAddress(context.guild) ~= context.guildAddress then
+        return false, "Guild Chest context changed"
+    end
+    local allowed
+    local accessOk = pcall(function()
+        allowed = context.guild:CheckGuildChestAccess(context.playerUid)
+    end)
+    allowed = accessOk and booleanValue(allowed)
+    if allowed == nil then
+        return false, "Guild Chest permission is unavailable"
+    end
+    if not allowed then
+        return false, "guild role cannot access the Guild Chest"
+    end
+
+    local baseCamp
+    local ownerId
+    local ownerOk = pcall(function()
+        baseCamp = Palworld.unwrap(concrete:GetBaseCampModelBelongTo())
+        ownerId = Palworld.guidParts(baseCamp:GetGroupIdBelongTo())
+    end)
+    if not ownerOk or not Palworld.isValid(baseCamp)
+        or Palworld.objectAddress(baseCamp) ~= context.baseAddress
+        or Palworld.guidKey(ownerId) ~= context.guildKey then
+        return false, "Guild Chest does not belong to the current guild base"
+    end
+    return true, nil
+end
+
+function Palworld.guildChestContainer(concrete)
+    local container
+    local ok = pcall(function()
+        container = Palworld.unwrap(
+            concrete:GetItemContainer_ItemContainerAccessInterface())
+    end)
+    if not ok or not Palworld.isValid(container) then return nil end
+    return container
+end
+
+function Palworld.readyGuildChestContainer(concrete)
+    local container = Palworld.guildChestContainer(concrete)
+    if container == nil then return nil end
+    local slots
+    local expectedSlots
+    local ok = pcall(function()
+        slots = container.ItemSlotArray
+        expectedSlots = tonumber(concrete:GetDisplayContainerSlotNumDefault())
+    end)
+    local slotCount = ok and Palworld.arrayLength(slots) or nil
+    if slotCount == nil or slotCount < 1
+        or (expectedSlots ~= nil and expectedSlots > 0
+            and slotCount < expectedSlots) then
+        return nil
+    end
+    return container
+end
+
+function Palworld.startGuildChestReplication(concrete)
+    return Palworld.isValid(concrete) and pcall(function()
+        concrete:RequestStartItemContainerReplication()
+    end)
+end
+
+function Palworld.stopGuildChestReplication(concrete)
+    return Palworld.isValid(concrete) and pcall(function()
+        concrete:RequestStopItemContainerReplication()
+    end)
+end
+
 function Palworld.resolveCommonContainer(playerState)
     local inventory
     local commonGuid
@@ -531,7 +668,9 @@ function Palworld.loadDestinationClasses(job)
 end
 
 function Palworld.destinationKind(job, concreteModel)
-    if isInstanceOf(concreteModel, job.guildChestClass) then return nil end
+    if isInstanceOf(concreteModel, job.guildChestClass) then
+        return job.config.IncludeGuildChest and "guild_storage" or nil
+    end
     if job.recyclerClass ~= nil
         and isInstanceOf(concreteModel, job.recyclerClass) then return "recycler" end
     if job.incubatorClass ~= nil

@@ -15,8 +15,10 @@ local CONTAINERS_PER_SLICE = 16
 local CONTAINER_SLOTS_PER_SLICE = 256
 local RECHECK_SLOTS_PER_SLICE = 256
 local PLAN_OPERATIONS_PER_SLICE = 64
+local GUILD_REPLICATION_POLL_MS = 100
+local GUILD_REPLICATION_MAX_POLLS = 15
 local PERFORMANCE_PHASE_ORDER = {
-    "resolve", "inventory", "metadata", "base", "containers",
+    "resolve", "inventory", "metadata", "base", "guild", "containers",
     "plan", "request", "recheck", "completion",
 }
 local PERFORMANCE_DETAIL_ORDER = {
@@ -69,6 +71,7 @@ local function snapshotJobConfig(config)
         ResultDisplay = config.ResultDisplay,
         IncludeExcludedItems = config.IncludeExcludedItems == true,
         IncludeNewItems = config.IncludeNewItems == true,
+        IncludeGuildChest = config.IncludeGuildChest == true,
         PalEggRouting = config.PalEggRouting,
         RelicRouting = config.RelicRouting,
         WorldTreeHolyWaterMinimum = math.max(1, math.min(100,
@@ -237,6 +240,9 @@ end
 finishJob = function(job, succeeded, message)
     if state.job ~= job then return end
     recordPerformanceSlice(job)
+    for _, concrete in ipairs(job.guildReplicationModels or {}) do
+        P.stopGuildChestReplication(concrete)
+    end
     local outcome = "stopped"
     if succeeded then
         if job.completionConfirmed then
@@ -328,6 +334,13 @@ local function resolveJobRoots(job)
     job.fullItems = {}
     job.fullById = {}
     job.fullTotal = 0
+    if job.config.IncludeGuildChest then
+        local guildContext, guildError = P.resolveGuildChestContext(job)
+        job.guildContext = guildContext
+        if guildContext == nil then
+            debugLog("Guild Chest routing unavailable: " .. tostring(guildError))
+        end
+    end
     return true, nil
 end
 
@@ -603,12 +616,13 @@ local function prepareContainerEntry(job, candidate)
         itemIds = {},
         restricted = false,
     }
-    if candidate.kind == "storage" then
+    if candidate.kind == "storage" or candidate.kind == "guild_storage" then
         local filterError
         filterOff, filterError = P.readFilterOff(candidate.container)
         if filterOff == nil then return nil, filterError end
     end
-    if candidate.kind == "storage" or candidate.kind == "recycler" then
+    if candidate.kind == "storage" or candidate.kind == "recycler"
+        or candidate.kind == "guild_storage" then
         local permissionError
         permission, permissionError = P.readPermission(candidate.container)
         if permission == nil then return nil, permissionError end
@@ -622,7 +636,8 @@ local function prepareContainerEntry(job, candidate)
 
     return {
         kind = candidate.kind,
-        isStorage = candidate.kind == "storage",
+        isStorage = candidate.kind == "storage" or candidate.kind == "guild_storage",
+        isGuildStorage = candidate.kind == "guild_storage",
         isIncubator = candidate.kind == "incubator",
         isRecycler = candidate.kind == "recycler",
         isRecyclerBoost = candidate.kind == "recycler_boost",
@@ -749,6 +764,19 @@ scanContainerCandidatesSlice = function(job)
         "containers")
 end
 
+local function appendCandidate(job, model, concrete, container, kind, instanceId)
+    local _, key = containerGuid(container)
+    if key == nil or key == P.ZERO_GUID or job.candidateKeys[key] then return end
+    job.candidateKeys[key] = true
+    job.containerCandidates[#job.containerCandidates + 1] = {
+        kind = kind,
+        instanceId = instanceId,
+        model = model,
+        concrete = concrete,
+        container = container,
+    }
+end
+
 local function addCandidate(job, model, concrete, kind, instanceId)
     local autoDestroy = false
     if kind == "storage" then
@@ -757,7 +785,23 @@ local function addCandidate(job, model, concrete, kind, instanceId)
     end
 
     local container
-    if kind == "recycler" then
+    if kind == "guild_storage" then
+        if job.guildContext == nil then return end
+        local eligible = P.guildChestEligible(concrete, job.guildContext)
+        if not eligible then return end
+        local address = P.objectAddress(concrete)
+        if address == nil or job.guildReplicationKeys[address] then return end
+        if not P.startGuildChestReplication(concrete) then return end
+        job.guildReplicationKeys[address] = true
+        job.guildReplicationModels[#job.guildReplicationModels + 1] = concrete
+        job.pendingGuildCandidates[#job.pendingGuildCandidates + 1] = {
+            kind = kind,
+            instanceId = instanceId,
+            model = model,
+            concrete = concrete,
+        }
+        return
+    elseif kind == "recycler" then
         local ok = pcall(function() container = concrete:GetRelicItemContainer() end)
         if not ok or not isValid(container) then return end
     elseif kind == "recycler_boost" then
@@ -771,16 +815,44 @@ local function addCandidate(job, model, concrete, kind, instanceId)
         end)
         if not ok or not isValid(module) or not isValid(container) then return end
     end
-    local _, key = containerGuid(container)
-    if key == nil or key == P.ZERO_GUID or job.candidateKeys[key] then return end
-    job.candidateKeys[key] = true
-    job.containerCandidates[#job.containerCandidates + 1] = {
-        kind = kind,
-        instanceId = instanceId,
-        model = model,
-        concrete = concrete,
-        container = container,
-    }
+    appendCandidate(job, model, concrete, container, kind, instanceId)
+end
+
+local function beginContainerCandidateScan(job)
+    job.containerCandidateIndex = 1
+    scheduleJobStep(job, NEXT_SLICE_MS, scanContainerCandidatesSlice,
+        "containers")
+end
+
+local function resolvePendingGuildCandidates(job)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    local unresolved = {}
+    for _, candidate in ipairs(job.pendingGuildCandidates) do
+        local eligible = P.guildChestEligible(candidate.concrete, job.guildContext)
+        local container = eligible
+            and P.readyGuildChestContainer(candidate.concrete) or nil
+        if isValid(container) then
+            appendCandidate(job, candidate.model, candidate.concrete, container,
+                candidate.kind, candidate.instanceId)
+        elseif eligible then
+            unresolved[#unresolved + 1] = candidate
+        end
+    end
+    job.pendingGuildCandidates = unresolved
+    job.guildReplicationPolls = job.guildReplicationPolls + 1
+    if #unresolved > 0
+        and job.guildReplicationPolls < GUILD_REPLICATION_MAX_POLLS then
+        scheduleJobStep(job, GUILD_REPLICATION_POLL_MS,
+            resolvePendingGuildCandidates, "guild")
+        return
+    end
+    if #unresolved > 0 then
+        debugLog("Guild Chest replication was not ready before the bounded timeout")
+    end
+    beginContainerCandidateScan(job)
 end
 
 local function scanBaseObjectsSlice(job)
@@ -825,9 +897,13 @@ local function scanBaseObjectsSlice(job)
         scheduleJobStep(job, NEXT_SLICE_MS, scanBaseObjectsSlice, "base")
         return
     end
-    job.containerCandidateIndex = 1
-    scheduleJobStep(job, NEXT_SLICE_MS, scanContainerCandidatesSlice,
-        "containers")
+    if #job.pendingGuildCandidates > 0 then
+        job.guildReplicationPolls = 0
+        scheduleJobStep(job, GUILD_REPLICATION_POLL_MS,
+            resolvePendingGuildCandidates, "guild")
+        return
+    end
+    beginContainerCandidateScan(job)
 end
 
 startBaseSnapshot = function(job)
@@ -857,6 +933,9 @@ startBaseSnapshot = function(job)
     job.baseObjectIndex = 1
     job.containerCandidates = {}
     job.candidateKeys = {}
+    job.pendingGuildCandidates = {}
+    job.guildReplicationKeys = {}
+    job.guildReplicationModels = {}
     job.containersByContainedItem = {}
     job.containersByAcceptedCategory = {}
     job.compatibleContainedItems = {}
@@ -1404,7 +1483,9 @@ processNextRequest = function(job)
     local currentRouteOk = pcall(function()
         currentModel = job.mapObjectManager:FindModel(entry.instanceId)
         currentConcrete = currentModel.ConcreteModel
-        if entry.isRecycler then
+        if entry.isGuildStorage then
+            currentContainer = P.guildChestContainer(currentConcrete)
+        elseif entry.isRecycler then
             currentContainer = currentConcrete:GetRelicItemContainer()
         elseif entry.isRecyclerBoost then
             currentContainer = currentConcrete.BoostItemContainer
@@ -1428,6 +1509,15 @@ processNextRequest = function(job)
     entry.model = currentModel
     entry.concrete = currentConcrete
     entry.container = currentContainer
+
+    if entry.isGuildStorage then
+        local eligible, guildError = P.guildChestEligible(
+            currentConcrete, job.guildContext)
+        if not eligible then
+            skipRequest(job, guildError)
+            return
+        end
+    end
 
     if not job.config.IncludeExcludedItems then
         local currentExclusions, exclusionError = P.resolveExclusions(job.playerState)
@@ -1462,6 +1552,7 @@ processNextRequest = function(job)
     end
     local currentEntry = {
         isStorage = entry.isStorage,
+        isGuildStorage = entry.isGuildStorage,
         isIncubator = entry.isIncubator,
         isRecycler = entry.isRecycler,
         isRecyclerBoost = entry.isRecyclerBoost,

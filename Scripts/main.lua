@@ -71,6 +71,7 @@ local INTEGRATION_PERFORMANCE_SAMPLES = 40
 local SHARED_BOOLEAN_SETTINGS = {
     { shared = "IncludeExcludedItems", config = "IncludeExcludedItems" },
     { shared = "IncludeNewItems", config = "IncludeNewItems" },
+    { shared = "IncludeGuildChest", config = "IncludeGuildChest" },
 }
 local SHARED_STRING_SETTINGS = {
     { shared = "ResultDisplay", config = "ResultDisplay",
@@ -645,6 +646,7 @@ local function reconcileSharedSettings()
         .. ", result display=" .. tostring(state.config.ResultDisplay)
         .. ", include ignored=" .. tostring(state.config.IncludeExcludedItems)
         .. ", include new=" .. tostring(state.config.IncludeNewItems)
+        .. ", include guild chest=" .. tostring(state.config.IncludeGuildChest)
         .. ", egg routing=" .. tostring(state.config.PalEggRouting)
         .. ", relic routing=" .. tostring(state.config.RelicRouting)
         .. ", holy water minimum="

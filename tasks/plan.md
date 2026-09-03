@@ -183,6 +183,21 @@ Runtime contract proof
 - [x] Preserve existing mouse, keyboard, controller, tooltip, and preview
   behavior while changing only layout and presentation.
 
+## Phase 9: Optional Guild Chest Routing
+
+- [x] Add a default-off `IncludeGuildChest` setting to the writable config and
+  standalone/hosted settings surface.
+- [x] Resolve only a current-base Guild Chest owned by the local player's guild
+  after `CheckGuildChestAccess` succeeds.
+- [x] Use the Guild Chest item-container access interface and bounded
+  replication-ready lifecycle instead of the ordinary storage module path.
+- [x] Deduplicate the guild-wide shared container by GUID and revalidate guild,
+  role, ownership, container identity, filters, permissions, and capacity before
+  submission.
+- [ ] Pass the narrow existing static checks and complete single-player,
+  listen-client, and dedicated-client in-game acceptance before claiming
+  multiplayer support.
+
 ## Risks and Mitigations
 
 | Risk | Impact | Mitigation |

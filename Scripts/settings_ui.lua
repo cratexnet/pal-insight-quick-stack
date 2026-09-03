@@ -117,7 +117,7 @@ local FONT_SIZE = {
 
 local SETTING_KEYS = {
     "Key", "Shift", "Ctrl", "Alt", "ResultDisplay",
-    "IncludeExcludedItems", "IncludeNewItems", "PalEggRouting",
+    "IncludeExcludedItems", "IncludeNewItems", "IncludeGuildChest", "PalEggRouting",
     "RelicRouting", "WorldTreeHolyWaterMinimum", "PerformanceCapture", "Debug",
 }
 
@@ -129,6 +129,7 @@ local DEFAULTS = {
     ResultDisplay = "Default",
     IncludeExcludedItems = false,
     IncludeNewItems = true,
+    IncludeGuildChest = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -1427,7 +1428,8 @@ local function validateCandidate(candidate)
         candidate.WorldTreeHolyWaterMinimum)
     if holyWater == nil then return nil, holyWaterError end
     if type(candidate.IncludeExcludedItems) ~= "boolean"
-        or type(candidate.IncludeNewItems) ~= "boolean" then
+        or type(candidate.IncludeNewItems) ~= "boolean"
+        or type(candidate.IncludeGuildChest) ~= "boolean" then
         return nil, "Quick Stack toggle values must be boolean"
     end
     local normalized = copyConfig(state.config)
@@ -1438,6 +1440,7 @@ local function validateCandidate(candidate)
     normalized.ResultDisplay = resultDisplay
     normalized.IncludeExcludedItems = candidate.IncludeExcludedItems
     normalized.IncludeNewItems = candidate.IncludeNewItems
+    normalized.IncludeGuildChest = candidate.IncludeGuildChest
     normalized.PalEggRouting = eggRouting
     normalized.RelicRouting = relicRouting
     normalized.WorldTreeHolyWaterMinimum = holyWater
@@ -1494,6 +1497,7 @@ currentStrings = function()
         resultWindow = "Result window",
         includeExcluded = "Store ignored items",
         includeNew = "Store items not already in storage",
+        includeGuildChest = "Use Guild Chest",
         eggRouting = "Pal Egg routing",
         eggOnly = "Incubators only",
         eggStorage = "Incubators, then storage",
@@ -6345,7 +6349,9 @@ local function buildSettingsWindow(controller, mode)
             or not addToggleRow(tree, body, "IncludeExcludedItems",
                 strings.includeExcluded, false)
             or not addToggleRow(tree, body, "IncludeNewItems",
-                strings.includeNew, true)
+                strings.includeNew, false)
+            or not addToggleRow(tree, body, "IncludeGuildChest",
+                strings.includeGuildChest, true)
             or not addSection(tree, body, strings.sectionSpecial, 16)
             or not addChoiceRow(tree, body, "PalEggRouting",
                 strings.eggRouting,

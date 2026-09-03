@@ -8,6 +8,7 @@ local DEFAULTS = {
     ResultDisplay = "Default",
     IncludeExcludedItems = false,
     IncludeNewItems = true,
+    IncludeGuildChest = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -23,6 +24,7 @@ local ORDER = {
     "ResultDisplay",
     "IncludeExcludedItems",
     "IncludeNewItems",
+    "IncludeGuildChest",
     "PalEggRouting",
     "RelicRouting",
     "WorldTreeHolyWaterMinimum",
@@ -195,6 +197,7 @@ local function parseConfig(text)
     end
     for _, name in ipairs({
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
+        "IncludeGuildChest",
         "PerformanceCapture", "Debug",
     }) do
         local value = parseBoolean(text, name)
@@ -236,6 +239,7 @@ local function parseConfig(text)
         or validatedRelicRouting == nil
         or holyWaterMinimum == nil
         or parseBoolean(text, "IncludeNewItems") == nil
+        or parseBoolean(text, "IncludeGuildChest") == nil
         or legacyShowDetailedResults ~= nil
         or legacyOnlyExistingItems ~= nil
         or legacyIncludePalEggs ~= nil
@@ -263,6 +267,7 @@ local function normalizeConfig(candidate, log)
     end
     for _, name in ipairs({
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
+        "IncludeGuildChest",
         "PerformanceCapture", "Debug",
     }) do
         if type(candidate[name]) == "boolean" then out[name] = candidate[name] end
@@ -340,6 +345,8 @@ local function configText(config)
         "    -- IncludeExcludedItems never modifies the game's ignored-item list.",
         "    IncludeExcludedItems = " .. tostring(config.IncludeExcludedItems) .. ",",
         "    IncludeNewItems = " .. tostring(config.IncludeNewItems) .. ",",
+        "    -- Use only an accessible Guild Chest in the current base.",
+        "    IncludeGuildChest = " .. tostring(config.IncludeGuildChest) .. ",",
         "    -- IncubatorOnly, IncubatorThenStorage, or ManualPlacement.",
         string.format("    PalEggRouting = %q,", config.PalEggRouting),
         "    -- RecyclerOnly, RecyclerThenStorage, or ManualPlacement.",
