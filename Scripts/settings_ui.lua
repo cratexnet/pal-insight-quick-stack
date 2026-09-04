@@ -117,7 +117,8 @@ local FONT_SIZE = {
 
 local SETTING_KEYS = {
     "Key", "Shift", "Ctrl", "Alt", "ResultDisplay",
-    "IncludeExcludedItems", "IncludeNewItems", "IncludeGuildChest", "PalEggRouting",
+    "IncludeExcludedItems", "IncludeNewItems", "IncludeGuildChest",
+    "IncludeSmallIncubators", "PalEggRouting",
     "RelicRouting", "WorldTreeHolyWaterMinimum", "PerformanceCapture", "Debug",
 }
 
@@ -130,6 +131,7 @@ local DEFAULTS = {
     IncludeExcludedItems = false,
     IncludeNewItems = true,
     IncludeGuildChest = false,
+    IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -1429,7 +1431,8 @@ local function validateCandidate(candidate)
     if holyWater == nil then return nil, holyWaterError end
     if type(candidate.IncludeExcludedItems) ~= "boolean"
         or type(candidate.IncludeNewItems) ~= "boolean"
-        or type(candidate.IncludeGuildChest) ~= "boolean" then
+        or type(candidate.IncludeGuildChest) ~= "boolean"
+        or type(candidate.IncludeSmallIncubators) ~= "boolean" then
         return nil, "Quick Stack toggle values must be boolean"
     end
     local normalized = copyConfig(state.config)
@@ -1441,6 +1444,7 @@ local function validateCandidate(candidate)
     normalized.IncludeExcludedItems = candidate.IncludeExcludedItems
     normalized.IncludeNewItems = candidate.IncludeNewItems
     normalized.IncludeGuildChest = candidate.IncludeGuildChest
+    normalized.IncludeSmallIncubators = candidate.IncludeSmallIncubators
     normalized.PalEggRouting = eggRouting
     normalized.RelicRouting = relicRouting
     normalized.WorldTreeHolyWaterMinimum = holyWater
@@ -1498,6 +1502,7 @@ currentStrings = function()
         includeExcluded = "Store ignored items",
         includeNew = "Store items not already in storage",
         includeGuildChest = "Use Guild Chest",
+        includeSmallIncubators = "Use small incubators (large first)",
         eggRouting = "Pal Egg routing",
         eggOnly = "Incubators only",
         eggStorage = "Incubators, then storage",
@@ -6358,6 +6363,8 @@ local function buildSettingsWindow(controller, mode)
                 { "IncubatorOnly", "IncubatorThenStorage", "ManualPlacement" },
                 { strings.eggOnly, strings.eggStorage,
                     strings.manualPlacement }, false)
+            or not addToggleRow(tree, body, "IncludeSmallIncubators",
+                strings.includeSmallIncubators, false)
             or not addChoiceRow(tree, body, "RelicRouting",
                 strings.relicRouting,
                 { "RecyclerOnly", "RecyclerThenStorage", "ManualPlacement" },

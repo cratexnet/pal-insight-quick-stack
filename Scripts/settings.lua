@@ -9,6 +9,7 @@ local DEFAULTS = {
     IncludeExcludedItems = false,
     IncludeNewItems = true,
     IncludeGuildChest = false,
+    IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -25,6 +26,7 @@ local ORDER = {
     "IncludeExcludedItems",
     "IncludeNewItems",
     "IncludeGuildChest",
+    "IncludeSmallIncubators",
     "PalEggRouting",
     "RelicRouting",
     "WorldTreeHolyWaterMinimum",
@@ -197,7 +199,7 @@ local function parseConfig(text)
     end
     for _, name in ipairs({
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
-        "IncludeGuildChest",
+        "IncludeGuildChest", "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
     }) do
         local value = parseBoolean(text, name)
@@ -240,6 +242,7 @@ local function parseConfig(text)
         or holyWaterMinimum == nil
         or parseBoolean(text, "IncludeNewItems") == nil
         or parseBoolean(text, "IncludeGuildChest") == nil
+        or parseBoolean(text, "IncludeSmallIncubators") == nil
         or legacyShowDetailedResults ~= nil
         or legacyOnlyExistingItems ~= nil
         or legacyIncludePalEggs ~= nil
@@ -267,7 +270,7 @@ local function normalizeConfig(candidate, log)
     end
     for _, name in ipairs({
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
-        "IncludeGuildChest",
+        "IncludeGuildChest", "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
     }) do
         if type(candidate[name]) == "boolean" then out[name] = candidate[name] end
@@ -347,6 +350,8 @@ local function configText(config)
         "    IncludeNewItems = " .. tostring(config.IncludeNewItems) .. ",",
         "    -- Use only an accessible Guild Chest in the current base.",
         "    IncludeGuildChest = " .. tostring(config.IncludeGuildChest) .. ",",
+        "    -- Small incubators are used only after large incubators are full.",
+        "    IncludeSmallIncubators = " .. tostring(config.IncludeSmallIncubators) .. ",",
         "    -- IncubatorOnly, IncubatorThenStorage, or ManualPlacement.",
         string.format("    PalEggRouting = %q,", config.PalEggRouting),
         "    -- RecyclerOnly, RecyclerThenStorage, or ManualPlacement.",

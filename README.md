@@ -118,6 +118,7 @@ return {
     IncludeExcludedItems = false,
     IncludeNewItems = true,
     IncludeGuildChest = false,
+    IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -131,6 +132,9 @@ return {
 - `IncludeExcludedItems`：也收纳通过 `Tab → R` 忽略的物品，但不修改忽略列表。
 - `IncludeNewItems`：也使用尚未存有同种物品、但筛选允许的普通仓库空位。
 - `IncludeGuildChest`：也使用当前基地中有权限访问的公会箱；默认关闭。
+- `IncludeSmallIncubators`：也使用小型孵化器；默认关闭。先投大型，再确认已发现的
+  大型均无空位，才向无蛋、无待领取帕鲁的小型投放。大型状态不明、请求失败或仍有
+  空位时，本次跳过小型；`ManualPlacement` 仍完全跳过帕鲁蛋。
 - `PalEggRouting`：`IncubatorOnly` 只使用孵化器；`IncubatorThenStorage` 在孵化器
   不存在或已满时继续使用兼容的普通仓库；`ManualPlacement` 完全跳过帕鲁蛋，留给
   玩家手动放置。

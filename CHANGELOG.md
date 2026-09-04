@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added a default-off `IncludeSmallIncubators` setting to standalone and hosted
+  settings. Large incubators are planned first; small incubators are used only
+  after a bounded recheck finds no empty slots in the discovered large ones.
+  Unreadable large-incubator state or a failed large request blocks this fallback.
+  Small incubators with an egg or an unclaimed Pal are skipped. Manual egg
+  placement and item exclusions remain respected. The reported small-only setup
+  was confirmed working in game; the broader acceptance matrix remains pending.
+
+### Changed
+
+- Added bounded rereads for already-discovered ordinary storage and supported
+  incubators when their container or slot data cannot be read. Unresolved
+  targets are logged separately from capacity failures. This does not establish
+  dedicated-server or co-op compatibility.
+
+### Fixed
+
+- Fixed the small-incubator option being omitted from each Quick Stack job's
+  settings snapshot. Replaced the failing hatched-Pal utility call with the
+  current native-equivalent character-ID check and preserved read-failure details.
+
 ## 1.1.0 - 2026-09-03
 
 ### Added

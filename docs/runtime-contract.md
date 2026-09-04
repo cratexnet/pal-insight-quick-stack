@@ -54,6 +54,27 @@ architecture and never as sole proof of a current signature or field.
 | Guild Chest exclusion | Current `BP_BuildObject_GuildChest` asset binds its concrete model to the native `/Script/Pal.PalMapObjectGuildChestModel` class | Resolve this class before destination discovery and reject matching models before all generic storage-family checks. If the class is unavailable, fail closed instead of risking a Guild Chest move |
 | Network component | Current mapping exposes `PalPlayerController.Transmitter` and `PalNetworkTransmitter.Item` | Use `localController.Transmitter.Item`; no ownership guess and no `FindAllOf("PalNetworkItemComponent")` |
 
+## Ordinary Container Reread Boundary (2026-09-04)
+
+Read-only disassembly of the executable identified above traced the
+`PalMapObjectItemContainerModule` constructor at `0x1429D5580` to its item
+container access interface table at `0x147595B38`. Start/Stop slots `+0x38` and
+`+0x40` both point to `0x140B81380`, a direct return. This is specific to that
+module implementation, not a claim about Guild Chest implementations.
+`CallOrRegisterOnReadyItemContainerEvent` uses the path at `0x142FF6330`:
+it obtains the container and calls `0x142FA4F20`, which checks array element
+object validity and also accepts an empty array. It is not evidence that all
+item values, permissions, or filters form a fully synchronized snapshot.
+
+Accordingly, ordinary destination recovery only rereads existing reflected
+objects through the original module/TargetContainer route. It does not request
+replication, bind native ready delegates, use binary offsets at runtime, or
+declare zero-slot arrays pending. Three 100 ms rereads per destination and 15
+per job bound the added scheduled delay to 1.5 seconds (excluding frame stalls
+and scan work); the existing job deadline also applies. Only complete snapshots
+enter indexes. Existing server submission and source/destination rechecks stay
+unchanged. These are static implementation facts, not a reproduced network fix.
+
 ## Local Notification Contract
 
 The standalone candidate uses runtime-created UMG feedback matching Pal
@@ -283,6 +304,56 @@ The native helper probe source remains under
 release payloads and removed from the active UE4SS mod directory after capture.
 
 ## Remaining Runtime Questions
+
+### Optional small-incubator routing (2026-09-04)
+
+Current `Palworld_1_0_2FF94A03.usmap` separates the small
+`PalMapObjectHatchingEggModel` from the large
+`PalMapObjectHatchingEggModelBase` / `PalMapObjectMultiHatchingEggModel` branch.
+The small class is resolved only when `IncludeSmallIncubators` is enabled and
+egg routing is not `ManualPlacement`.
+
+The extracted current `WBP_Ingame_Incubator.uasset` provides two independent
+occupancy checks: `OnUpdateItemContainer` reads slot 0 for an egg;
+`OnUpdateHatchedCharacter` calls
+`PalIndividualCharacterSaveParameterUtility.IsValid` on
+`HatchedCharacterSaveParameter` for an unclaimed Pal. Quick Stack requires
+exactly one readable empty slot and an empty character ID. It checks
+the hatched state both during indexing and immediately before submission.
+
+The initial `UObject:CallFunction` implementation was rejected after the
+2026-09-04 19:34 runtime log repeatedly reported unreadable hatched state.
+The installed UE4SS `2281fa31` dispatcher checks `derives_from_function()`,
+whereas its UFunction wrapper overrides `derives_from_ufunction()`. Switching
+to direct UFunction invocation is also unsafe without a size check: that build
+uses a fixed `DynamicUnrealFunctionData::data[0x200]` buffer for parameters.
+
+Read-only disassembly of the current game executable instead established the
+minimal predicate. The native registration table at file offset `0x74CBD60`
+maps `IsValid` to exec thunk `0x1429648C0`. At `0x142964944` it tests the first
+two 32-bit words of the input struct and returns false only when both are zero.
+The adjacent registered `GetSaveParameterValue_CharacterID` thunk
+`0x142961970` returns those same first eight bytes at `0x1429619F4`.
+These are the FName index and number, so the predicate is
+`CharacterID != NAME_None`. Quick Stack now reads the reflected
+`HatchedCharacterSaveParameter.CharacterID` and compares its name to `None`;
+it uses no hard-coded memory offsets or full-struct UFunction call at runtime.
+Missing/unreadable values still fail closed and include the read error in normal
+guard logging. On 2026-09-04 the user confirmed the previously failing small-only
+setup works after deployment. This does not establish the full occupied-Pal,
+large-first, or multiplayer acceptance matrix.
+
+Planning consumes the shared free-slot counters of all large incubators before
+creating any small-incubator request. Before the first small request, the job
+re-resolves all discovered large models and reads their current slots with the
+existing 16-container / 256-slot slice limits. An empty slot permits at most
+three 100 ms delayed rechecks; unreadable state or a failed large request blocks
+small submission for that job. No periodic hook or replication Start/Stop call
+is added. A passed sweep is not a server acknowledgement or an atomic lock:
+other players can change capacity afterward, and newly built objects are not
+added to the job's initial base snapshot. Multiplayer behavior remains unverified.
+
+### Other runtime questions
 
 - Whether nested confirmation or item-use overlays deactivate the parent
   Inventory content. The current gate authoritatively distinguishes the Tab

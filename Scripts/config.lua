@@ -18,6 +18,8 @@ return {
 
     -- Also use an accessible Guild Chest in the current base.
     IncludeGuildChest = false,
+    -- Use small incubators only after large incubators have no empty slots.
+    IncludeSmallIncubators = false,
 
     -- "IncubatorOnly", "IncubatorThenStorage", or "ManualPlacement".
     PalEggRouting = "IncubatorOnly",

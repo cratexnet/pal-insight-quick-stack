@@ -17,6 +17,9 @@ local RECHECK_SLOTS_PER_SLICE = 256
 local PLAN_OPERATIONS_PER_SLICE = 64
 local GUILD_REPLICATION_POLL_MS = 100
 local GUILD_REPLICATION_MAX_POLLS = 15
+local CONTAINER_READ_RETRY_MS = 100
+local CONTAINER_READ_MAX_RETRIES = 3
+local JOB_CONTAINER_READ_MAX_RETRIES = 15
 local PERFORMANCE_PHASE_ORDER = {
     "resolve", "inventory", "metadata", "base", "guild", "containers",
     "plan", "request", "recheck", "completion",
@@ -72,6 +75,7 @@ local function snapshotJobConfig(config)
         IncludeExcludedItems = config.IncludeExcludedItems == true,
         IncludeNewItems = config.IncludeNewItems == true,
         IncludeGuildChest = config.IncludeGuildChest == true,
+        IncludeSmallIncubators = config.IncludeSmallIncubators == true,
         PalEggRouting = config.PalEggRouting,
         RelicRouting = config.RelicRouting,
         WorldTreeHolyWaterMinimum = math.max(1, math.min(100,
@@ -504,13 +508,15 @@ local scanContainerCandidatesSlice
 local beginPlanning
 
 local function indexContainer(job, entry)
+    job.indexedContainerKeys[entry.containerKey] = true
     if job.performance ~= nil then
         job.performance.containers = job.performance.containers + 1
         job.performance.containerSlots =
             job.performance.containerSlots + entry.slotCount
     end
     if entry.isIncubator then
-        if entry.free > 0 then job.incubators[#job.incubators + 1] = entry end
+        local list = entry.isSmallIncubator and job.smallIncubators or job.incubators
+        if entry.free > 0 then list[#list + 1] = entry end
         return
     end
     if entry.isRecyclerBoost then
@@ -589,26 +595,56 @@ local function indexContainer(job, entry)
     end
 end
 
-local function skipCurrentContainer(job, reason)
-    debugLog("skipping destination: " .. tostring(reason))
+local function skipCurrentContainer(job, reason, unreadable)
+    local candidate = job.containerCandidates[job.containerCandidateIndex]
     job.currentContainer = nil
+    if unreadable and candidate.retryReads then
+        local retries = candidate.readRetries or 0
+        if retries < CONTAINER_READ_MAX_RETRIES
+            and job.containerReadRetries < JOB_CONTAINER_READ_MAX_RETRIES then
+            candidate.readRetries = retries + 1
+            job.containerReadRetries = job.containerReadRetries + 1
+            scheduleJobStep(job, CONTAINER_READ_RETRY_MS,
+                scanContainerCandidatesSlice, "containers")
+            return true
+        end
+        job.unresolvedDestinationKinds[candidate.kind] = true
+        log("destination unresolved after bounded reads (" .. candidate.kind
+            .. "): " .. tostring(reason))
+    end
+    debugLog("skipping destination: " .. tostring(reason))
     job.containerCandidateIndex = job.containerCandidateIndex + 1
+    return false
 end
 
 local function prepareContainerEntry(job, candidate)
-    if not isValid(candidate.model) or not isValid(candidate.concrete)
-        or not isValid(candidate.container) then
+    if not isValid(candidate.model) or not isValid(candidate.concrete) then
         return nil, "destination object became invalid"
+    end
+    if candidate.retryReads then
+        candidate.container = P.ordinaryContainer(candidate.concrete)
+    end
+    if not isValid(candidate.container) then
+        return nil, "destination container is unavailable", true
     end
     local containerGuidParts, containerKey = containerGuid(candidate.container)
     if containerGuidParts == nil or containerKey == nil
         or containerKey == P.ZERO_GUID then
-        return nil, "destination container id is unavailable"
+        return nil, "destination container id is unavailable", true
+    end
+    if job.indexedContainerKeys[containerKey] then
+        return nil, "destination container is already indexed"
     end
     local slots
     local slotsOk = pcall(function() slots = candidate.container.ItemSlotArray end)
     local slotCount = slotsOk and arrayLength(slots) or nil
-    if slotCount == nil then return nil, "destination slots are unreadable" end
+    if slotCount == nil then return nil, "destination slots are unreadable", true end
+    if candidate.kind == "small_incubator" then
+        if slotCount ~= 1 then return nil, "small incubator slot is unavailable", true end
+        local occupied, occupiedError = P.smallIncubatorHasHatchedPal(candidate.concrete)
+        if occupied == nil then return nil, occupiedError, true end
+        if occupied then return nil, "small incubator has an unclaimed Pal" end
+    end
     local filterOff = {}
     local permission = {
         typeA = {},
@@ -638,7 +674,8 @@ local function prepareContainerEntry(job, candidate)
         kind = candidate.kind,
         isStorage = candidate.kind == "storage" or candidate.kind == "guild_storage",
         isGuildStorage = candidate.kind == "guild_storage",
-        isIncubator = candidate.kind == "incubator",
+        isIncubator = candidate.kind == "incubator" or candidate.kind == "small_incubator",
+        isSmallIncubator = candidate.kind == "small_incubator",
         isRecycler = candidate.kind == "recycler",
         isRecyclerBoost = candidate.kind == "recycler_boost",
         boostItemId = candidate.kind == "recycler_boost"
@@ -681,10 +718,10 @@ scanContainerCandidatesSlice = function(job)
                 return
             end
             local candidate = job.containerCandidates[job.containerCandidateIndex]
-            local entry, entryError = prepareContainerEntry(job, candidate)
+            local entry, entryError, unreadable = prepareContainerEntry(job, candidate)
             containersProcessed = containersProcessed + 1
             if entry == nil then
-                skipCurrentContainer(job, entryError)
+                if skipCurrentContainer(job, entryError, unreadable) then return end
             else
                 job.currentContainer = entry
             end
@@ -693,7 +730,9 @@ scanContainerCandidatesSlice = function(job)
         local entry = job.currentContainer
         if entry ~= nil then
             if not isValid(entry.container) then
-                skipCurrentContainer(job, "container became invalid")
+                if skipCurrentContainer(job, "container became invalid", true) then
+                    return
+                end
             else
                 local first = entry.slotIndex
                 local remainingSlots = CONTAINER_SLOTS_PER_SLICE - slotsProcessed
@@ -741,7 +780,7 @@ scanContainerCandidatesSlice = function(job)
                 end
 
                 if invalidReason ~= nil then
-                    skipCurrentContainer(job, invalidReason)
+                    if skipCurrentContainer(job, invalidReason, true) then return end
                 else
                     slotsProcessed = slotsProcessed + math.max(0, stop - first + 1)
                     entry.slotIndex = stop + 1
@@ -765,16 +804,24 @@ scanContainerCandidatesSlice = function(job)
 end
 
 local function appendCandidate(job, model, concrete, container, kind, instanceId)
-    local _, key = containerGuid(container)
-    if key == nil or key == P.ZERO_GUID or job.candidateKeys[key] then return end
-    job.candidateKeys[key] = true
-    job.containerCandidates[#job.containerCandidates + 1] = {
+    local retryReads = kind == "storage" or kind == "incubator" or kind == "small_incubator"
+    if not retryReads then
+        local _, key = containerGuid(container)
+        if key == nil or key == P.ZERO_GUID or job.candidateKeys[key] then return end
+        job.candidateKeys[key] = true
+    end
+    local candidate = {
         kind = kind,
         instanceId = instanceId,
         model = model,
         concrete = concrete,
         container = container,
+        retryReads = retryReads,
     }
+    job.containerCandidates[#job.containerCandidates + 1] = candidate
+    if kind == "incubator" and job.largeIncubatorCandidates ~= nil then
+        job.largeIncubatorCandidates[#job.largeIncubatorCandidates + 1] = candidate
+    end
 end
 
 local function addCandidate(job, model, concrete, kind, instanceId)
@@ -807,13 +854,6 @@ local function addCandidate(job, model, concrete, kind, instanceId)
     elseif kind == "recycler_boost" then
         local ok = pcall(function() container = concrete.BoostItemContainer end)
         if not ok or not isValid(container) then return end
-    else
-        local module
-        local ok = pcall(function()
-            module = concrete:GetItemContainerModule()
-            container = module.TargetContainer
-        end)
-        if not ok or not isValid(module) or not isValid(container) then return end
     end
     appendCandidate(job, model, concrete, container, kind, instanceId)
 end
@@ -933,6 +973,9 @@ startBaseSnapshot = function(job)
     job.baseObjectIndex = 1
     job.containerCandidates = {}
     job.candidateKeys = {}
+    job.indexedContainerKeys = {}
+    job.containerReadRetries = 0
+    job.unresolvedDestinationKinds = {}
     job.pendingGuildCandidates = {}
     job.guildReplicationKeys = {}
     job.guildReplicationModels = {}
@@ -942,6 +985,8 @@ startBaseSnapshot = function(job)
     job.compatibleAcceptedCategories = {}
     job.compatibleAcceptedItems = {}
     job.incubators = {}
+    job.smallIncubators = {}
+    job.largeIncubatorCandidates = job.smallIncubatorClass ~= nil and {} or nil
     job.recyclers = {}
     job.recyclerBoosts = {}
     scheduleJobStep(job, NEXT_SLICE_MS, scanBaseObjectsSlice, "base")
@@ -1074,6 +1119,10 @@ local function newRouteState(job, item)
         stages[#stages + 1] = { kind = "recycler", entries = recyclers }
     end
     stages[#stages + 1] = { kind = "incubator", entries = incubators }
+    if item.isEgg and job.smallIncubatorClass ~= nil
+        and not job.unresolvedDestinationKinds.incubator then
+        stages[#stages + 1] = { kind = "incubator", entries = job.smallIncubators }
+    end
     if ordinaryFallback then
         stages[#stages + 1] = { kind = "normal", entries = contained }
         stages[#stages + 1] = { kind = "normal", entries = accepted }
@@ -1090,8 +1139,11 @@ local function newRouteState(job, item)
         stageIndex = 1,
         candidateIndex = 1,
         stages = stages,
-        reportRemainder = item.isEgg or item.isRelic
-            or item.isHolyWater or #recyclers > 0 or hasOrdinaryDestination,
+        reportRemainder = (item.isEgg or item.isRelic
+            or item.isHolyWater or #recyclers > 0 or hasOrdinaryDestination)
+            and not (item.isEgg and job.unresolvedDestinationKinds.incubator)
+            and not (item.isEgg and job.unresolvedDestinationKinds.small_incubator)
+            and not (ordinaryFallback and job.unresolvedDestinationKinds.storage),
     }
 end
 
@@ -1184,6 +1236,10 @@ beginPlanning = function(job)
 end
 
 local function skipRequest(job, reason)
+    local entry = job.requests[job.requestIndex].entry
+    if entry.isIncubator and not entry.isSmallIncubator then
+        job.failedLargeIncubatorRequest = true
+    end
     debugLog("skipping stale destination request: " .. tostring(reason))
     job.recheck = nil
     job.requestIndex = job.requestIndex + 1
@@ -1242,6 +1298,14 @@ end
 local function submitRecheckedRequest(job)
     local recheck = job.recheck
     local request = recheck.request
+    if recheck.entry.isSmallIncubator then
+        local occupied, occupiedError = P.smallIncubatorHasHatchedPal(recheck.entry.concrete)
+        if occupied == nil then log("small incubator skipped: " .. occupiedError) end
+        if recheck.slotCount ~= 1 or occupied ~= false then
+            skipRequest(job, occupiedError or "small incubator is occupied or slot count changed")
+            return
+        end
+    end
     local validateStartedAt = beginPerformanceDetail(job)
     if recheck.entry.isRecyclerBoost then
         local allowed = math.max(0,
@@ -1326,6 +1390,9 @@ local function submitRecheckedRequest(job)
     end)
     recordPerformanceDetail(job, "rpc_call", rpcStartedAt)
     if not sent then
+        if request.entry.isIncubator and not request.entry.isSmallIncubator then
+            job.failedLargeIncubatorRequest = true
+        end
         job.failedRequests = job.failedRequests + 1
         log("destination move failed: " .. tostring(sendError))
     else
@@ -1460,6 +1527,84 @@ beginCompletionWait = function(job)
     scheduleJobStep(job, COMPLETION_POLL_MS, checkCompletion, "completion")
 end
 
+local scanLargeIncubatorGate
+
+local function finishLargeIncubatorGate(job, reason)
+    job.largeIncubatorGate = nil
+    job.largeIncubatorGateComplete = true
+    job.smallIncubatorsBlocked = reason ~= nil
+    if reason ~= nil then log("small incubators skipped: " .. reason) end
+    scheduleJobStep(job, NEXT_SLICE_MS, processNextRequest, "request")
+end
+
+scanLargeIncubatorGate = function(job)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    if job.failedLargeIncubatorRequest or job.unresolvedDestinationKinds.incubator then
+        finishLargeIncubatorGate(job, "large incubator request failed or state is unresolved")
+        return
+    end
+    local gate = job.largeIncubatorGate
+    local containersProcessed, slotsProcessed = 0, 0
+    while containersProcessed < CONTAINERS_PER_SLICE
+        and slotsProcessed < RECHECK_SLOTS_PER_SLICE do
+        local candidate = job.largeIncubatorCandidates[gate.candidateIndex]
+        if candidate == nil then
+            finishLargeIncubatorGate(job)
+            return
+        end
+        if gate.container == nil then
+            gate.container = P.currentOrdinaryContainer(candidate, job.mapObjectManager)
+            local _, key = containerGuid(gate.container)
+            local ok = pcall(function() gate.slots = gate.container.ItemSlotArray end)
+            gate.slotCount = ok and arrayLength(gate.slots) or nil
+            if key == nil or key == P.ZERO_GUID or gate.slotCount == nil
+                or gate.slotCount < 1 then
+                finishLargeIncubatorGate(job, "large incubator capacity is unreadable")
+                return
+            end
+            gate.slotIndex = 1
+            containersProcessed = containersProcessed + 1
+        end
+        if not isValid(gate.container) then
+            finishLargeIncubatorGate(job, "large incubator became invalid")
+            return
+        end
+        local stop = math.min(gate.slotCount,
+            gate.slotIndex + RECHECK_SLOTS_PER_SLICE - slotsProcessed - 1)
+        for index = gate.slotIndex, stop do
+            local slot, readable = arrayValue(gate.slots, index)
+            local id = readable and isValid(slot) and slotStaticId(slot) or nil
+            if id == nil then
+                finishLargeIncubatorGate(job, "large incubator slot is unreadable")
+                return
+            end
+            if id == "None" then
+                if gate.retries < CONTAINER_READ_MAX_RETRIES then
+                    -- 等待大型投放的容量同步；不把 RPC 发出当作已满。
+                    job.largeIncubatorGate = {
+                        candidateIndex = 1, retries = gate.retries + 1,
+                    }
+                    scheduleJobStep(job, CONTAINER_READ_RETRY_MS,
+                        scanLargeIncubatorGate, "recheck")
+                else
+                    finishLargeIncubatorGate(job, "large incubators still have empty slots")
+                end
+                return
+            end
+        end
+        slotsProcessed = slotsProcessed + stop - gate.slotIndex + 1
+        gate.slotIndex = stop + 1
+        if gate.slotIndex > gate.slotCount then
+            gate.candidateIndex = gate.candidateIndex + 1
+            gate.container, gate.slots = nil, nil
+        end
+    end
+    scheduleJobStep(job, NEXT_SLICE_MS, scanLargeIncubatorGate, "recheck")
+end
+
 processNextRequest = function(job)
     if not identityMatches(job) then
         finishJob(job, false, "local player or base changed")
@@ -1472,6 +1617,18 @@ processNextRequest = function(job)
 
     local request = job.requests[job.requestIndex]
     local entry = request.entry
+    if entry.isSmallIncubator then
+        if not job.largeIncubatorGateComplete then
+            -- 规划阶段先耗尽所有大型的共享空位，之后才创建小型请求。
+            job.largeIncubatorGate = { candidateIndex = 1, retries = 0 }
+            scheduleJobStep(job, NEXT_SLICE_MS, scanLargeIncubatorGate, "recheck")
+            return
+        end
+        if job.smallIncubatorsBlocked then
+            skipRequest(job, "large incubator gate did not pass")
+            return
+        end
+    end
     if not isValid(entry.model) or not isValid(entry.concrete)
         or not isValid(entry.container) then
         skipRequest(job, "destination object became invalid")

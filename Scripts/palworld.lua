@@ -12,6 +12,7 @@ local STORAGE_CLASS_PATHS = {
 }
 
 local INCUBATOR_CLASS_PATH = "/Script/Pal.PalMapObjectHatchingEggModelBase"
+local SMALL_INCUBATOR_CLASS_PATH = "/Script/Pal.PalMapObjectHatchingEggModel"
 local GUILD_CHEST_CLASS_PATH = "/Script/Pal.PalMapObjectGuildChestModel"
 local RECYCLER_CLASS_PATH = "/Script/Pal.PalMapObjectRecyclerModel"
 
@@ -442,6 +443,47 @@ function Palworld.guildChestEligible(concrete, context)
     return true, nil
 end
 
+function Palworld.ordinaryContainer(concrete)
+    if not Palworld.isValid(concrete) then return nil end
+    local container
+    local ok = pcall(function()
+        local module = concrete:GetItemContainerModule()
+        if Palworld.isValid(module) then container = module.TargetContainer end
+    end)
+    if ok and Palworld.isValid(container) then return container end
+    return nil
+end
+
+function Palworld.currentOrdinaryContainer(candidate, mapObjectManager)
+    local ok, container = pcall(function()
+        local model = mapObjectManager:FindModel(candidate.instanceId)
+        if not Palworld.isValid(model) or not Palworld.isValid(candidate.model)
+            or not Palworld.isValid(candidate.concrete) then return nil end
+        local concrete = model.ConcreteModel
+        if not Palworld.isValid(concrete)
+            or Palworld.objectAddress(model) ~= Palworld.objectAddress(candidate.model)
+            or Palworld.objectAddress(concrete) ~= Palworld.objectAddress(candidate.concrete) then
+            return nil
+        end
+        return Palworld.ordinaryContainer(concrete)
+    end)
+    if ok then return container end
+    return nil
+end
+
+function Palworld.smallIncubatorHasHatchedPal(concrete)
+    if not Palworld.isValid(concrete) then
+        return nil, "small incubator object is invalid"
+    end
+    local ok, characterId = pcall(function()
+        -- 当前原生 IsValid 只判断 CharacterID != NAME_None；不传递整个存档结构。
+        return Palworld.nameString(concrete.HatchedCharacterSaveParameter.CharacterID)
+    end)
+    if not ok then return nil, "hatched CharacterID read failed: " .. tostring(characterId) end
+    if characterId == nil then return nil, "hatched CharacterID is unreadable" end
+    return characterId ~= "None"
+end
+
 function Palworld.guildChestContainer(concrete)
     local container
     local ok = pcall(function()
@@ -630,12 +672,22 @@ local function destinationClassesAreValid(wantsRecycler)
 end
 
 function Palworld.loadDestinationClasses(job)
+    if job.config.IncludeSmallIncubators
+        and job.config.PalEggRouting ~= "ManualPlacement" then
+        job.smallIncubatorClass = Palworld.staticObject(SMALL_INCUBATOR_CLASS_PATH)
+        if job.smallIncubatorClass == nil then
+            return false, "small incubator model class is unavailable"
+        end
+    end
     local wantsRecycler = true
     if destinationClassesAreValid(wantsRecycler) then
         job.storageClasses = cachedStorageClasses
         job.incubatorClass = cachedIncubatorClass
         job.guildChestClass = cachedGuildChestClass
         job.recyclerClass = wantsRecycler and cachedRecyclerClass or nil
+        if job.smallIncubatorClass ~= nil and job.incubatorClass == nil then
+            return false, "large incubator model class is unavailable"
+        end
         return true, nil
     end
 
@@ -659,6 +711,9 @@ function Palworld.loadDestinationClasses(job)
     end
     job.storageClasses = cachedStorageClasses
     job.incubatorClass = cachedIncubatorClass
+    if job.smallIncubatorClass ~= nil and job.incubatorClass == nil then
+        return false, "large incubator model class is unavailable"
+    end
     job.guildChestClass = cachedGuildChestClass
     if wantsRecycler and cachedRecyclerClass == nil then
         return false, "Ancient Relic Recycler model class is unavailable"
@@ -675,6 +730,10 @@ function Palworld.destinationKind(job, concreteModel)
         and isInstanceOf(concreteModel, job.recyclerClass) then return "recycler" end
     if job.incubatorClass ~= nil
         and isInstanceOf(concreteModel, job.incubatorClass) then return "incubator" end
+    if job.smallIncubatorClass ~= nil
+        and isInstanceOf(concreteModel, job.smallIncubatorClass) then
+        return "small_incubator"
+    end
     for _, classObject in ipairs(job.storageClasses) do
         if isInstanceOf(concreteModel, classObject) then return "storage" end
     end

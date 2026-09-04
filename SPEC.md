@@ -148,6 +148,43 @@ container identity, stack capacity, and world/base generation must still match
 the snapshot. With `IncludeNewItems = false`, the destination must still
 contain each requested item at recheck time.
 
+Already-classified ordinary storage and supported incubators may reread an
+unavailable container, container GUID, slot array, or slot before planning.
+Each destination gets at most three rereads, separated by 100 ms, with at most
+15 rereads across the job. Each reread discards the partial destination snapshot
+and resolves the container again. Successful destinations retain discovery
+order; fully readable jobs incur no retry delay. Unknown models are not added
+to this path, and the base object list is not rescanned. Empty arrays, rejected
+permissions, and insufficient capacity do not trigger rereads.
+
+An exhausted unreadable destination is recorded as unresolved in the normal
+log, not as full. Planning may use other readable destinations, but does not
+classify an item's remainder as a capacity failure when an unresolved
+destination kind could receive that item. Existing submission rechecks remain
+authoritative. This is bounded read-failure tolerance, not verified multiplayer
+compatibility. It adds no ordinary-container replication requests or idle hooks.
+
+### Optional small incubators
+
+`IncludeSmallIncubators = false` is the default, including existing configs.
+Disabled jobs do not resolve the small-incubator class or read its containers.
+When enabled, eggs are planned into large incubators first, small incubators
+second, and ordinary storage only under `IncubatorThenStorage`. Exclusions and
+`ManualPlacement` still apply. A small incubator must have exactly one readable
+empty slot and no valid `HatchedCharacterSaveParameter`. The reflected
+`CharacterID == NAME_None` check matches the current native
+`PalIndividualCharacterSaveParameterUtility.IsValid` predicate without passing
+the whole save struct through UE4SS.
+
+Before the first small-incubator submission, one bounded, game-thread sweep
+re-resolves the already-discovered large incubators and verifies they have no
+empty slots. Unreadable state, a failed large request, or remaining large space
+blocks all small-incubator requests in that job; there is no automatic retry of
+the move RPC. The sweep may wait for local replication at most three times at
+100 ms intervals when large slots are still empty. Each small target is checked
+again immediately before its own submission. This is a client-side phase
+boundary check, not an atomic guarantee against concurrent server/player edits.
+
 ### Feedback
 
 - The standalone mod creates the same compact, centered, non-focusable status

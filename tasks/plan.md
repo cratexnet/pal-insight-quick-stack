@@ -72,6 +72,16 @@ Runtime contract proof
 - [x] In-game ordinary-item comparison is documented and ready for a separately
   approved prototype installation.
 
+### Bounded destination rereads (2026-09-04)
+
+- [x] Limit rereads to already-classified ordinary storage and supported
+  incubators, before planning; retain stable discovery order and fresh snapshots.
+- [x] Bound rereads per target and per job; preserve GameThread generation guards.
+- [x] Record unreadable targets separately from known capacity failures; do not
+  add ordinary-container Start/Stop calls, base rescans, or idle hooks.
+- [ ] Validate transient unreadability, exhausted retries, and world/base changes
+  in game. Multiplayer compatibility is still unverified.
+
 ## Phase 3: Egg Parity and Acceptance
 
 - [x] Add exclusion-aware alternate egg classification.
@@ -197,6 +207,20 @@ Runtime contract proof
 - [ ] Pass the narrow existing static checks and complete single-player,
   listen-client, and dedicated-client in-game acceptance before claiming
   multiplayer support.
+
+## Optional small incubators (2026-09-04)
+
+- [x] Add the default-off setting, persistence, shared settings, and all 17 locales.
+- [x] Keep the small-class lookup and container reads disabled by default.
+- [x] Plan large first, then gate small submission on a bounded large-capacity
+  sweep; skip small for unreadable state, failed large requests, or remaining room.
+- [x] Check the single egg slot and native hatched-character validity before
+  indexing and immediately before submitting a small-incubator request.
+- [x] User confirmed the reported small-only setup works after the job-config
+  snapshot and reflected CharacterID fixes (2026-09-04).
+- [ ] Complete in-game acceptance: setting save/reset, normal/electric small
+  incubators, unclaimed Pal, large-first fallback, delayed replication, travel,
+  exclusions, and ManualPlacement in single-player and multiplayer.
 
 ## Risks and Mitigations
 

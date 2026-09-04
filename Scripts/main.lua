@@ -72,6 +72,7 @@ local SHARED_BOOLEAN_SETTINGS = {
     { shared = "IncludeExcludedItems", config = "IncludeExcludedItems" },
     { shared = "IncludeNewItems", config = "IncludeNewItems" },
     { shared = "IncludeGuildChest", config = "IncludeGuildChest" },
+    { shared = "IncludeSmallIncubators", config = "IncludeSmallIncubators" },
 }
 local SHARED_STRING_SETTINGS = {
     { shared = "ResultDisplay", config = "ResultDisplay",
