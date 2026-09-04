@@ -7,6 +7,8 @@ dist/
 .idea/
 .vscode/
 .playwright-cli/
+/.codex-artifacts/
+/archive/
 /native/steam_vote/build/
 /native/steam_vote/bin/
 /native/settings_input/build/
