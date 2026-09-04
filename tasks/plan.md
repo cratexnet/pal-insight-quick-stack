@@ -180,6 +180,12 @@ Runtime contract proof
   direct strings, while retaining the standalone controller polling fallback.
 - [x] Keep the prepared window transparent until modal ownership and the
   authoritative first-row selection are both established.
+- [x] Trigger settings prewarm from the local controller `ClientRestart`
+  lifecycle with an independently latched Pal Insight settings-stack fallback.
+  Require an explicit ready window, and stop its retained retry action on
+  success, timeout, or runtime supersession.
+- [x] Verify in game that the first hosted open reuses the prepared settings
+  tree (`window_cache=hit`, 19 ms observed) on the Insight-to-Quick-Stack click.
 - [ ] Verify mouse, keyboard, and controller behavior in game before syncing or
   packaging.
 

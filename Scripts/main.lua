@@ -67,6 +67,8 @@ local SETTINGS_HOST_LEASE_SECONDS = 1.5
 local SHARED_POLL_MS = 500
 local HOST_ACTIVITY_POLL_MS = 80
 local HOST_REQUEST_POLL_MS = 16
+local SETTINGS_PREWARM_RETRY_MS = 250
+local SETTINGS_PREWARM_MAX_ATTEMPTS = 20
 local INTEGRATION_PERFORMANCE_SAMPLES = 40
 local SHARED_BOOLEAN_SETTINGS = {
     { shared = "IncludeExcludedItems", config = "IncludeExcludedItems" },
@@ -123,7 +125,12 @@ local state = {
     settingsHostPanelInputRoute = nil,
     pendingSettingsHostCloseAck = nil,
     settingsPrewarmPending = false,
+    settingsPrewarmHandle = nil,
     settingsPrewarmCallback = nil,
+    settingsPrewarmAttempts = 0,
+    settingsPrewarmReason = nil,
+    settingsPrewarmStartedAt = nil,
+    settingsPrewarmHostOpenHandled = false,
     performanceCaptureEnabled = false,
     integrationPerformance = nil,
     superseded = false,
@@ -200,25 +207,84 @@ local function recordSharedPollPerformance(capture, sharedMs, hostMs, settingsMs
     state.integrationPerformance = nil
 end
 
-local function scheduleSettingsPrewarm()
-    if state.settingsPrewarmPending
-        or type(ExecuteInGameThreadWithDelay) ~= "function" then return false end
+local stopSettingsPrewarm
+
+local function settingsPrewarmPerformance(status)
+    if state.config == nil
+        or state.config.PerformanceCapture ~= true then return end
+    local elapsed = state.settingsPrewarmStartedAt ~= nil
+        and elapsedMs(state.settingsPrewarmStartedAt) or 0
+    log(table.concat({
+        "settings_prewarm",
+        "status=" .. tostring(status),
+        "reason=" .. tostring(state.settingsPrewarmReason or "unknown"),
+        "attempts=" .. tostring(state.settingsPrewarmAttempts),
+        string.format("total_ms=%.3f", elapsed),
+    }, "|"))
+end
+
+local function scheduleSettingsPrewarm(reason)
+    if state.settingsPrewarmPending then return true end
+    if type(LoopInGameThreadWithDelay) ~= "function"
+        or state.superseded == true then return false end
     state.settingsPrewarmPending = true
-    state.settingsPrewarmCallback = function()
-        state.settingsPrewarmPending = false
-        state.settingsPrewarmCallback = nil
-        local prepared, prepareError = pcall(SettingsUI.prepare)
+    state.settingsPrewarmAttempts = 0
+    state.settingsPrewarmReason = tostring(reason or "unspecified")
+    state.settingsPrewarmStartedAt = os.clock()
+    settingsPrewarmPerformance("scheduled")
+    state.settingsPrewarmCallback = state.settingsPrewarmCallback or function()
+        if runtimeIsSuperseded ~= nil and runtimeIsSuperseded() then
+            settingsPrewarmPerformance("superseded")
+            stopSettingsPrewarm()
+            return
+        end
+        state.settingsPrewarmAttempts = state.settingsPrewarmAttempts + 1
+        local prepared, prepareError, _, windowReady = pcall(SettingsUI.prepare)
         if not prepared then
             log("settings prewarm failed: " .. tostring(prepareError))
+            settingsPrewarmPerformance("failed")
+            stopSettingsPrewarm()
+        elseif windowReady == true then
+            settingsPrewarmPerformance("ready")
+            stopSettingsPrewarm()
+        elseif state.settingsPrewarmAttempts >= SETTINGS_PREWARM_MAX_ATTEMPTS then
+            settingsPrewarmPerformance("exhausted")
+            stopSettingsPrewarm()
         end
     end
-    local scheduled = pcall(ExecuteInGameThreadWithDelay,
-        0, state.settingsPrewarmCallback)
-    if not scheduled then
+    local scheduled, handleOrError = pcall(LoopInGameThreadWithDelay,
+        SETTINGS_PREWARM_RETRY_MS, state.settingsPrewarmCallback)
+    if not scheduled or type(handleOrError) ~= "number" then
         state.settingsPrewarmPending = false
-        state.settingsPrewarmCallback = nil
+        state.settingsPrewarmHandle = nil
+        state.settingsPrewarmAttempts = 0
+        state.settingsPrewarmReason = nil
+        state.settingsPrewarmStartedAt = nil
+        return false
     end
-    return scheduled
+    state.settingsPrewarmHandle = handleOrError
+    return true
+end
+
+stopSettingsPrewarm = function()
+    local handle = state.settingsPrewarmHandle
+    local stopped = handle == nil
+    if not stopped and type(CancelDelayedAction) == "function" then
+        local cancelled, result = pcall(CancelDelayedAction, handle)
+        stopped = cancelled and result == true
+    end
+    if not stopped and type(IsValidDelayedActionHandle) == "function" then
+        local checked, valid = pcall(IsValidDelayedActionHandle, handle)
+        stopped = checked and valid == false
+    end
+    if stopped then
+        state.settingsPrewarmHandle = nil
+        state.settingsPrewarmPending = false
+        state.settingsPrewarmAttempts = 0
+        state.settingsPrewarmReason = nil
+        state.settingsPrewarmStartedAt = nil
+    end
+    return stopped
 end
 
 local function dispatchConfiguredPress()
@@ -853,6 +919,12 @@ local function reconcileSettingsHost()
     state.hostActivityHostLive = hostLive == true
     state.hostActivityHostSettingsOpen = hostSettingsOpen
     state.hostActivityLastProbeAt = os.clock()
+    if not hostSettingsOpen then
+        state.settingsPrewarmHostOpenHandled = false
+    elseif not state.settingsPrewarmHostOpenHandled then
+        state.settingsPrewarmHostOpenHandled = true
+        scheduleSettingsPrewarm("host-settings-open")
+    end
     if SettingsUI.mode() ~= nil then SettingsUI.ensurePollAlive() end
     if hostLive and (hostSettingsOpen or SettingsUI.mode() == "hosted")
         and scheduleHostActivityPoll ~= nil then
@@ -1081,8 +1153,14 @@ SettingsUI.configure({
     end,
 })
 QuickStack.configure(state.config, log, debugLog)
-if not scheduleSettingsPrewarm() then
-    log("settings prewarm could not reach the game thread")
+local worldTrackingReady, worldTrackingError = Palworld.installWorldReadyTracking(
+    function()
+        if not scheduleSettingsPrewarm("world-ui-ready") then
+            log("settings prewarm could not reach the game thread")
+        end
+    end)
+if not worldTrackingReady then
+    log("settings prewarm lifecycle unavailable: " .. tostring(worldTrackingError))
 end
 
 local inputTrackingReady, inputTrackingError = Palworld.installInputUiTracking()

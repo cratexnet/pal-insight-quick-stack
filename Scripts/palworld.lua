@@ -19,6 +19,7 @@ local RECYCLER_CLASS_PATH = "/Script/Pal.PalMapObjectRecyclerModel"
 local MAIN_MENU_CLASS_PATH =
     "/Game/Pal/Blueprint/UI/InGameMainMenu/WBP_InGameMainMenu.WBP_InGameMainMenu_C"
 local MAIN_MENU_CLASS_NAME = "WBP_InGameMainMenu_C"
+local CLIENT_RESTART_FUNCTION = "/Script/Engine.PlayerController:ClientRestart"
 local INVENTORY_DISPLAY_CLASS_PATH =
     "/Game/Pal/Blueprint/UI/Inventory/WBP_InventoryEquipment_ForDisplay.WBP_InventoryEquipment_ForDisplay_C"
 
@@ -27,6 +28,11 @@ local inputUi = {
     mainMenuAddress = nil,
     inventoryDisplayClass = nil,
     trackingReady = false,
+    worldReadyCallback = nil,
+    worldReadyHookCallback = nil,
+    worldReadyHookPreId = nil,
+    worldReadyHookPostId = nil,
+    worldReadyTrackingReady = false,
 }
 
 function Palworld.isValid(object)
@@ -201,6 +207,32 @@ function Palworld.currentController()
     if not ok or not isLocalController(controller) then return nil end
     cachedController = controller
     return controller
+end
+
+function Palworld.installWorldReadyTracking(onWorldReady)
+    if type(onWorldReady) ~= "function" then
+        return false, "world lifecycle callback must be a function"
+    end
+    inputUi.worldReadyCallback = onWorldReady
+    if inputUi.worldReadyTrackingReady then return true, nil end
+    if type(RegisterHook) ~= "function" then
+        return false, "UE4SS hook API is unavailable"
+    end
+    inputUi.worldReadyHookCallback = function(context)
+        local controller = Palworld.unwrap(context)
+        if not isLocalController(controller) then return end
+        cachedController = controller
+        pcall(inputUi.worldReadyCallback, controller)
+    end
+    local ok, preId, postId = pcall(RegisterHook,
+        CLIENT_RESTART_FUNCTION, inputUi.worldReadyHookCallback)
+    if not ok or type(preId) ~= "number" then
+        return false, ok and "ClientRestart hook registration failed" or preId
+    end
+    inputUi.worldReadyHookPreId = preId
+    inputUi.worldReadyHookPostId = postId
+    inputUi.worldReadyTrackingReady = true
+    return true, nil
 end
 
 local function inventoryMenuIsActive()

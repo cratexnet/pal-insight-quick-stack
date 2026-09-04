@@ -520,9 +520,16 @@ reported as an external conflict.
   cached tree after releasing input; a mismatch discards it before rebuilding,
   so repeated opens do not synchronously reconstruct the complete UMG tree.
 - Process-lifetime preview/input hooks and the optional Pal Insight bridge asset
-  are prepared once during startup. Standalone-only native Escape gates are
-  installed once on the first standalone acquisition. Idle host reconciliation must not rebuild,
-  validate, or prewarm the settings tree. If startup preparation was too early,
+  are prepared once. Standalone-only native Escape gates are installed once on
+  the first standalone acquisition. The settings tree is prewarmed on the game
+  thread after the local player controller's `ClientRestart` establishes a
+  usable world and controller. Opening the Pal Insight settings stack may request
+  the same preparation as a fallback; an already prepared or pending window
+  makes that request a no-op. One retained, cancellable action may retry the work
+  for at most five seconds; only an explicit `windowReady = true` result is
+  success, and success, exhaustion, or runtime supersession stops the action.
+  Idle host reconciliation must not rebuild, validate, or prewarm the settings
+  tree. If lifecycle and active-host preparation were unavailable or exhausted,
   the actual open transaction may retry only the missing preparation work. The
   Workshop vote Pal portrait follows the same bounded retry rule; a warm open
   never calls `LoadAsset` to repair it.
