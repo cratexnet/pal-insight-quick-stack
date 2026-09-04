@@ -1,3 +1,7 @@
+local Ammo = require("ammo")
+local Valuables = require("valuables")
+local SaleConsumables = require("sale_consumables")
+
 local Settings = {}
 
 local DEFAULTS = {
@@ -9,6 +13,14 @@ local DEFAULTS = {
     IncludeExcludedItems = false,
     IncludeNewItems = true,
     IncludeGuildChest = false,
+    AutoSellValuables = false,
+    ValuableSellItems = Valuables.defaultSellItems,
+    AutoSellAmmo = false,
+    AmmoSellItems = "",
+    AutoSellPalSpheres = false,
+    PalSphereSellItems = "",
+    AutoSellFishingBait = false,
+    FishingBaitSellItems = "",
     IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
@@ -26,6 +38,14 @@ local ORDER = {
     "IncludeExcludedItems",
     "IncludeNewItems",
     "IncludeGuildChest",
+    "AutoSellValuables",
+    "ValuableSellItems",
+    "AutoSellAmmo",
+    "AmmoSellItems",
+    "AutoSellPalSpheres",
+    "PalSphereSellItems",
+    "AutoSellFishingBait",
+    "FishingBaitSellItems",
     "IncludeSmallIncubators",
     "PalEggRouting",
     "RelicRouting",
@@ -146,6 +166,22 @@ function Settings.validateResultDisplay(value)
     return value, nil
 end
 
+function Settings.validateAmmoSellItems(value)
+    return Ammo.normalizeSellItems(value)
+end
+
+function Settings.validateValuableSellItems(value)
+    return Valuables.normalizeSellItems(value)
+end
+
+function Settings.validatePalSphereSellItems(value)
+    return SaleConsumables.palSpheres.normalizeSellItems(value)
+end
+
+function Settings.validateFishingBaitSellItems(value)
+    return SaleConsumables.fishingBait.normalizeSellItems(value)
+end
+
 function Settings.validatePalEggRouting(value)
     if type(value) ~= "string" or not PAL_EGG_ROUTING_VALUES[value] then
         return nil, "PalEggRouting must be IncubatorOnly, IncubatorThenStorage, or ManualPlacement"
@@ -183,6 +219,24 @@ local function parseConfig(text)
     local resultDisplay = text:match('ResultDisplay%s*=%s*"([^"\\]+)"')
         or text:match("ResultDisplay%s*=%s*'([^'\\]+)'")
     if resultDisplay ~= nil then parsed.ResultDisplay = resultDisplay end
+    local ammoSellItems = text:match('AmmoSellItems%s*=%s*"([^"\\]*)"')
+        or text:match("AmmoSellItems%s*=%s*'([^'\\]*)'")
+    if ammoSellItems ~= nil then parsed.AmmoSellItems = ammoSellItems end
+    local valuableSellItems = text:match('ValuableSellItems%s*=%s*"([^"\\]*)"')
+        or text:match("ValuableSellItems%s*=%s*'([^'\\]*)'")
+    if valuableSellItems ~= nil then
+        parsed.ValuableSellItems = valuableSellItems
+    end
+    local palSphereSellItems = text:match('PalSphereSellItems%s*=%s*"([^"\\]*)"')
+        or text:match("PalSphereSellItems%s*=%s*'([^'\\]*)'")
+    if palSphereSellItems ~= nil then
+        parsed.PalSphereSellItems = palSphereSellItems
+    end
+    local fishingBaitSellItems = text:match('FishingBaitSellItems%s*=%s*"([^"\\]*)"')
+        or text:match("FishingBaitSellItems%s*=%s*'([^'\\]*)'")
+    if fishingBaitSellItems ~= nil then
+        parsed.FishingBaitSellItems = fishingBaitSellItems
+    end
     local palEggRouting = text:match('PalEggRouting%s*=%s*"([^"\\]+)"')
         or text:match("PalEggRouting%s*=%s*'([^'\\]+)'")
     if palEggRouting ~= nil then parsed.PalEggRouting = palEggRouting end
@@ -199,7 +253,9 @@ local function parseConfig(text)
     end
     for _, name in ipairs({
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
-        "IncludeGuildChest", "IncludeSmallIncubators",
+        "IncludeGuildChest", "AutoSellValuables", "AutoSellAmmo",
+        "AutoSellPalSpheres", "AutoSellFishingBait",
+        "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
     }) do
         local value = parseBoolean(text, name)
@@ -236,12 +292,32 @@ local function parseConfig(text)
         and select(1, Settings.validateRelicRouting(relicRouting)) or nil
     local validatedResultDisplay = resultDisplay ~= nil
         and select(1, Settings.validateResultDisplay(resultDisplay)) or nil
+    local validatedAmmoSellItems = ammoSellItems ~= nil
+        and select(1, Settings.validateAmmoSellItems(ammoSellItems)) or nil
+    local validatedValuableSellItems = valuableSellItems ~= nil
+        and select(1, Settings.validateValuableSellItems(valuableSellItems)) or nil
+    local validatedPalSphereSellItems = palSphereSellItems ~= nil
+        and select(1, Settings.validatePalSphereSellItems(palSphereSellItems)) or nil
+    local validatedFishingBaitSellItems = fishingBaitSellItems ~= nil
+        and select(1, Settings.validateFishingBaitSellItems(fishingBaitSellItems)) or nil
     local needsRewrite = validatedResultDisplay == nil
         or validatedPalEggRouting == nil
         or validatedRelicRouting == nil
         or holyWaterMinimum == nil
         or parseBoolean(text, "IncludeNewItems") == nil
         or parseBoolean(text, "IncludeGuildChest") == nil
+        or parseBoolean(text, "AutoSellValuables") == nil
+        or validatedValuableSellItems == nil
+        or validatedValuableSellItems ~= valuableSellItems
+        or parseBoolean(text, "AutoSellAmmo") == nil
+        or validatedAmmoSellItems == nil
+        or validatedAmmoSellItems ~= ammoSellItems
+        or parseBoolean(text, "AutoSellPalSpheres") == nil
+        or validatedPalSphereSellItems == nil
+        or validatedPalSphereSellItems ~= palSphereSellItems
+        or parseBoolean(text, "AutoSellFishingBait") == nil
+        or validatedFishingBaitSellItems == nil
+        or validatedFishingBaitSellItems ~= fishingBaitSellItems
         or parseBoolean(text, "IncludeSmallIncubators") == nil
         or legacyShowDetailedResults ~= nil
         or legacyOnlyExistingItems ~= nil
@@ -270,7 +346,9 @@ local function normalizeConfig(candidate, log)
     end
     for _, name in ipairs({
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
-        "IncludeGuildChest", "IncludeSmallIncubators",
+        "IncludeGuildChest", "AutoSellValuables", "AutoSellAmmo",
+        "AutoSellPalSpheres", "AutoSellFishingBait",
+        "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
     }) do
         if type(candidate[name]) == "boolean" then out[name] = candidate[name] end
@@ -285,6 +363,42 @@ local function normalizeConfig(candidate, log)
     else
         log("invalid ResultDisplay '" .. tostring(candidate.ResultDisplay)
             .. "'; using Default: " .. tostring(resultDisplayError))
+    end
+    local ammoSellItems, ammoSellItemsError =
+        Settings.validateAmmoSellItems(candidate.AmmoSellItems)
+    if ammoSellItems ~= nil then
+        out.AmmoSellItems = ammoSellItems
+    else
+        log("invalid AmmoSellItems '" .. tostring(candidate.AmmoSellItems)
+            .. "'; protecting all ammunition: " .. tostring(ammoSellItemsError))
+    end
+    local valuableSellItems, valuableSellItemsError =
+        Settings.validateValuableSellItems(candidate.ValuableSellItems)
+    if valuableSellItems ~= nil then
+        out.ValuableSellItems = valuableSellItems
+    else
+        log("invalid ValuableSellItems '" .. tostring(candidate.ValuableSellItems)
+            .. "'; using the fixed default sell list: "
+            .. tostring(valuableSellItemsError))
+    end
+    local palSphereSellItems, palSphereSellItemsError =
+        Settings.validatePalSphereSellItems(candidate.PalSphereSellItems)
+    if palSphereSellItems ~= nil then
+        out.PalSphereSellItems = palSphereSellItems
+    else
+        log("invalid PalSphereSellItems '" .. tostring(candidate.PalSphereSellItems)
+            .. "'; protecting all Pal Spheres: "
+            .. tostring(palSphereSellItemsError))
+    end
+    local fishingBaitSellItems, fishingBaitSellItemsError =
+        Settings.validateFishingBaitSellItems(candidate.FishingBaitSellItems)
+    if fishingBaitSellItems ~= nil then
+        out.FishingBaitSellItems = fishingBaitSellItems
+    else
+        log("invalid FishingBaitSellItems '"
+            .. tostring(candidate.FishingBaitSellItems)
+            .. "'; protecting all fishing bait: "
+            .. tostring(fishingBaitSellItemsError))
     end
     if type(candidate.IncludeNewItems) ~= "boolean" then
         if type(candidate.OnlyExistingItems) == "boolean" then
@@ -350,6 +464,18 @@ local function configText(config)
         "    IncludeNewItems = " .. tostring(config.IncludeNewItems) .. ",",
         "    -- Use only an accessible Guild Chest in the current base.",
         "    IncludeGuildChest = " .. tostring(config.IncludeGuildChest) .. ",",
+        "    -- Sell only the fixed high-value merchant whitelist.",
+        "    AutoSellValuables = " .. tostring(config.AutoSellValuables) .. ",",
+        string.format("    ValuableSellItems = %q,", config.ValuableSellItems),
+        "    -- Sell only selected current ammunition; an empty list protects all.",
+        "    AutoSellAmmo = " .. tostring(config.AutoSellAmmo) .. ",",
+        string.format("    AmmoSellItems = %q,", config.AmmoSellItems),
+        "    -- Sell only selected current Pal Spheres; an empty list protects all.",
+        "    AutoSellPalSpheres = " .. tostring(config.AutoSellPalSpheres) .. ",",
+        string.format("    PalSphereSellItems = %q,", config.PalSphereSellItems),
+        "    -- Sell only selected current fishing bait; an empty list protects all.",
+        "    AutoSellFishingBait = " .. tostring(config.AutoSellFishingBait) .. ",",
+        string.format("    FishingBaitSellItems = %q,", config.FishingBaitSellItems),
         "    -- Small incubators are used only after large incubators are full.",
         "    IncludeSmallIncubators = " .. tostring(config.IncludeSmallIncubators) .. ",",
         "    -- IncubatorOnly, IncubatorThenStorage, or ManualPlacement.",

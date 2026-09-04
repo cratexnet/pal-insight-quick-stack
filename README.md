@@ -2,9 +2,9 @@
 
 面向 Palworld 1.0 的独立 UE4SS Lua 模组。默认在基地内按 `F5`，把玩家普通背包中符合条件的物品归入当前基地的对应容器。
 
-> 当前版本：`1.1.0`。独立核心已完成单人实机迭代，普通物品移动、
-> 中央状态通知和宽屏结果卡已验证；多人、专服、完整帕鲁蛋矩阵、满箱失败卡、
-> 窄屏/超高滚动及 Pal Insight 双加载顺序仍待验收。
+> 当前版本：`1.1.0`。维护者已于 2026-09-05 确认当前候选版测试完成并同意发布。
+> 本次新增默认关闭的公会箱和小型孵化器选项；多人、专服和 Game Pass 的
+> 具体测试环境未单独记录，不据此宣称这些环境已验证。
 
 Nexus Mods 与 CurseForge 分别提供 Steam/Win64 和 Xbox App / PC Game Pass /
 Microsoft Store WinGDK 两种压缩包。必须选择与游戏版本匹配的文件；WinGDK 包已
@@ -16,8 +16,11 @@ Microsoft Store WinGDK 两种压缩包。必须选择与游戏版本匹配的文
 - 只枚举玩家当前所在基地的复制对象，不扫描全世界对象。
 - 默认遵循背包 `Tab` → `R` 添加的快速移动排除项，包括帕鲁蛋；可选规则允许本次
   收纳包含这些物品，但不会修改游戏中的忽略列表。
-- 工会箱永远不会成为自动收纳目标；只使用当前基地的普通储存容器、孵化器和
-  古代遗物转换器。
+- 默认不使用公会箱；开启对应选项后，可使用当前公会基地内有权限访问的公会箱。
+  普通储存容器、孵化器和古代遗物转换器仍只在当前基地内选取。
+- 可分别开启高价品、弹药、帕鲁球和钓饵的自动出售。每类都用带原生图标与
+  本地化名称的保留列表；勾选项留在背包，未勾选项才会在归箱前出售。四个
+  开关默认关闭，背包 `Tab` → `R` 的排除项始终不会出售。
 - 打开 `Tab` 后，只有当前位于“背包/装备”页时允许按 `F5`；地图、科技、
   帕鲁图鉴等同一套菜单中的其他页面仍会拦截快捷键。
 - 帕鲁蛋始终先进入空闲孵化器；可选择在孵化器不存在或已满时留在背包，或继续
@@ -52,8 +55,8 @@ Microsoft Store WinGDK 两种压缩包。必须选择与游戏版本匹配的文
 
 Quick Stack 的状态提示、结果标题、分区、统计、说明和按钮会自动
 跟随 Palworld 当前界面语言，完整覆盖游戏现有的 17 种界面语言。未知语言或
-语言读取失败时安全回退英文。物品图标和名称直接使用 Palworld 的原生本地化
-资源，不维护一份可能过期的重复翻译。
+语言读取失败时安全回退英文。物品图标直接使用 Palworld 的原生资源；选择器
+名称来自当前游戏版本导出的 17 语言物品表，并以稳定物品 ID 兜底。
 
 ## 快捷键设置
 
@@ -118,6 +121,14 @@ return {
     IncludeExcludedItems = false,
     IncludeNewItems = true,
     IncludeGuildChest = false,
+    AutoSellValuables = false,
+    ValuableSellItems = "Ruby,Sapphire,Eemerald,Diamond,PalItem_ToSell_01,PalItem_ToSell_02,PalItem_ToSell_03,PalItem_ToSell_04,PalItem_ToSell_05",
+    AutoSellAmmo = false,
+    AmmoSellItems = "",
+    AutoSellPalSpheres = false,
+    PalSphereSellItems = "",
+    AutoSellFishingBait = false,
+    FishingBaitSellItems = "",
     IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
@@ -132,6 +143,11 @@ return {
 - `IncludeExcludedItems`：也收纳通过 `Tab → R` 忽略的物品，但不修改忽略列表。
 - `IncludeNewItems`：也使用尚未存有同种物品、但筛选允许的普通仓库空位。
 - `IncludeGuildChest`：也使用当前基地中有权限访问的公会箱；默认关闭。
+- `AutoSellValuables`、`AutoSellAmmo`、`AutoSellPalSpheres`、
+  `AutoSellFishingBait`：分别控制四类自动出售，均默认关闭。出售先于归箱，
+  `Tab → R` 排除项优先保留。
+- 四个 `*SellItems` 字段是实际出售名单；设置界面以更安全的反向方式呈现，
+  勾选代表保留、不出售。弹药、帕鲁球和钓饵默认名单为空，即初始保护全部。
 - `IncludeSmallIncubators`：也使用小型孵化器；默认关闭。先投大型，再确认已发现的
   大型均无空位，才向无蛋、无待领取帕鲁的小型投放。大型状态不明、请求失败或仍有
   空位时，本次跳过小型；`ManualPlacement` 仍完全跳过帕鲁蛋。

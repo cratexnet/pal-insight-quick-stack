@@ -821,10 +821,12 @@ end
 
 local function detailedSectionSpecs(details, strings)
     local moved = type(details.moved) == "table" and details.moved or {}
+    local sold = type(details.sold) == "table" and details.sold or {}
     local excluded = type(details.excluded) == "table"
         and details.excluded or {}
     local full = type(details.full) == "table" and details.full or {}
     local movedTotal = details.movedTotal or 0
+    local soldTotal = details.soldTotal or 0
     local excludedTotal = details.excludedTotal or 0
     local fullTotal = details.fullTotal or 0
     local specs = {}
@@ -847,6 +849,15 @@ local function detailedSectionSpecs(details, strings)
             items = moved,
         }
     end
+    if soldTotal > 0 and #sold > 0 then
+        specs[#specs + 1] = {
+            label = strings.soldSection,
+            color = COLORS.primary,
+            summary = Localization.format(strings, "countSummary",
+                #sold, soldTotal),
+            items = sold,
+        }
+    end
     if excludedTotal > 0 and #excluded > 0 then
         specs[#specs + 1] = {
             label = strings.excludedSection,
@@ -861,9 +872,10 @@ end
 
 local function detailedTitle(outcome, details, strings)
     local movedTotal = details.movedTotal or 0
+    local soldTotal = details.soldTotal or 0
     local fullTotal = details.fullTotal or 0
     local titleColor = COLORS.text
-    if fullTotal > 0 and movedTotal > 0 then
+    if fullTotal > 0 and movedTotal + soldTotal > 0 then
         return strings.partialTitle, COLORS.warning
     end
     if fullTotal > 0 then
@@ -876,15 +888,28 @@ local function detailedTitle(outcome, details, strings)
 end
 
 local function detailedFallbackMessage(outcome, details, strings)
-    if outcome == "submitted" then return strings.submittedCompact end
+    local messages = {}
+    if (details.soldTotal or 0) > 0 then
+        messages[#messages + 1] = Localization.format(
+            strings, "soldCompact", details.soldTotal)
+    end
     if (details.movedTotal or 0) > 0 and (details.fullTotal or 0) > 0 then
-        return Localization.format(strings, "partialCompact",
+        messages[#messages + 1] = Localization.format(strings, "partialCompact",
             details.movedTotal, details.fullTotal)
+    elseif (details.movedTotal or 0) > 0 then
+        messages[#messages + 1] = Localization.format(
+            strings, "completeCompact", details.movedTotal)
+    elseif (details.fullTotal or 0) > 0 then
+        messages[#messages + 1] = Localization.format(
+            strings, "fullCompact", details.fullTotal)
     end
-    if (details.movedTotal or 0) > 0 then
-        return Localization.format(strings, "completeCompact", details.movedTotal)
+    if details.saleConfirmationPending then
+        messages[#messages + 1] = Localization.format(
+            strings, "saleSubmittedCompact", details.salePendingTotal or 0)
     end
-    return Localization.format(strings, "fullCompact", details.fullTotal or 0)
+    if #messages > 0 then return table.concat(messages, "\n") end
+    if outcome == "submitted" then return strings.submittedCompact end
+    return strings.noop
 end
 
 local function scheduleClear(token, durationMs)
@@ -1219,13 +1244,16 @@ function Notifications.finished(controller, _startToken, outcome,
     local strings = Localization.current()
     details = type(details) == "table" and details or {
         moved = {}, movedTotal = 0,
+        sold = {}, soldTotal = 0,
         excluded = {}, excludedTotal = 0,
         full = {}, fullTotal = 0,
     }
     local hasDetailedResult = outcome ~= "stopped" and (
         (details.movedTotal or 0) > 0
+        or (details.soldTotal or 0) > 0
         or (details.fullTotal or 0) > 0)
     local showDetails = detailedResultRequested == true and hasDetailedResult
+        and not details.saleConfirmationPending
         and ResultDialogBridge.available()
     local token
     local detailed = false
@@ -1247,7 +1275,12 @@ function Notifications.finished(controller, _startToken, outcome,
             message = Localization.format(strings, "completeContainers",
                 itemCount or 0, requestCount or 0)
         elseif outcome == "submitted" then
-            message = strings.submittedCompact
+            if details.saleConfirmationPending then
+                message = Localization.format(strings, "saleSubmittedCompact",
+                    details.salePendingTotal or 0)
+            else
+                message = strings.submittedCompact
+            end
         elseif outcome == "noop" then
             message = strings.noop
             color = COLORS.warning

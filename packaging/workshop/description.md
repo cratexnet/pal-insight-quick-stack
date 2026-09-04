@@ -12,6 +12,7 @@ Press [b]F5[/b] while standing inside your current base. Quick Stack moves match
 [*]Uses only storage objects from the base you are currently inside.
 [*]Respects Quick Move exclusions added through Inventory [b]Tab > R[/b] by default, with optional storage rules.
 [*]Can optionally use an accessible Guild Chest in the current guild base. This setting is off by default.
+[*]Can optionally use empty small incubators after large incubators are full. Skips incubators with an egg or an unclaimed Pal. This setting is off by default.
 [*]Prefers incubators for eligible Pal Eggs, then existing matching stacks, then compatible private storage whose filters accept the item.
 [*]Shows a native-style result card for stored, excluded, and not-stored items.
 [*]Follows all 17 interface languages currently included with Palworld.
@@ -22,6 +23,7 @@ Press [b]F5[/b] while standing inside your current base. Quick Stack moves match
 [*]仅使用角色当前所在基地的储存设施。
 [*]默认遵循背包 [b]Tab > R[/b] 添加的快速移动排除项，并提供可选收纳规则。
 [*]可选择使用当前公会基地中有权限访问的公会箱；此设置默认关闭。
+[*]可选择在大型孵化器已满后使用空的小型孵化器；跳过已有蛋或有待领取帕鲁的孵化器，此设置默认关闭。
 [*]符合条件的帕鲁蛋优先进入孵化器；其他物品依次优先匹配已有堆叠和允许该物品的私人储存容器。
 [*]用原生风格结果卡区分已收纳、用户排除和因空间或仓库设置限制而未能收纳的物品。
 [*]自动跟随 Palworld 当前界面语言，覆盖游戏现有的全部 17 种界面语言。

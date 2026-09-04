@@ -1,5 +1,8 @@
 local P = require("palworld")
 local Notifications = require("notifications")
+local Ammo = require("ammo")
+local Valuables = require("valuables")
+local SaleConsumables = require("sale_consumables")
 
 local QuickStack = {}
 
@@ -9,6 +12,7 @@ local COMPLETION_POLL_MS = 120
 local COMPLETION_TIMEOUT_SECONDS = 3
 local JOB_TIMEOUT_SECONDS = 20
 local INVENTORY_SLOTS_PER_SLICE = 64
+local BASE_WORKERS_PER_SLICE = 8
 local METADATA_ITEMS_PER_SLICE = 64
 local BASE_OBJECTS_PER_SLICE = 256
 local CONTAINERS_PER_SLICE = 16
@@ -17,11 +21,13 @@ local RECHECK_SLOTS_PER_SLICE = 256
 local PLAN_OPERATIONS_PER_SLICE = 64
 local GUILD_REPLICATION_POLL_MS = 100
 local GUILD_REPLICATION_MAX_POLLS = 15
+local SALE_SHOP_POLL_MS = 100
+local SALE_SHOP_MAX_POLLS = 20
 local CONTAINER_READ_RETRY_MS = 100
 local CONTAINER_READ_MAX_RETRIES = 3
 local JOB_CONTAINER_READ_MAX_RETRIES = 15
 local PERFORMANCE_PHASE_ORDER = {
-    "resolve", "inventory", "metadata", "base", "guild", "containers",
+    "resolve", "inventory", "sale", "metadata", "base", "guild", "containers",
     "plan", "request", "recheck", "completion",
 }
 local PERFORMANCE_DETAIL_ORDER = {
@@ -55,7 +61,6 @@ local RELIC_ITEM_IDS = {
     WorldTreeRelic_05 = true,
 }
 local WORLD_TREE_HOLY_WATER_ID = "WorldTreeHolyWater"
-
 local function isRelicId(staticId)
     return RELIC_ITEM_IDS[staticId] == true
 end
@@ -75,6 +80,16 @@ local function snapshotJobConfig(config)
         IncludeExcludedItems = config.IncludeExcludedItems == true,
         IncludeNewItems = config.IncludeNewItems == true,
         IncludeGuildChest = config.IncludeGuildChest == true,
+        AutoSellValuables = config.AutoSellValuables == true,
+        ValuableSellItems = Valuables.sellSet(config.ValuableSellItems),
+        AutoSellAmmo = config.AutoSellAmmo == true,
+        AmmoSellItems = Ammo.sellSet(config.AmmoSellItems),
+        AutoSellPalSpheres = config.AutoSellPalSpheres == true,
+        PalSphereSellItems = SaleConsumables.palSpheres.sellSet(
+            config.PalSphereSellItems),
+        AutoSellFishingBait = config.AutoSellFishingBait == true,
+        FishingBaitSellItems = SaleConsumables.fishingBait.sellSet(
+            config.FishingBaitSellItems),
         IncludeSmallIncubators = config.IncludeSmallIncubators == true,
         PalEggRouting = config.PalEggRouting,
         RelicRouting = config.RelicRouting,
@@ -113,6 +128,11 @@ local function notificationDetails(job)
     return {
         moved = moved,
         movedTotal = movedTotal,
+        sold = job.soldItems or {},
+        soldTotal = job.soldTotal or 0,
+        saleRequestSubmitted = job.saleRequestSubmitted == true,
+        saleConfirmationPending = job.saleConfirmationPending == true,
+        salePendingTotal = job.salePendingTotal or 0,
         excluded = job.excludedItems or {},
         excludedTotal = job.excludedTotal or 0,
         full = job.fullItems or {},
@@ -249,9 +269,13 @@ finishJob = function(job, succeeded, message)
     end
     local outcome = "stopped"
     if succeeded then
-        if job.completionConfirmed then
+        if job.saleConfirmationPending then
+            outcome = "submitted"
+        elseif job.completionConfirmed or (job.soldTotal or 0) > 0 then
             outcome = "complete"
         elseif (job.submittedItems or 0) > 0 then
+            outcome = "submitted"
+        elseif job.saleRequestSubmitted then
             outcome = "submitted"
         else
             outcome = "noop"
@@ -332,6 +356,12 @@ local function resolveJobRoots(job)
     job.itemsById = {}
     job.uniqueItems = {}
     job.uniqueById = {}
+    job.sellCandidates = {}
+    job.soldItems = {}
+    job.soldById = {}
+    job.soldTotal = 0
+    job.saleConfirmationPending = false
+    job.salePendingTotal = 0
     job.excludedItems = {}
     job.excludedById = {}
     job.excludedTotal = 0
@@ -349,6 +379,25 @@ local function resolveJobRoots(job)
 end
 
 local startBaseSnapshot
+
+local function addRoutingItem(job, item)
+    job.items[#job.items + 1] = item
+    local itemsById = job.itemsById[item.id]
+    if itemsById == nil then
+        itemsById = {}
+        job.itemsById[item.id] = itemsById
+    end
+    itemsById[#itemsById + 1] = item
+    if job.uniqueById[item.id] == nil then
+        local unique = {
+            id = item.id,
+            staticId = item.staticId,
+            item = item,
+        }
+        job.uniqueById[item.id] = unique
+        job.uniqueItems[#job.uniqueItems + 1] = unique
+    end
+end
 
 local function scanMetadataSlice(job)
     if not identityMatches(job) then
@@ -408,6 +457,229 @@ local function beginMetadata(job)
     job.metadata = {}
     job.metadataIndex = 1
     scheduleJobStep(job, NEXT_SLICE_MS, scanMetadataSlice, "metadata")
+end
+
+local function routeUnresolvedSaleCandidates(job, reason)
+    if reason ~= nil then debugLog("automatic sale skipped: " .. tostring(reason)) end
+    for _, item in ipairs(job.sellCandidates or {}) do addRoutingItem(job, item) end
+    job.sellCandidates = {}
+    beginMetadata(job)
+end
+
+local pollSaleResult
+
+local function submitSale(job, shop)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    shop = P.revalidateItemShop(job, shop)
+    if shop == nil then
+        routeUnresolvedSaleCandidates(job, "current-base item shop changed")
+        return
+    end
+    local exclusions, exclusionError = P.resolveExclusions(job.playerState)
+    if exclusions == nil then
+        finishJob(job, false, exclusionError)
+        return
+    end
+
+    local rpcItems = {}
+    for _, item in ipairs(job.sellCandidates) do
+        local staticId = slotStaticId(item.slot)
+        local _, containerKey = slotGuid(item.slot)
+        local slotIndex
+        local stackCount
+        local readable = pcall(function()
+            slotIndex = tonumber(item.slot.SlotIndex)
+            stackCount = tonumber(item.slot.StackCount)
+        end)
+        if not readable or staticId ~= item.id or containerKey ~= job.commonKey
+            or slotIndex ~= item.slotIndex or stackCount ~= item.num
+            or exclusions[item.id] == true then
+            routeUnresolvedSaleCandidates(job,
+                "valuable source or exclusion list changed")
+            return
+        end
+        rpcItems[#rpcItems + 1] = {
+            SlotID = item.slotId,
+            Num = item.num,
+        }
+    end
+
+    local networkShop
+    local networkOk = pcall(function() networkShop = job.controller.Transmitter.Shop end)
+    if not networkOk or not isValid(networkShop) then
+        routeUnresolvedSaleCandidates(job, "local shop network component is unavailable")
+        return
+    end
+    local sent, sendError = pcall(function()
+        networkShop:RequestSellItems_ToServer(shop.shopId, rpcItems)
+    end)
+    if not sent then
+        log("automatic sale request failed: " .. tostring(sendError))
+        routeUnresolvedSaleCandidates(job, "sell RPC could not be submitted")
+        return
+    end
+    job.saleRequestSubmitted = true
+    job.saleResultPolls = 0
+    scheduleJobStep(job, SALE_SHOP_POLL_MS, pollSaleResult, "sale")
+end
+
+pollSaleResult = function(job)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    local pending = false
+    local states = {}
+    for _, item in ipairs(job.sellCandidates) do
+        local staticId = slotStaticId(item.slot)
+        local _, containerKey = slotGuid(item.slot)
+        local slotIndex
+        local stackCount
+        local readable = pcall(function()
+            slotIndex = tonumber(item.slot.SlotIndex)
+            stackCount = tonumber(item.slot.StackCount)
+        end)
+        if not readable or containerKey ~= job.commonKey
+            or slotIndex ~= item.slotIndex or stackCount == nil then
+            finishJob(job, false, "valuable source became unreadable")
+            return
+        end
+        stackCount = math.max(0, math.floor(stackCount))
+        local remaining = staticId == item.id and stackCount or 0
+        states[#states + 1] = { item = item, remaining = remaining }
+        if remaining == item.num then pending = true end
+    end
+    job.saleResultPolls = job.saleResultPolls + 1
+    if pending and job.saleResultPolls < SALE_SHOP_MAX_POLLS then
+        scheduleJobStep(job, SALE_SHOP_POLL_MS, pollSaleResult, "sale")
+        return
+    end
+
+    for _, stateEntry in ipairs(states) do
+        local item = stateEntry.item
+        local sold = math.max(0, item.num - stateEntry.remaining)
+        if sold > 0 then
+            addItemCount(job.soldItems, job.soldById,
+                item.id, item.staticId, sold)
+            job.soldTotal = job.soldTotal + sold
+        end
+        job.salePendingTotal = job.salePendingTotal + stateEntry.remaining
+    end
+    job.saleConfirmationPending = job.salePendingTotal > 0
+    job.sellCandidates = {}
+    beginMetadata(job)
+end
+
+local function pollItemShop(job)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    local venders = job.saleVenders or {}
+    local first = job.saleShopVenderIndex or 1
+    local stop = math.min(#venders, first + BASE_WORKERS_PER_SLICE - 1)
+    for index = first, stop do
+        local shop = P.itemShopContext(venders[index])
+        if shop ~= nil then submitSale(job, shop); return end
+    end
+    if stop < #venders then
+        job.saleShopVenderIndex = stop + 1
+        scheduleJobStep(job, NEXT_SLICE_MS, pollItemShop, "sale")
+        return
+    end
+    job.saleShopPolls = job.saleShopPolls + 1
+    if job.saleShopPolls < SALE_SHOP_MAX_POLLS then
+        job.saleShopVenderIndex = 1
+        scheduleJobStep(job, SALE_SHOP_POLL_MS, pollItemShop, "sale")
+        return
+    end
+    routeUnresolvedSaleCandidates(job, "no registered item shop in the current base")
+end
+
+local function setupNextSaleVender(job)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    local vender = job.saleVenders[job.saleVenderIndex]
+    if vender == nil then
+        if job.saleVenderSetupCount == 0 then
+            routeUnresolvedSaleCandidates(job, "current-base merchant setup failed")
+            return
+        end
+        job.saleShopPolls = 0
+        job.saleShopVenderIndex = 1
+        scheduleJobStep(job, SALE_SHOP_POLL_MS, pollItemShop, "sale")
+        return
+    end
+    if P.setupVenderShop(vender) then
+        job.saleVenderSetupCount = job.saleVenderSetupCount + 1
+    end
+    job.saleVenderIndex = job.saleVenderIndex + 1
+    scheduleJobStep(job, NEXT_SLICE_MS, setupNextSaleVender, "sale")
+end
+
+local function setupSaleVenders(job)
+    job.saleVenderIndex = 1
+    job.saleVenderSetupCount = 0
+    scheduleJobStep(job, NEXT_SLICE_MS, setupNextSaleVender, "sale")
+end
+
+local function scanSaleVenders(job)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    local stop = math.min(job.saleVenderScan.count,
+        job.saleVenderScanIndex + BASE_WORKERS_PER_SLICE - 1)
+    for index = job.saleVenderScanIndex, stop do
+        local vender, venderError = P.currentBaseVenderAt(
+            job, job.saleVenderScan, index)
+        if venderError ~= nil then
+            routeUnresolvedSaleCandidates(job, venderError)
+            return
+        end
+        if vender ~= nil then
+            job.saleVenders[#job.saleVenders + 1] = vender
+            local shop = P.itemShopContext(vender)
+            if shop ~= nil then
+                job.saleVenderScan = nil
+                submitSale(job, shop)
+                return
+            end
+        end
+    end
+    job.saleVenderScanIndex = stop + 1
+    if job.saleVenderScanIndex <= job.saleVenderScan.count then
+        scheduleJobStep(job, NEXT_SLICE_MS, scanSaleVenders, "sale")
+        return
+    end
+    job.saleVenderScan = nil
+    if #job.saleVenders == 0 then
+        routeUnresolvedSaleCandidates(job,
+            "no loaded merchant works in the current base")
+        return
+    end
+    setupSaleVenders(job)
+end
+
+local function beginSale(job)
+    if #job.sellCandidates == 0 then
+        beginMetadata(job)
+        return
+    end
+    local scan, scanError = P.beginCurrentBaseVenderScan(job)
+    if scan == nil then
+        routeUnresolvedSaleCandidates(job, scanError)
+        return
+    end
+    job.saleVenderScan = scan
+    job.saleVenderScanIndex = 1
+    job.saleVenders = {}
+    scheduleJobStep(job, NEXT_SLICE_MS, scanSaleVenders, "sale")
 end
 
 local function scanInventorySlice(job)
@@ -477,21 +749,23 @@ local function scanInventorySlice(job)
                     isRelic = isRelic,
                     isHolyWater = staticId == WORLD_TREE_HOLY_WATER_ID,
                 }
-                job.items[#job.items + 1] = item
-                local itemsById = job.itemsById[staticId]
-                if itemsById == nil then
-                    itemsById = {}
-                    job.itemsById[staticId] = itemsById
-                end
-                itemsById[#itemsById + 1] = item
-                if job.uniqueById[staticId] == nil then
-                    local unique = {
-                        id = staticId,
-                        staticId = rawStaticId,
-                        item = item,
-                    }
-                    job.uniqueById[staticId] = unique
-                    job.uniqueItems[#job.uniqueItems + 1] = unique
+                local sellValuable = job.config.AutoSellValuables
+                    and Valuables.set[staticId] == true
+                    and job.config.ValuableSellItems[staticId] == true
+                local sellAmmo = job.config.AutoSellAmmo
+                    and Ammo.set[staticId] == true
+                    and job.config.AmmoSellItems[staticId] == true
+                local sellPalSphere = job.config.AutoSellPalSpheres
+                    and SaleConsumables.palSpheres.set[staticId] == true
+                    and job.config.PalSphereSellItems[staticId] == true
+                local sellFishingBait = job.config.AutoSellFishingBait
+                    and SaleConsumables.fishingBait.set[staticId] == true
+                    and job.config.FishingBaitSellItems[staticId] == true
+                if (sellValuable or sellAmmo or sellPalSphere
+                        or sellFishingBait) and not ignoredByUser then
+                    job.sellCandidates[#job.sellCandidates + 1] = item
+                else
+                    addRoutingItem(job, item)
                 end
             end
         end
@@ -501,7 +775,7 @@ local function scanInventorySlice(job)
         scheduleJobStep(job, NEXT_SLICE_MS, scanInventorySlice, "inventory")
         return
     end
-    beginMetadata(job)
+    beginSale(job)
 end
 
 local scanContainerCandidatesSlice

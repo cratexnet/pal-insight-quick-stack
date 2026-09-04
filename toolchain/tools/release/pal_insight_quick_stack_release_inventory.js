@@ -36,7 +36,9 @@ const ABOUT_FILES = Object.freeze([
   'assets/about/x.png',
 ]);
 const RUNTIME_FILES = Object.freeze([
+  'Scripts/ammo.lua',
   'Scripts/config.lua',
+  'Scripts/item_names.lua',
   'Scripts/localization.lua',
   'Scripts/main.lua',
   'Scripts/native_settings_input.lua',
@@ -44,9 +46,11 @@ const RUNTIME_FILES = Object.freeze([
   'Scripts/pal_insight_bridge.lua',
   'Scripts/palworld.lua',
   'Scripts/quick_stack.lua',
+  'Scripts/sale_consumables.lua',
   'Scripts/settings.lua',
   'Scripts/settings_ui.lua',
   'Scripts/steam_vote.lua',
+  'Scripts/valuables.lua',
   ...ABOUT_FILES,
   'enabled.txt',
 ]);
@@ -144,6 +148,20 @@ function assertQuickStackSettings(root) {
       `${relative} must default IncludeExcludedItems to false`);
     assert.match(source, /^\s*IncludeNewItems\s*=\s*true\b/m,
       `${relative} must default IncludeNewItems to true`);
+    for (const field of [
+      'AutoSellValuables', 'AutoSellAmmo', 'AutoSellPalSpheres',
+      'AutoSellFishingBait',
+    ]) {
+      assert.match(source, new RegExp(`^\\s*${field}\\s*=\\s*false\\b`, 'm'),
+        `${relative} must default ${field} to false`);
+    }
+    for (const field of [
+      'AmmoSellItems', 'PalSphereSellItems', 'FishingBaitSellItems',
+    ]) {
+      assert.match(source,
+        new RegExp(`^\\s*${field}\\s*=\\s*["']{2}`, 'm'),
+        `${relative} must default ${field} to an empty list`);
+    }
     assert.match(source,
       /^\s*PalEggRouting\s*=\s*["']IncubatorOnly["']/m,
       `${relative} must default PalEggRouting to IncubatorOnly`);

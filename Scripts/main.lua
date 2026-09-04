@@ -74,11 +74,23 @@ local SHARED_BOOLEAN_SETTINGS = {
     { shared = "IncludeExcludedItems", config = "IncludeExcludedItems" },
     { shared = "IncludeNewItems", config = "IncludeNewItems" },
     { shared = "IncludeGuildChest", config = "IncludeGuildChest" },
+    { shared = "AutoSellValuables", config = "AutoSellValuables" },
+    { shared = "AutoSellAmmo", config = "AutoSellAmmo" },
+    { shared = "AutoSellPalSpheres", config = "AutoSellPalSpheres" },
+    { shared = "AutoSellFishingBait", config = "AutoSellFishingBait" },
     { shared = "IncludeSmallIncubators", config = "IncludeSmallIncubators" },
 }
 local SHARED_STRING_SETTINGS = {
     { shared = "ResultDisplay", config = "ResultDisplay",
         validate = Settings.validateResultDisplay },
+    { shared = "ValuableSellItems", config = "ValuableSellItems",
+        validate = Settings.validateValuableSellItems },
+    { shared = "AmmoSellItems", config = "AmmoSellItems",
+        validate = Settings.validateAmmoSellItems },
+    { shared = "PalSphereSellItems", config = "PalSphereSellItems",
+        validate = Settings.validatePalSphereSellItems },
+    { shared = "FishingBaitSellItems", config = "FishingBaitSellItems",
+        validate = Settings.validateFishingBaitSellItems },
     { shared = "PalEggRouting", config = "PalEggRouting",
         validate = Settings.validatePalEggRouting },
     { shared = "RelicRouting", config = "RelicRouting",
@@ -289,12 +301,18 @@ end
 
 local function dispatchConfiguredPress()
     if state.inputDispatchPending or SettingsUI.mode() ~= nil then return end
+    local bindingSignature = state.bindingSignature
+    local settingsGeneration = SettingsUI.inputGeneration()
     state.inputDispatchPending = true
     state.inputDispatchCallback = function()
         state.inputDispatchCallback = nil
         state.inputDispatchPending = false
         if runtimeIsSuperseded ~= nil and runtimeIsSuperseded() then return end
         if SettingsUI.mode() ~= nil then return end
+        -- 窗口重新关闭也不能让旧按压生效；此处只检查标量和配置。
+        if state.bindingSignature ~= bindingSignature
+            or Settings.chordSignature(state.config) ~= bindingSignature
+            or SettingsUI.inputGeneration() ~= settingsGeneration then return end
         local ok, errorMessage = pcall(QuickStack.begin)
         if not ok then log("input error: " .. tostring(errorMessage)) end
     end
@@ -732,6 +750,12 @@ local function reconcileSharedSettings()
         .. ", include ignored=" .. tostring(state.config.IncludeExcludedItems)
         .. ", include new=" .. tostring(state.config.IncludeNewItems)
         .. ", include guild chest=" .. tostring(state.config.IncludeGuildChest)
+        .. ", auto sell valuables=" .. tostring(state.config.AutoSellValuables)
+        .. ", auto sell ammo=" .. tostring(state.config.AutoSellAmmo)
+        .. ", auto sell Pal Spheres="
+        .. tostring(state.config.AutoSellPalSpheres)
+        .. ", auto sell fishing bait="
+        .. tostring(state.config.AutoSellFishingBait)
         .. ", egg routing=" .. tostring(state.config.PalEggRouting)
         .. ", relic routing=" .. tostring(state.config.RelicRouting)
         .. ", holy water minimum="

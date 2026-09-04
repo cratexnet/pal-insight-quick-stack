@@ -3,6 +3,9 @@ local Settings = require("settings")
 local Localization = require("localization")
 local InputOwner = require("pal_insight_bridge")
 local SteamVote = require("steam_vote")
+local Ammo = require("ammo")
+Ammo.valuables = require("valuables")
+Ammo.saleConsumables = require("sale_consumables")
 
 local SettingsUI = {}
 
@@ -118,6 +121,9 @@ local FONT_SIZE = {
 local SETTING_KEYS = {
     "Key", "Shift", "Ctrl", "Alt", "ResultDisplay",
     "IncludeExcludedItems", "IncludeNewItems", "IncludeGuildChest",
+    "AutoSellValuables", "ValuableSellItems", "AutoSellAmmo", "AmmoSellItems",
+    "AutoSellPalSpheres", "PalSphereSellItems",
+    "AutoSellFishingBait", "FishingBaitSellItems",
     "IncludeSmallIncubators", "PalEggRouting",
     "RelicRouting", "WorldTreeHolyWaterMinimum", "PerformanceCapture", "Debug",
 }
@@ -131,11 +137,26 @@ local DEFAULTS = {
     IncludeExcludedItems = false,
     IncludeNewItems = true,
     IncludeGuildChest = false,
+    AutoSellValuables = false,
+    ValuableSellItems = Ammo.valuables.defaultSellItems,
+    AutoSellAmmo = false,
+    AmmoSellItems = "",
+    AutoSellPalSpheres = false,
+    PalSphereSellItems = "",
+    AutoSellFishingBait = false,
+    FishingBaitSellItems = "",
     IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
 }
+
+function SettingsUI.isItemPicker(control)
+    if type(control) ~= "table" then return false end
+    return control.kind == "ammoPicker" or control.kind == "valuablePicker"
+        or control.kind == "palSpherePicker"
+        or control.kind == "fishingBaitPicker"
+end
 
 local ABOUT_URLS = {
     website = "https://cratex.app?utm_source=quick-stack&utm_medium=mod&utm_campaign=about",
@@ -293,9 +314,13 @@ local state = {
     nestedOverlay = nil,
     nestedTitle = nil,
     nestedMessage = nil,
+    nestedContent = nil,
+    nestedScroll = nil,
+    nestedOptionWidth = nil,
     modalOptions = {},
     activeChoice = nil,
     choiceReturnFocusIndex = nil,
+    ammoPopulateToken = 0,
     pointerAction = nil,
     pendingAboutPointerClose = nil,
     modalIndex = 1,
@@ -500,7 +525,7 @@ local function darkenLinearColor(color, amount)
 end
 
 local function styleSurfaceButton(button, normal, hovered, pressed, disabled,
-        foregrounds)
+        foregrounds, contentPadding)
     if not P.isValid(button) then return false end
     return pcall(function()
         local style = button.WidgetStyle
@@ -517,8 +542,11 @@ local function styleSurfaceButton(button, normal, hovered, pressed, disabled,
             foregrounds.pressed or COLORS.textOnAccent)
         style.DisabledForeground = slateColor(
             foregrounds.disabled or COLORS.textMuted)
-        style.NormalPadding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
-        style.PressedPadding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
+        contentPadding = contentPadding or {
+            Left = 0, Top = 0, Right = 0, Bottom = 0,
+        }
+        style.NormalPadding = contentPadding
+        style.PressedPadding = contentPadding
         button.WidgetStyle = style
         button:SetBackgroundColor(COLORS.white)
     end)
@@ -586,6 +614,9 @@ local function makeTrigger(tree, label, width, warning, indicatorText, height,
     local content
     local indicator
     local indicatorBox
+    local contentPadding = modalOption == true
+        and { Left = 12, Top = 4, Right = 12, Bottom = 4 }
+        or { Left = 0, Top = 0, Right = 0, Bottom = 0 }
     if indicatorText ~= nil then
         content = construct(tree, "/Script/UMG.HorizontalBox")
         indicatorBox = construct(tree, "/Script/UMG.SizeBox")
@@ -603,14 +634,7 @@ local function makeTrigger(tree, label, width, warning, indicatorText, height,
                 normal = COLORS.text,
                 hovered = COLORS.text,
                 pressed = COLORS.text,
-            })
-        if modalOption == true then
-            local style = surface.WidgetStyle
-            local padding = { Left = 12, Top = 4, Right = 12, Bottom = 4 }
-            style.NormalPadding = padding
-            style.PressedPadding = padding
-            surface.WidgetStyle = style
-        end
+            }, contentPadding)
         if content ~= nil then
             local labelSlot = content:AddChild(text)
             setFill(labelSlot)
@@ -634,6 +658,7 @@ local function makeTrigger(tree, label, width, warning, indicatorText, height,
     local record = {
         box = box, widget = surface, surface = surface, text = text,
         indicator = indicator,
+        contentPadding = contentPadding,
         warning = warning == true, directButton = true,
     }
     registerDirectActionButton(surface)
@@ -1126,7 +1151,7 @@ local function refreshTriggerSurfaces()
                         normal = foreground,
                         hovered = foreground,
                         pressed = COLORS.textOnAccent,
-                    })
+                    }, record.contentPadding)
                 pcall(function()
                     record.text:SetColorAndOpacity(slateColor(foreground))
                     if P.isValid(record.indicator) then
@@ -1429,9 +1454,25 @@ local function validateCandidate(candidate)
     local holyWater, holyWaterError = Settings.validateWorldTreeHolyWaterMinimum(
         candidate.WorldTreeHolyWaterMinimum)
     if holyWater == nil then return nil, holyWaterError end
+    local ammoSellItems, ammoSellItemsError = Settings.validateAmmoSellItems(
+        candidate.AmmoSellItems)
+    if ammoSellItems == nil then return nil, ammoSellItemsError end
+    local palSphereSellItems, palSphereSellItemsError =
+        Settings.validatePalSphereSellItems(candidate.PalSphereSellItems)
+    if palSphereSellItems == nil then return nil, palSphereSellItemsError end
+    local fishingBaitSellItems, fishingBaitSellItemsError =
+        Settings.validateFishingBaitSellItems(candidate.FishingBaitSellItems)
+    if fishingBaitSellItems == nil then return nil, fishingBaitSellItemsError end
+    local valuableSellItems, valuableSellItemsError =
+        Settings.validateValuableSellItems(candidate.ValuableSellItems)
+    if valuableSellItems == nil then return nil, valuableSellItemsError end
     if type(candidate.IncludeExcludedItems) ~= "boolean"
         or type(candidate.IncludeNewItems) ~= "boolean"
         or type(candidate.IncludeGuildChest) ~= "boolean"
+        or type(candidate.AutoSellValuables) ~= "boolean"
+        or type(candidate.AutoSellAmmo) ~= "boolean"
+        or type(candidate.AutoSellPalSpheres) ~= "boolean"
+        or type(candidate.AutoSellFishingBait) ~= "boolean"
         or type(candidate.IncludeSmallIncubators) ~= "boolean" then
         return nil, "Quick Stack toggle values must be boolean"
     end
@@ -1444,6 +1485,14 @@ local function validateCandidate(candidate)
     normalized.IncludeExcludedItems = candidate.IncludeExcludedItems
     normalized.IncludeNewItems = candidate.IncludeNewItems
     normalized.IncludeGuildChest = candidate.IncludeGuildChest
+    normalized.AutoSellValuables = candidate.AutoSellValuables
+    normalized.ValuableSellItems = valuableSellItems
+    normalized.AutoSellAmmo = candidate.AutoSellAmmo
+    normalized.AmmoSellItems = ammoSellItems
+    normalized.AutoSellPalSpheres = candidate.AutoSellPalSpheres
+    normalized.PalSphereSellItems = palSphereSellItems
+    normalized.AutoSellFishingBait = candidate.AutoSellFishingBait
+    normalized.FishingBaitSellItems = fishingBaitSellItems
     normalized.IncludeSmallIncubators = candidate.IncludeSmallIncubators
     normalized.PalEggRouting = eggRouting
     normalized.RelicRouting = relicRouting
@@ -1492,6 +1541,7 @@ currentStrings = function()
     return ok and type(value) == "table" and value or {
         title = "Quick Stack Settings",
         sectionBasics = "Basics",
+        sectionAutoSell = "Automatic sale",
         sectionStorage = "Storage rules",
         sectionSpecial = "Special items",
         shortcut = "Quick Stack shortcut",
@@ -1499,9 +1549,31 @@ currentStrings = function()
         resultDefault = "Automatic",
         resultText = "Text only",
         resultWindow = "Result window",
+        resultDisplayHelper = "Automatic: show the result window when triggered from the inventory; otherwise show text.",
         includeExcluded = "Store ignored items",
         includeNew = "Store items not already in storage",
         includeGuildChest = "Use Guild Chest",
+        autoSellValuables = "Sell high-value merchant items",
+        keptValuables = "High-value items to keep",
+        valuablePickerTitle = "High-value items to keep",
+        valuablePickerHelper = "Checked items stay in your backpack and are not sold.",
+        valuableKeptSummary = "Keep %d / %d",
+        autoSellAmmo = "Sell selected ammunition",
+        keptAmmo = "Ammunition to keep",
+        ammoPickerTitle = "Ammunition to keep",
+        ammoPickerHelper = "Checked ammunition stays in your backpack and is not sold.",
+        ammoPickerDone = "Done",
+        ammoKeptSummary = "Keep %d / %d",
+        autoSellPalSpheres = "Sell selected Pal Spheres",
+        keptPalSpheres = "Pal Spheres to keep",
+        palSpherePickerTitle = "Pal Spheres to keep",
+        palSpherePickerHelper = "Checked Pal Spheres stay in your backpack and are not sold.",
+        palSphereKeptSummary = "Keep %d / %d",
+        autoSellFishingBait = "Sell selected fishing bait",
+        keptFishingBait = "Fishing bait to keep",
+        fishingBaitPickerTitle = "Fishing bait to keep",
+        fishingBaitPickerHelper = "Checked fishing bait stays in your backpack and is not sold.",
+        fishingBaitKeptSummary = "Keep %d / %d",
         includeSmallIncubators = "Use small incubators (large first)",
         eggRouting = "Pal Egg routing",
         eggOnly = "Incubators only",
@@ -2051,6 +2123,12 @@ local function resetControlsToConfig()
                     control.text:SetText(FText(control.labels[control.index]))
                 end)
             end
+        elseif SettingsUI.isItemPicker(control) and P.isValid(control.text) then
+            pcall(function()
+                control.text:SetText(FText(control.catalog.summary(
+                    currentStrings()[control.summaryKey],
+                    state.config[control.key])))
+            end)
         elseif control.kind == "number" then
             control.value = tonumber(state.config[control.key]) or control.minimum
             setNumberEditorText(control, control.value)
@@ -2198,6 +2276,12 @@ local function moveFocus(direction, device)
         local option = (state.modalOptions or {})[state.modalIndex]
         if type(option) == "table" and P.isValid(option.widget) then
             focusNavigationRoot()
+            if P.isValid(state.nestedScroll) and P.isValid(option.box) then
+                pcall(function()
+                    state.nestedScroll:ScrollWidgetIntoView(
+                        option.box, false, 0, 8.0)
+                end)
+            end
         end
         for index, candidate in ipairs(state.modalOptions or {}) do
             candidate.selected = index == state.modalIndex
@@ -2287,6 +2371,7 @@ local function startNavigationRepeat(keyName, device)
     if axis == nil or not state.open or state.lifecycle ~= "open" then
         return false
     end
+    if device ~= "gamepad" then return false end
     if axis == "x" and keyName ~= "Gamepad_DPad_Left"
         and keyName ~= "Gamepad_DPad_Right" then return false end
     local scope, owner = navigationRepeatScope()
@@ -2504,6 +2589,36 @@ local function commitNestedModalSelection(source)
         if confirmed then return resetFromDefaults() end
         return true
     end
+    if SettingsUI.isItemPicker(control) then
+        local catalog = control.catalog
+        if index > #catalog.items then return closeChoiceModal(true) end
+        local staticId = catalog.items[index]
+        local selected = catalog.sellSet(state.config[control.key])
+        selected[staticId] = selected[staticId] ~= true and true or nil
+        local values = {}
+        for _, candidate in ipairs(catalog.items) do
+            if selected[candidate] then values[#values + 1] = candidate end
+        end
+        local value = table.concat(values, ",")
+        if not applyControlPatch({ [control.key] = value },
+                source or control.source) then return false end
+        local option = state.modalOptions[index]
+        if type(option) == "table" and P.isValid(option.ammoMark) then
+            pcall(function()
+                option.ammoMark:SetText(FText(
+                    selected[staticId] ~= true and "✓" or ""))
+            end)
+        end
+        if P.isValid(control.text) then
+            pcall(function()
+                control.text:SetText(FText(catalog.summary(
+                    currentStrings()[control.summaryKey],
+                    state.config[control.key])))
+            end)
+        end
+        refreshTriggerSurfaces()
+        return true
+    end
     commitChoice(control, index, source or ("choice:" .. tostring(control.key)))
     closeChoiceModal(true)
     return true
@@ -2522,6 +2637,8 @@ local function activateControl(control, source, returnFocusIndex)
     end
     if control.kind == "choice" then
         return openChoiceModal(control, returnFocusIndex)
+    elseif SettingsUI.isItemPicker(control) then
+        return Deferred.openAmmoPickerModal(control, returnFocusIndex)
     elseif control.kind == "toggle" then
         return activateToggle(control, source)
     elseif control.kind == "number" then
@@ -2651,11 +2768,17 @@ end
 local function claimSynchronousNavigation(keyName, source)
     if type(keyName) ~= "string" then return false end
     local now = os.clock()
-    local ownedUntil = tonumber(state.synchronousNavigationUntil[keyName]) or 0.0
+    local claim = state.synchronousNavigationUntil[keyName]
+    local ownedUntil = type(claim) == "table"
+        and (tonumber(claim.untilAt) or 0.0) or tonumber(claim) or 0.0
     if source == "global" then return ownedUntil > now end
     if source ~= "preview" and source ~= "actor" then return false end
-    if ownedUntil > now then return true end
-    state.synchronousNavigationUntil[keyName] = now + 0.30
+    if ownedUntil > now and type(claim) == "table"
+        and claim.source ~= source then return true end
+    state.synchronousNavigationUntil[keyName] = {
+        untilAt = now + 0.30,
+        source = source,
+    }
     InputOwner.discardPendingKey(keyName)
     return false
 end
@@ -3325,6 +3448,7 @@ local function isRootSettingControl(control)
     if type(control) ~= "table" or control.focusIndex == nil
         or control.passive == true then return false end
     return control.kind == "toggle" or control.kind == "choice"
+        or SettingsUI.isItemPicker(control)
         or control.kind == "number" or control.kind == "shortcut"
 end
 
@@ -3558,7 +3682,8 @@ local function activateHoveredDirectAction()
         handled = commitNestedModalSelection("mouse")
     elseif action.scope == "root" then
         local control = action.owner
-        if control.kind == "choice" or control.kind == "number"
+        if control.kind == "choice" or SettingsUI.isItemPicker(control)
+            or control.kind == "number"
             or control.kind == "shortcut" or control.kind == "toggle" then
             state.focusIndex = control.focusIndex
         end
@@ -4169,6 +4294,70 @@ local function addChoiceRow(tree, body, key, label, values, labels, alternate)
     return true
 end
 
+Deferred.addHelperText = function(tree, body, value)
+    local helper = makeText(tree, value, 12, COLORS.muted, TEXT_LEFT)
+    if helper == nil then return false end
+    setTextWrap(helper, math.max(1.0, state.contentWidth - 52.0))
+    local ok = pcall(function()
+        helper:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        local slot = body:AddChild(helper)
+        setPadding(slot, 36, 2, 16, 8)
+        align(slot, ALIGN_FILL, ALIGN_FILL)
+    end)
+    return ok == true
+end
+
+Deferred.addItemPickerRow = function(tree, body, label, kind, key, catalog,
+        summaryKey, titleKey, helperKey, source)
+    local row = makeRow(tree, body, label, "choice")
+    if row == nil then return false end
+    local trigger = makeTrigger(tree, catalog.summary(
+        currentStrings()[summaryKey], state.config[key]),
+        SIZE.choice, false, "▼")
+    if trigger == nil then return false end
+    addControlToRow(row.row, trigger.box, 0)
+    local control = {
+        kind = kind, key = key, catalog = catalog,
+        summaryKey = summaryKey, titleKey = titleKey,
+        helperKey = helperKey, source = source,
+        widget = trigger.widget, text = trigger.text,
+        label = label, rowFrame = row.surface,
+    }
+    registerFocusable(control, row.box, trigger)
+    state.controls[#state.controls + 1] = control
+    return true
+end
+
+Deferred.addValuablePickerRow = function(tree, body, label)
+    return Deferred.addItemPickerRow(tree, body, label,
+        "valuablePicker", "ValuableSellItems", Ammo.valuables,
+        "valuableKeptSummary", "valuablePickerTitle",
+        "valuablePickerHelper", "valuable-picker")
+end
+
+Deferred.addAmmoPickerRow = function(tree, body, label)
+    return Deferred.addItemPickerRow(tree, body, label,
+        "ammoPicker", "AmmoSellItems", Ammo,
+        "ammoKeptSummary", "ammoPickerTitle",
+        "ammoPickerHelper", "ammo-picker")
+end
+
+Deferred.addPalSpherePickerRow = function(tree, body, label)
+    return Deferred.addItemPickerRow(tree, body, label,
+        "palSpherePicker", "PalSphereSellItems",
+        Ammo.saleConsumables.palSpheres,
+        "palSphereKeptSummary", "palSpherePickerTitle",
+        "palSpherePickerHelper", "pal-sphere-picker")
+end
+
+Deferred.addFishingBaitPickerRow = function(tree, body, label)
+    return Deferred.addItemPickerRow(tree, body, label,
+        "fishingBaitPicker", "FishingBaitSellItems",
+        Ammo.saleConsumables.fishingBait,
+        "fishingBaitKeptSummary", "fishingBaitPickerTitle",
+        "fishingBaitPickerHelper", "fishing-bait-picker")
+end
+
 local function addNumberRow(tree, body, key, label, minimum, maximum, alternate)
     local row = makeRow(tree, body, label, "number")
     if row == nil then return false end
@@ -4291,6 +4480,7 @@ closeChoiceModal = function(restoreFocus)
     state.activeChoice = nil
     state.choiceReturnFocusIndex = nil
     state.pointerAction = nil
+    state.ammoPopulateToken = state.ammoPopulateToken + 1
     if P.isValid(state.nestedOverlay) then
         pcall(function() state.nestedOverlay:SetVisibility(VIS_COLLAPSED) end)
     end
@@ -4330,6 +4520,8 @@ openChoiceModal = function(control, returnFocusIndex)
         option.visualSignature = nil
         pcall(function()
             option.box:SetVisibility(visible and VIS_VISIBLE or VIS_COLLAPSED)
+            option.text:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+            option.ammoContent:SetVisibility(VIS_COLLAPSED)
             if visible then option.text:SetText(FText(label)) end
         end)
         option.selected = visible and index == state.modalIndex
@@ -4337,6 +4529,112 @@ openChoiceModal = function(control, returnFocusIndex)
     end
     pcall(function() state.nestedOverlay:SetVisibility(VIS_VISIBLE) end)
     if P.isValid(first) then focusNavigationRoot() end
+    return true
+end
+
+Deferred.resolveAmmoName = function(staticId)
+    return Localization.itemName(staticId)
+end
+
+Deferred.populateAmmoRowsSlice = function(control, startIndex, token)
+    if state.activeChoice ~= control
+        or not SettingsUI.isItemPicker(control)
+        or state.ammoPopulateToken ~= token then return end
+    local catalog = control.catalog
+    local stop = math.min(#catalog.items, startIndex + 3)
+    for index = startIndex, stop do
+        local option = state.modalOptions[index]
+        if type(option) == "table" and P.isValid(option.ammoFallback) then
+            local staticId = catalog.items[index]
+            local texturePath = catalog.iconPath(staticId)
+            local texture = texturePath ~= nil and staticObject(texturePath) or nil
+            if not P.isValid(texture) and texturePath ~= nil
+                and type(LoadAsset) == "function" then
+                local loaded
+                pcall(function() loaded = LoadAsset(texturePath) end)
+                texture = P.isValid(loaded) and loaded or staticObject(texturePath)
+                if P.isValid(texture) then staticObjects[texturePath] = texture end
+            end
+            local displayName = Deferred.resolveAmmoName(staticId)
+            pcall(function()
+                option.ammoFallback:SetText(FText(displayName or staticId))
+                if P.isValid(texture) and P.isValid(option.ammoIcon) then
+                    option.ammoIcon:SetBrushFromTexture(texture, false)
+                    option.ammoIcon:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+                elseif P.isValid(option.ammoIcon) then
+                    option.ammoIcon:SetVisibility(VIS_COLLAPSED)
+                end
+            end)
+        end
+    end
+    if stop >= #catalog.items then return end
+    local callback = function()
+        Deferred.populateAmmoRowsSlice(control, stop + 1, token)
+    end
+    if type(ExecuteInGameThreadWithDelay) == "function"
+        and pcall(ExecuteInGameThreadWithDelay, 1, callback) then return end
+    callback()
+end
+
+Deferred.openAmmoPickerModal = function(control, returnFocusIndex)
+    if type(control) ~= "table"
+        or not SettingsUI.isItemPicker(control)
+        or not ensureChoiceModal() then return false end
+    local strings = currentStrings()
+    local catalog = control.catalog
+    control.labels = {}
+    for index, staticId in ipairs(catalog.items) do
+        control.labels[index] = staticId
+    end
+    control.labels[#catalog.items + 1] = strings.ammoPickerDone or "Done"
+    state.activeChoice = control
+    state.choiceReturnFocusIndex = tonumber(returnFocusIndex)
+        or control.focusIndex or state.focusIndex
+    state.pointerAction = nil
+    state.modalIndex = 1
+    if P.isValid(state.nestedTitle) then
+        pcall(function()
+            state.nestedTitle:SetText(FText(strings[control.titleKey]
+                or control.label or "Ammunition to keep"))
+        end)
+    end
+    if P.isValid(state.nestedMessage) then
+        pcall(function()
+            state.nestedMessage:SetText(FText(strings[control.helperKey] or ""))
+            state.nestedMessage:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        end)
+    end
+    local sellSet = catalog.sellSet(state.config[control.key])
+    for index, option in ipairs(state.modalOptions or {}) do
+        local ammoId = catalog.items[index]
+        local done = index == #catalog.items + 1
+        local visible = ammoId ~= nil or done
+        option.warning = false
+        option.visualSignature = nil
+        pcall(function()
+            option.box:SetVisibility(visible and VIS_VISIBLE or VIS_COLLAPSED)
+            option.text:SetVisibility(done and VIS_HIT_TEST_INVISIBLE
+                or VIS_COLLAPSED)
+            option.ammoContent:SetVisibility(ammoId ~= nil
+                and VIS_HIT_TEST_INVISIBLE or VIS_COLLAPSED)
+            if ammoId ~= nil then
+                option.ammoIconBox:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+                option.ammoIcon:SetVisibility(VIS_COLLAPSED)
+                option.ammoFallback:SetText(FText(
+                    Deferred.resolveAmmoName(ammoId) or ammoId))
+                option.ammoMark:SetText(FText(
+                    sellSet[ammoId] ~= true and "✓" or ""))
+            elseif done then
+                option.text:SetText(FText(control.labels[index]))
+            end
+        end)
+        option.selected = index == state.modalIndex
+    end
+    pcall(function() state.nestedOverlay:SetVisibility(VIS_VISIBLE) end)
+    state.ammoPopulateToken = state.ammoPopulateToken + 1
+    Deferred.populateAmmoRowsSlice(control, 1, state.ammoPopulateToken)
+    focusNavigationRoot()
+    refreshTriggerSurfaces()
     return true
 end
 
@@ -4377,6 +4675,8 @@ Deferred.openResetConfirmation = function(sourceIndex)
         option.visualSignature = nil
         pcall(function()
             option.box:SetVisibility(visible and VIS_VISIBLE or VIS_COLLAPSED)
+            option.text:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+            option.ammoContent:SetVisibility(VIS_COLLAPSED)
             if visible then option.text:SetText(FText(label)) end
         end)
         option.selected = visible and index == state.modalIndex
@@ -4404,7 +4704,8 @@ Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
     local vh = tonumber(viewportHeight) or 720.0
     local width = math.max(320.0, math.min(480.0, vw - 48.0))
     local maxHeight = math.min(560.0, math.max(320.0, vh - 48.0))
-    local optionWidth = math.max(288.0, width - 32.0)
+    local optionWidth = math.max(288.0,
+        width - 32.0 - SIZE.scrollbarGutter)
     local ok = pcall(function()
         overlay:SetVisibility(VIS_COLLAPSED)
         dim:SetBrushColor(COLORS.modal)
@@ -4428,6 +4729,13 @@ Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
         panel:SetPadding({ Left = 16, Top = 16, Right = 16, Bottom = 16 })
         scroll:SetAlwaysShowScrollbar(false)
         scroll.AlwaysShowScrollbarTrack = false
+        scroll:SetScrollbarThickness({
+            X = SIZE.scrollbarThickness, Y = SIZE.scrollbarThickness,
+        })
+        scroll:SetScrollbarPadding({
+            Left = SIZE.scrollbarPadding, Top = SIZE.scrollbarPadding,
+            Right = SIZE.scrollbarPadding, Bottom = SIZE.scrollbarPadding,
+        })
         align(scroll:AddChild(content), ALIGN_FILL, ALIGN_LEFT)
         align(panel:AddChild(scroll), ALIGN_FILL, ALIGN_FILL)
         local panelSlot = cardBox:AddChild(panel)
@@ -4448,10 +4756,57 @@ Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
         local messageSlot = content:AddChild(message)
         setPadding(messageSlot, 4, 0, 4, 12)
         state.modalOptions = {}
-        for index = 1, 3 do
+        for index = 1, #Ammo.items + 1 do
             local option = makeTrigger(tree, "", optionWidth, false, nil,
                 SIZE.modalOption, true)
             if option == nil then error("choice option is unavailable") end
+            local optionLayer = construct(tree, "/Script/UMG.Overlay")
+            local ammoContent = construct(tree, "/Script/UMG.HorizontalBox")
+            local ammoMarkBox = construct(tree, "/Script/UMG.SizeBox")
+            local ammoMark = makeText(tree, "", 16, COLORS.accent, TEXT_CENTER)
+            local ammoHost = construct(tree, "/Script/UMG.SizeBox")
+            local ammoRow = construct(tree, "/Script/UMG.HorizontalBox")
+            local ammoIconBox = construct(tree, "/Script/UMG.SizeBox")
+            local ammoIcon = construct(tree, "/Script/UMG.Image")
+            local ammoFallback = makeText(tree, "", 14, COLORS.text, TEXT_LEFT)
+            if optionLayer == nil or ammoContent == nil or ammoMarkBox == nil
+                or ammoMark == nil or ammoHost == nil
+                or ammoRow == nil or ammoIconBox == nil or ammoIcon == nil
+                or ammoFallback == nil then
+                error("ammunition option controls are unavailable")
+            end
+            option.widget:ClearChildren()
+            local textSlot = optionLayer:AddChildToOverlay(option.text)
+            align(textSlot, ALIGN_CENTER, ALIGN_CENTER)
+            ammoMark:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+            ammoMarkBox:SetWidthOverride(36.0)
+            ammoMarkBox:SetHeightOverride(32.0)
+            align(ammoMarkBox:AddChild(ammoMark), ALIGN_CENTER, ALIGN_CENTER)
+            align(ammoContent:AddChild(ammoMarkBox), ALIGN_CENTER, ALIGN_CENTER)
+            ammoHost:SetWidthOverride(math.max(220.0, optionWidth - 60.0))
+            ammoHost:SetHeightOverride(34.0)
+            ammoIconBox:SetWidthOverride(30.0)
+            ammoIconBox:SetHeightOverride(30.0)
+            ammoIconBox:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+            align(ammoIconBox:AddChild(ammoIcon), ALIGN_FILL, ALIGN_FILL)
+            local iconSlot = ammoRow:AddChild(ammoIconBox)
+            setPadding(iconSlot, 0, 0, 8, 0)
+            align(iconSlot, ALIGN_LEFT, ALIGN_CENTER)
+            align(ammoRow:AddChild(ammoFallback), ALIGN_LEFT, ALIGN_CENTER)
+            align(ammoHost:AddChild(ammoRow), ALIGN_FILL, ALIGN_CENTER)
+            local hostSlot = ammoContent:AddChild(ammoHost)
+            setFill(hostSlot)
+            align(hostSlot, ALIGN_FILL, ALIGN_CENTER)
+            ammoContent:SetVisibility(VIS_COLLAPSED)
+            local ammoSlot = optionLayer:AddChildToOverlay(ammoContent)
+            align(ammoSlot, ALIGN_FILL, ALIGN_CENTER)
+            align(option.widget:AddChild(optionLayer), ALIGN_FILL, ALIGN_FILL)
+            option.ammoContent = ammoContent
+            option.ammoMark = ammoMark
+            option.ammoHost = ammoHost
+            option.ammoIconBox = ammoIconBox
+            option.ammoIcon = ammoIcon
+            option.ammoFallback = ammoFallback
             local optionSlot = content:AddChild(option.box)
             setPadding(optionSlot, 0, index == 1 and 0 or 4, 0, 0)
             option.box:SetVisibility(VIS_COLLAPSED)
@@ -4462,6 +4817,9 @@ Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
     state.nestedOverlay = overlay
     state.nestedTitle = title
     state.nestedMessage = message
+    state.nestedContent = content
+    state.nestedScroll = scroll
+    state.nestedOptionWidth = optionWidth
     return true
 end
 
@@ -6001,10 +6359,17 @@ local function clearWindowReferences()
     state.steamVotePalVisualReady = false
     state.steamVotePalRetryAt = 0
     state.steamVoteActionVisuals = {}
+    state.steamVoteTextures = {}
+    state.steamVotePalTexture = nil
+    state.aboutTextures = {}
     state.scroll = nil
     state.nestedOverlay = nil
     state.nestedTitle = nil
     state.nestedMessage = nil
+    state.nestedContent = nil
+    state.nestedScroll = nil
+    state.nestedOptionWidth = nil
+    state.ammoPopulateToken = state.ammoPopulateToken + 1
     state.modalOptions = {}
     state.activeChoice = nil
     state.choiceReturnFocusIndex = nil
@@ -6164,6 +6529,9 @@ local function buildSettingsWindow(controller, mode)
     state.nestedOverlay = nil
     state.nestedTitle = nil
     state.nestedMessage = nil
+    state.nestedContent = nil
+    state.nestedScroll = nil
+    state.nestedOptionWidth = nil
     state.modalOptions = {}
     state.activeChoice = nil
     state.choiceReturnFocusIndex = nil
@@ -6350,6 +6718,23 @@ local function buildSettingsWindow(controller, mode)
                 { "Default", "TextOnly", "ResultWindow" },
                 { strings.resultDefault, strings.resultText,
                     strings.resultWindow }, true)
+            or not Deferred.addHelperText(tree, body, strings.resultDisplayHelper)
+            or not addSection(tree, body, strings.sectionAutoSell, 16)
+            or not addToggleRow(tree, body, "AutoSellValuables",
+                strings.autoSellValuables, false)
+            or not Deferred.addValuablePickerRow(tree, body,
+                strings.keptValuables)
+            or not addToggleRow(tree, body, "AutoSellAmmo",
+                strings.autoSellAmmo, true)
+            or not Deferred.addAmmoPickerRow(tree, body, strings.keptAmmo)
+            or not addToggleRow(tree, body, "AutoSellPalSpheres",
+                strings.autoSellPalSpheres, false)
+            or not Deferred.addPalSpherePickerRow(tree, body,
+                strings.keptPalSpheres)
+            or not addToggleRow(tree, body, "AutoSellFishingBait",
+                strings.autoSellFishingBait, false)
+            or not Deferred.addFishingBaitPickerRow(tree, body,
+                strings.keptFishingBait)
             or not addSection(tree, body, strings.sectionStorage, 16)
             or not addToggleRow(tree, body, "IncludeExcludedItems",
                 strings.includeExcluded, false)
@@ -6855,6 +7240,10 @@ end
 
 function SettingsUI.mode()
     return state.open and state.mode or nil
+end
+
+function SettingsUI.inputGeneration()
+    return state.generation
 end
 
 return SettingsUI

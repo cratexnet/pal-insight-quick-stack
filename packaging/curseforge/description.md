@@ -11,6 +11,7 @@ It is a standalone, client-side UE4SS Lua mod. [Pal Insight](https://www.cursefo
 - Uses only storage objects from the base you are currently inside.
 - Respects Quick Move exclusions added through Inventory **Tab > R** by default, with optional rules to include ignored items or always keep Pal Eggs.
 - Can optionally use an accessible Guild Chest in the current guild base. This setting is off by default.
+- Can optionally use empty small incubators after large incubators are full. Skips incubators with an egg or an unclaimed Pal. This setting is off by default.
 - Prefers incubators for eligible Pal Eggs, then existing matching stacks, then compatible private storage whose filters accept the item.
 - Shows a native-style result card for items stored, items excluded by you, and items that could not be stored because of storage space or settings.
 - Follows Palworld's current interface language across all 17 languages included with the game.

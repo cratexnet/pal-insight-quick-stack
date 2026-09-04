@@ -366,11 +366,161 @@ function Palworld.identityFor(controller)
 end
 
 local cachedUtility
+local cachedVenderDataClass
 
 function Palworld.utility()
     if Palworld.isValid(cachedUtility) then return cachedUtility end
     cachedUtility = Palworld.staticObject("/Script/Pal.Default__PalUtility")
     return cachedUtility
+end
+
+local function venderDataClass()
+    if Palworld.isValid(cachedVenderDataClass) then return cachedVenderDataClass end
+    cachedVenderDataClass = Palworld.staticObject(
+        "/Script/Pal.PalVenderDataComponent")
+    return cachedVenderDataClass
+end
+
+function Palworld.beginCurrentBaseVenderScan(job)
+    if type(job) ~= "table" or not Palworld.isValid(job.base) then
+        return nil, "current base is unavailable"
+    end
+    local componentClass = venderDataClass()
+    if componentClass == nil then return nil, "vendor component class is unavailable" end
+    local utility = Palworld.utility()
+    local baseCampManager
+    local managerOk = Palworld.isValid(utility) and pcall(function()
+        baseCampManager = Palworld.unwrap(utility:GetBaseCampManager(job.controller))
+    end)
+    if not managerOk or not Palworld.isValid(baseCampManager) then
+        return nil, "base manager is unavailable"
+    end
+
+    local slots
+    local readOk = pcall(function()
+        slots = Palworld.unwrap(job.base.WorkerDirector:GetCharacterHandleSlots())
+    end)
+    local count = readOk and Palworld.arrayLength(slots) or nil
+    if count == nil then return nil, "current-base worker list is unreadable" end
+
+    return {
+        manager = baseCampManager,
+        managerAddress = Palworld.objectAddress(baseCampManager),
+        componentClass = componentClass,
+        slots = slots,
+        count = count,
+    }, nil
+end
+
+function Palworld.currentBaseVenderAt(job, scan, index)
+    if type(scan) ~= "table" or not Palworld.isValid(scan.manager)
+        or Palworld.objectAddress(scan.manager) ~= scan.managerAddress
+        or not Palworld.isValid(scan.componentClass) then
+        return nil, "current-base merchant scan became invalid"
+    end
+    local slot, readable = Palworld.arrayValue(scan.slots, index)
+    if not readable or not Palworld.isValid(slot) then
+        return nil, "current-base worker slot is unreadable"
+    end
+    local handle
+    local actor
+    local component
+    local rangedBase
+    local ok = pcall(function()
+        handle = Palworld.unwrap(slot:GetHandle())
+        if Palworld.isValid(handle) then
+            actor = Palworld.unwrap(handle:TryGetIndividualActor())
+        end
+        if Palworld.isValid(actor) then
+            rangedBase = Palworld.unwrap(scan.manager:GetInRangedBaseCamp(
+                actor:GetActorLocation(), 0))
+            if Palworld.isValid(rangedBase)
+                and Palworld.objectAddress(rangedBase) == job.baseAddress then
+                component = Palworld.unwrap(
+                    actor:GetComponentByClass(scan.componentClass))
+            end
+        end
+    end)
+    if not ok then return nil, "current-base worker is unreadable" end
+    if not Palworld.isValid(component) then return nil, nil end
+    return {
+        component = component,
+        componentAddress = Palworld.objectAddress(component),
+        actor = actor,
+        actorAddress = Palworld.objectAddress(actor),
+    }, nil
+end
+
+function Palworld.itemShopContext(vender)
+    if type(vender) ~= "table" or not Palworld.isValid(vender.component)
+        or Palworld.objectAddress(vender.component) ~= vender.componentAddress
+        or not Palworld.isValid(vender.actor)
+        or Palworld.objectAddress(vender.actor) ~= vender.actorAddress then
+        return nil
+    end
+    local called, available, outShop = pcall(function()
+        return vender.component:TryGetItemShop()
+    end)
+    local shop = Palworld.unwrap(outShop)
+    if called and not Palworld.isValid(shop)
+        and Palworld.isValid(Palworld.unwrap(available)) then
+        shop = Palworld.unwrap(available)
+        available = true
+    end
+    if not called or available ~= true or not Palworld.isValid(shop) then
+        local valid = false
+        pcall(function() valid = vender.component:IsValidItemShop() == true end)
+        if valid then
+            pcall(function() shop = Palworld.unwrap(vender.component.MyItemShop) end)
+        end
+        if not Palworld.isValid(shop) then return nil end
+    end
+    local id
+    local idOk = pcall(function() id = Palworld.unwrap(shop:GetId()) end)
+    if not idOk or Palworld.guidParts(id) == nil then
+        pcall(function() id = Palworld.unwrap(shop.MyShopID) end)
+    end
+    local parts = Palworld.guidParts(id)
+    local key = Palworld.guidKey(parts)
+    if key == nil or key == Palworld.ZERO_GUID then return nil end
+    return {
+        vender = vender,
+        shop = shop,
+        shopAddress = Palworld.objectAddress(shop),
+        shopId = parts,
+        shopKey = key,
+    }
+end
+
+function Palworld.setupVenderShop(vender)
+    if type(vender) ~= "table" or not Palworld.isValid(vender.component)
+        or Palworld.objectAddress(vender.component) ~= vender.componentAddress then
+        return false
+    end
+    return pcall(function() vender.component:SetupShopData() end)
+end
+
+function Palworld.revalidateItemShop(job, expected)
+    if type(expected) ~= "table" or not Palworld.isValid(expected.shop)
+        or Palworld.objectAddress(expected.shop) ~= expected.shopAddress then
+        return nil
+    end
+    local utility = Palworld.utility()
+    local baseCampManager
+    local rangedBase
+    local validBase = Palworld.isValid(utility) and pcall(function()
+        baseCampManager = Palworld.unwrap(utility:GetBaseCampManager(job.controller))
+        rangedBase = Palworld.unwrap(baseCampManager:GetInRangedBaseCamp(
+            expected.vender.actor:GetActorLocation(), 0))
+    end)
+    if not validBase or not Palworld.isValid(rangedBase)
+        or Palworld.objectAddress(rangedBase) ~= job.baseAddress then return nil end
+    local current = Palworld.itemShopContext(expected.vender)
+    if current ~= nil and current.shopKey == expected.shopKey
+        and current.shopAddress == expected.shopAddress then
+        return current
+    end
+    return nil
 end
 
 function Palworld.identityMatches(job)

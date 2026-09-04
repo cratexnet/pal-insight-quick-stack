@@ -1,0 +1,8 @@
+[h1]Pal Insight: Quick Stack 1.1.0[/h1]
+
+[list]
+[*]Added optional Guild Chest support for accessible chests in your current guild base. Off by default.
+[*]Added optional small-incubator support. Large incubators are used first; small incubators with an egg or an unclaimed Pal are skipped. Off by default.
+[*]Improved handling of storage and incubators whose contents take time to become available.
+[*]Fixed the small-incubator setting not being applied to storage runs and corrected detection of unclaimed hatched Pals.
+[/list]

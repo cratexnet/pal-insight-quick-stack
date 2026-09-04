@@ -1,4 +1,5 @@
 local P = require("palworld")
+local ItemNames = require("item_names")
 
 local Localization = {}
 
@@ -406,6 +407,33 @@ local STRINGS = {
     },
 }
 
+local SALE_RESULT_STRINGS = {
+    en = { soldSection = "Sold", soldCompact = "Sold %d items", saleSubmittedCompact = "Sale request sent; %d items remain in your inventory" },
+    ["zh-hans"] = { soldSection = "已出售", soldCompact = "已出售 %d 件物品", saleSubmittedCompact = "出售请求已发送；%d 件物品暂留背包" },
+    ["zh-hant"] = { soldSection = "已出售", soldCompact = "已出售 %d 件物品", saleSubmittedCompact = "出售請求已傳送；%d 件物品暫留背包" },
+    ja = { soldSection = "売却済み", soldCompact = "%d 個のアイテムを売却", saleSubmittedCompact = "売却リクエスト送信済み。%d 個のアイテムはバッグに残っています" },
+    ko = { soldSection = "판매됨", soldCompact = "%d개 아이템 판매", saleSubmittedCompact = "판매 요청을 보냈습니다. 아이템 %d개는 가방에 남아 있습니다" },
+    de = { soldSection = "Verkauft", soldCompact = "%d Gegenstände verkauft", saleSubmittedCompact = "Verkaufsanfrage gesendet; %d Gegenstände bleiben im Inventar" },
+    fr = { soldSection = "Vendu", soldCompact = "%d objets vendus", saleSubmittedCompact = "Demande de vente envoyée ; %d objets restent dans l’inventaire" },
+    it = { soldSection = "Venduti", soldCompact = "%d oggetti venduti", saleSubmittedCompact = "Richiesta di vendita inviata; %d oggetti restano nell’inventario" },
+    es = { soldSection = "Vendidos", soldCompact = "%d objetos vendidos", saleSubmittedCompact = "Solicitud de venta enviada; %d objetos siguen en el inventario" },
+    ["pt-br"] = { soldSection = "Vendidos", soldCompact = "%d itens vendidos", saleSubmittedCompact = "Solicitação de venda enviada; %d itens permanecem no inventário" },
+    ru = { soldSection = "Продано", soldCompact = "Продано предметов: %d", saleSubmittedCompact = "Запрос на продажу отправлен; %d предметов остались в инвентаре" },
+    tr = { soldSection = "Satıldı", soldCompact = "%d öğe satıldı", saleSubmittedCompact = "Satış isteği gönderildi; %d öğe envanterde kaldı" },
+    pl = { soldSection = "Sprzedano", soldCompact = "Sprzedano %d przedmiotów", saleSubmittedCompact = "Wysłano żądanie sprzedaży; %d przedmiotów pozostaje w ekwipunku" },
+    id = { soldSection = "Terjual", soldCompact = "%d item terjual", saleSubmittedCompact = "Permintaan penjualan dikirim; %d item tetap di inventaris" },
+    ["es-419"] = { soldSection = "Vendidos", soldCompact = "%d objetos vendidos", saleSubmittedCompact = "Solicitud de venta enviada; %d objetos siguen en el inventario" },
+    th = { soldSection = "ขายแล้ว", soldCompact = "ขายแล้ว %d ชิ้น", saleSubmittedCompact = "ส่งคำขอขายแล้ว ไอเท็ม %d ชิ้นยังอยู่ในกระเป๋า" },
+    vi = { soldSection = "Đã bán", soldCompact = "Đã bán %d vật phẩm", saleSubmittedCompact = "Đã gửi yêu cầu bán; %d vật phẩm vẫn còn trong túi" },
+}
+
+for locale, values in pairs(SALE_RESULT_STRINGS) do
+    local row = STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
 -- The settings surface belongs to Quick Stack. Keep its copy beside the
 -- runtime notifications so standalone F6 and Pal Insight-hosted F6 always
 -- render the same localized panel.
@@ -419,6 +447,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Store ignored items",
         includeNew = "Store items not already in storage",
         includeGuildChest = "Use Guild Chest",
+        autoSellValuables = "Sell high-value merchant items",
         includeSmallIncubators = "Use small incubators (large first)",
         eggRouting = "Pal Egg routing", eggOnly = "Incubators only",
         eggStorage = "Incubators, then storage",
@@ -441,6 +470,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "收纳已忽略的物品",
         includeNew = "收纳仓库中尚未存在的物品",
         includeGuildChest = "使用公会箱",
+        autoSellValuables = "自动出售高价品",
         includeSmallIncubators = "使用小型孵化器（大型优先）",
         eggRouting = "帕鲁蛋收纳", eggOnly = "仅孵化器",
         eggStorage = "孵化器，其次普通仓库",
@@ -462,6 +492,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "收納已忽略的物品",
         includeNew = "收納倉庫中尚未存在的物品",
         includeGuildChest = "使用公會箱",
+        autoSellValuables = "自動出售高價品",
         includeSmallIncubators = "使用小型孵化器（大型優先）",
         eggRouting = "帕魯蛋收納", eggOnly = "僅孵化器",
         eggStorage = "孵化器，其次一般倉庫",
@@ -483,6 +514,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "除外済みアイテムも収納",
         includeNew = "未収納の種類も収納",
         includeGuildChest = "ギルドチェストを使用",
+        autoSellValuables = "高値で売れる換金アイテムを売却",
         includeSmallIncubators = "小型孵化器を使用（大型優先）",
         eggRouting = "パルのタマゴ", eggOnly = "孵化器のみ",
         eggStorage = "孵化器、次に通常保管庫",
@@ -504,6 +536,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "제외한 아이템도 보관",
         includeNew = "보관함에 없는 아이템도 보관",
         includeGuildChest = "길드 상자 사용",
+        autoSellValuables = "상인이 비싸게 사는 아이템 판매",
         includeSmallIncubators = "소형 부화기 사용 (대형 우선)",
         eggRouting = "팰 알 보관", eggOnly = "부화기만",
         eggStorage = "부화기, 이후 일반 보관함",
@@ -525,6 +558,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Ignorierte Gegenstände einlagern",
         includeNew = "Neue Gegenstandsarten einlagern",
         includeGuildChest = "Gildentruhe verwenden",
+        autoSellValuables = "Wertvolle Händlerwaren verkaufen",
         includeSmallIncubators = "Kleine Brutkästen nutzen (große zuerst)",
         eggRouting = "Pal-Eier", eggOnly = "Nur Brutkästen",
         eggStorage = "Brutkästen, dann Lager",
@@ -546,6 +580,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Ranger les objets ignorés",
         includeNew = "Ranger les objets absents des coffres",
         includeGuildChest = "Utiliser le coffre de guilde",
+        autoSellValuables = "Vendre les objets de valeur aux marchands",
         includeSmallIncubators = "Petits incubateurs (grands en priorité)",
         eggRouting = "Œufs de Pal", eggOnly = "Incubateurs uniquement",
         eggStorage = "Incubateurs, puis stockage",
@@ -567,6 +602,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Deposita anche gli oggetti ignorati",
         includeNew = "Deposita tipi non ancora presenti",
         includeGuildChest = "Usa forziere della gilda",
+        autoSellValuables = "Vendi gli oggetti di valore ai mercanti",
         includeSmallIncubators = "Incubatrici piccole (prima le grandi)",
         eggRouting = "Uova di Pal", eggOnly = "Solo incubatrici",
         eggStorage = "Incubatrici, poi depositi",
@@ -588,6 +624,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Guardar objetos ignorados",
         includeNew = "Guardar objetos nuevos en almacenes",
         includeGuildChest = "Usar cofre del gremio",
+        autoSellValuables = "Vender objetos valiosos a mercaderes",
         includeSmallIncubators = "Incubadoras pequeñas (grandes primero)",
         eggRouting = "Huevos de Pal", eggOnly = "Solo incubadoras",
         eggStorage = "Incubadoras y luego almacenes",
@@ -609,6 +646,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Guardar itens ignorados",
         includeNew = "Guardar itens ainda ausentes",
         includeGuildChest = "Usar baú da guilda",
+        autoSellValuables = "Vender itens valiosos aos mercadores",
         includeSmallIncubators = "Incubadoras pequenas (grandes primeiro)",
         eggRouting = "Ovos de Pal", eggOnly = "Somente incubadoras",
         eggStorage = "Incubadoras, depois depósitos",
@@ -630,6 +668,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Складывать исключённые предметы",
         includeNew = "Складывать новые типы предметов",
         includeGuildChest = "Использовать сундук гильдии",
+        autoSellValuables = "Продавать торговцам ценные предметы",
         includeSmallIncubators = "Малые инкубаторы (сначала большие)",
         eggRouting = "Яйца Палов", eggOnly = "Только инкубаторы",
         eggStorage = "Инкубаторы, затем хранилища",
@@ -651,6 +690,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Yok sayılan eşyaları depola",
         includeNew = "Depoda bulunmayan eşyaları depola",
         includeGuildChest = "Lonca sandığını kullan",
+        autoSellValuables = "Değerli tüccar eşyalarını sat",
         includeSmallIncubators = "Küçük kuluçka makineleri (önce büyükler)",
         eggRouting = "Pal Yumurtaları", eggOnly = "Yalnızca kuluçka makineleri",
         eggStorage = "Kuluçka makineleri, sonra depolar",
@@ -672,6 +712,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Składaj ignorowane przedmioty",
         includeNew = "Składaj nowe typy przedmiotów",
         includeGuildChest = "Używaj skrzyni gildii",
+        autoSellValuables = "Sprzedawaj kupcom cenne przedmioty",
         includeSmallIncubators = "Małe inkubatory (najpierw duże)",
         eggRouting = "Jaja Pali", eggOnly = "Tylko inkubatory",
         eggStorage = "Inkubatory, potem magazyny",
@@ -693,6 +734,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Simpan item yang diabaikan",
         includeNew = "Simpan jenis item baru",
         includeGuildChest = "Gunakan peti guild",
+        autoSellValuables = "Jual item berharga kepada pedagang",
         includeSmallIncubators = "Inkubator kecil (utamakan yang besar)",
         eggRouting = "Telur Pal", eggOnly = "Hanya inkubator",
         eggStorage = "Inkubator, lalu penyimpanan",
@@ -714,6 +756,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Guardar objetos ignorados",
         includeNew = "Guardar objetos que aún no existen",
         includeGuildChest = "Usar cofre del gremio",
+        autoSellValuables = "Vender objetos valiosos a mercaderes",
         includeSmallIncubators = "Incubadoras pequeñas (grandes primero)",
         eggRouting = "Huevos de Pal", eggOnly = "Solo incubadoras",
         eggStorage = "Incubadoras y luego almacenes",
@@ -735,6 +778,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "จัดเก็บไอเทมที่ละเว้น",
         includeNew = "จัดเก็บไอเทมชนิดใหม่",
         includeGuildChest = "ใช้หีบกิลด์",
+        autoSellValuables = "ขายของมีค่าให้พ่อค้า",
         includeSmallIncubators = "ใช้ตู้ฟักขนาดเล็ก (ขนาดใหญ่ก่อน)",
         eggRouting = "ไข่พัล", eggOnly = "ตู้อบเท่านั้น",
         eggStorage = "ตู้อบ แล้วจึงคลัง",
@@ -756,6 +800,7 @@ local SETTINGS_STRINGS = {
         includeExcluded = "Cất cả vật phẩm bị bỏ qua",
         includeNew = "Cất loại vật phẩm chưa có trong kho",
         includeGuildChest = "Dùng Rương Bang hội",
+        autoSellValuables = "Bán vật phẩm giá trị cao cho thương nhân",
         includeSmallIncubators = "Dùng lồng ấp nhỏ (ưu tiên lồng lớn)",
         eggRouting = "Trứng Pal", eggOnly = "Chỉ máy ấp",
         eggStorage = "Máy ấp, sau đó kho",
@@ -1043,6 +1088,87 @@ local ABOUT_ROSTER_STRINGS = {
     vi = { aboutRecommended = "MOD PALWORLD ĐỀ XUẤT", aboutSpecialThanks = "Lời cảm ơn đặc biệt", aboutSpecialThanksDescription = "Những thành viên cộng đồng đã góp phần định hình Quick Stack bằng ý tưởng, báo cáo và thử nghiệm.", aboutSpecialThanksEmpty = "Chưa có danh sách cảm ơn Quick Stack.", aboutSupporters = "Người ủng hộ", aboutSupportersDescription = "Tên chỉ được công khai khi người ủng hộ đồng ý rõ ràng.", aboutSupportersEmpty = "Chưa có người ủng hộ công khai." },
 }
 
+local AMMO_SETTINGS_STRINGS = {
+    en = { sectionAutoSell = "Automatic sale", resultDisplay = "Result display", resultDisplayHelper = "Automatic: show the result window when triggered from the inventory; otherwise show text.", autoSellAmmo = "Sell selected ammunition", keptAmmo = "Ammunition to keep", ammoPickerTitle = "Ammunition to keep", ammoPickerHelper = "Checked ammunition stays in your backpack and is not sold.", ammoPickerDone = "Done", ammoKeptSummary = "Keep %d / %d", sectionSpecial = "Special item storage" },
+    ["zh-hans"] = { sectionAutoSell = "自动出售", resultDisplay = "结果显示", resultDisplayHelper = "自动：从背包触发时显示结果窗口，其他情况仅显示文字。", autoSellAmmo = "自动出售弹药", keptAmmo = "保留的弹药", ammoPickerTitle = "选择要保留的弹药", ammoPickerHelper = "已勾选的弹药会保留在背包中，不会出售。", ammoPickerDone = "完成", ammoKeptSummary = "保留 %d / %d", sectionSpecial = "特殊物品收纳" },
+    ["zh-hant"] = { sectionAutoSell = "自動出售", resultDisplay = "結果顯示", resultDisplayHelper = "自動：從背包觸發時顯示結果視窗，其他情況僅顯示文字。", autoSellAmmo = "自動出售彈藥", keptAmmo = "保留的彈藥", ammoPickerTitle = "選擇要保留的彈藥", ammoPickerHelper = "已勾選的彈藥會保留在背包中，不會出售。", ammoPickerDone = "完成", ammoKeptSummary = "保留 %d / %d", sectionSpecial = "特殊物品收納" },
+    ja = { sectionAutoSell = "自動売却", resultDisplayHelper = "自動：バッグから実行した場合は結果ウィンドウ、それ以外はテキストを表示します。", autoSellAmmo = "選択した弾薬を売却", keptAmmo = "残す弾薬", ammoPickerTitle = "残す弾薬を選択", ammoPickerHelper = "チェックした弾薬はバッグに残り、売却されません。", ammoPickerDone = "完了", ammoKeptSummary = "%d / %d を残す" },
+    ko = { sectionAutoSell = "자동 판매", resultDisplayHelper = "자동: 가방에서 실행하면 결과 창을, 그 외에는 텍스트를 표시합니다.", autoSellAmmo = "선택한 탄약 판매", keptAmmo = "보관할 탄약", ammoPickerTitle = "보관할 탄약 선택", ammoPickerHelper = "체크한 탄약은 가방에 남고 판매되지 않습니다.", ammoPickerDone = "완료", ammoKeptSummary = "%d / %d 보관" },
+    de = { sectionAutoSell = "Automatischer Verkauf", resultDisplayHelper = "Automatisch: Im Inventar das Ergebnisfenster anzeigen, sonst nur Text.", autoSellAmmo = "Ausgewählte Munition verkaufen", keptAmmo = "Zu behaltende Munition", ammoPickerTitle = "Munition behalten", ammoPickerHelper = "Markierte Munition bleibt im Inventar und wird nicht verkauft.", ammoPickerDone = "Fertig", ammoKeptSummary = "%d / %d behalten" },
+    fr = { sectionAutoSell = "Vente automatique", resultDisplayHelper = "Automatique : affiche la fenêtre de résultat depuis l’inventaire, sinon seulement du texte.", autoSellAmmo = "Vendre les munitions sélectionnées", keptAmmo = "Munitions à garder", ammoPickerTitle = "Munitions à garder", ammoPickerHelper = "Les munitions cochées restent dans l’inventaire et ne sont pas vendues.", ammoPickerDone = "Terminé", ammoKeptSummary = "Garder %d / %d" },
+    it = { sectionAutoSell = "Vendita automatica", resultDisplayHelper = "Automatico: mostra la finestra dei risultati dall’inventario, altrimenti solo testo.", autoSellAmmo = "Vendi le munizioni selezionate", keptAmmo = "Munizioni da conservare", ammoPickerTitle = "Munizioni da conservare", ammoPickerHelper = "Le munizioni selezionate restano nell’inventario e non vengono vendute.", ammoPickerDone = "Fine", ammoKeptSummary = "Conserva %d / %d" },
+    es = { sectionAutoSell = "Venta automática", resultDisplayHelper = "Automático: muestra la ventana de resultados desde el inventario; en otros casos, solo texto.", autoSellAmmo = "Vender la munición seleccionada", keptAmmo = "Munición que conservar", ammoPickerTitle = "Munición que conservar", ammoPickerHelper = "La munición marcada permanece en el inventario y no se vende.", ammoPickerDone = "Listo", ammoKeptSummary = "Conservar %d / %d" },
+    ["pt-br"] = { sectionAutoSell = "Venda automática", resultDisplayHelper = "Automático: mostra a janela de resultado no inventário; nos demais casos, somente texto.", autoSellAmmo = "Vender munição selecionada", keptAmmo = "Munição a manter", ammoPickerTitle = "Munição a manter", ammoPickerHelper = "A munição marcada fica no inventário e não é vendida.", ammoPickerDone = "Concluir", ammoKeptSummary = "Manter %d / %d" },
+    ru = { sectionAutoSell = "Автопродажа", resultDisplayHelper = "Авто: из инвентаря показывается окно результата, в остальных случаях — текст.", autoSellAmmo = "Продавать выбранные боеприпасы", keptAmmo = "Оставляемые боеприпасы", ammoPickerTitle = "Оставить боеприпасы", ammoPickerHelper = "Отмеченные боеприпасы останутся в инвентаре и не будут проданы.", ammoPickerDone = "Готово", ammoKeptSummary = "Оставить %d / %d" },
+    tr = { sectionAutoSell = "Otomatik satış", resultDisplayHelper = "Otomatik: Envanterden çalıştırılırsa sonuç penceresi, diğer durumlarda yalnızca metin gösterilir.", autoSellAmmo = "Seçili mühimmatı sat", keptAmmo = "Saklanacak mühimmat", ammoPickerTitle = "Saklanacak mühimmat", ammoPickerHelper = "İşaretli mühimmat envanterde kalır ve satılmaz.", ammoPickerDone = "Bitti", ammoKeptSummary = "%d / %d sakla" },
+    pl = { sectionAutoSell = "Automatyczna sprzedaż", resultDisplayHelper = "Automatycznie: z ekwipunku pokaż okno wyniku, w pozostałych przypadkach tylko tekst.", autoSellAmmo = "Sprzedawaj wybraną amunicję", keptAmmo = "Amunicja do zachowania", ammoPickerTitle = "Amunicja do zachowania", ammoPickerHelper = "Zaznaczona amunicja pozostaje w ekwipunku i nie jest sprzedawana.", ammoPickerDone = "Gotowe", ammoKeptSummary = "Zachowaj %d / %d" },
+    id = { sectionAutoSell = "Penjualan otomatis", resultDisplayHelper = "Otomatis: tampilkan jendela hasil dari inventaris; selain itu hanya teks.", autoSellAmmo = "Jual amunisi yang dipilih", keptAmmo = "Amunisi yang disimpan", ammoPickerTitle = "Amunisi yang disimpan", ammoPickerHelper = "Amunisi yang dicentang tetap di inventaris dan tidak dijual.", ammoPickerDone = "Selesai", ammoKeptSummary = "Simpan %d / %d" },
+    ["es-419"] = { sectionAutoSell = "Venta automática", resultDisplayHelper = "Automático: muestra la ventana de resultados desde el inventario; en otros casos, solo texto.", autoSellAmmo = "Vender la munición seleccionada", keptAmmo = "Munición que conservar", ammoPickerTitle = "Munición que conservar", ammoPickerHelper = "La munición marcada permanece en el inventario y no se vende.", ammoPickerDone = "Listo", ammoKeptSummary = "Conservar %d / %d" },
+    th = { sectionAutoSell = "ขายอัตโนมัติ", resultDisplayHelper = "อัตโนมัติ: เปิดหน้าต่างผลลัพธ์เมื่อใช้จากกระเป๋า กรณีอื่นแสดงเฉพาะข้อความ", autoSellAmmo = "ขายกระสุนที่เลือก", keptAmmo = "กระสุนที่เก็บไว้", ammoPickerTitle = "เลือกกระสุนที่เก็บไว้", ammoPickerHelper = "กระสุนที่ทำเครื่องหมายจะอยู่ในกระเป๋าและไม่ถูกขาย", ammoPickerDone = "เสร็จ", ammoKeptSummary = "เก็บ %d / %d" },
+    vi = { sectionAutoSell = "Tự động bán", resultDisplayHelper = "Tự động: mở cửa sổ kết quả khi kích hoạt từ túi; các trường hợp khác chỉ hiện chữ.", autoSellAmmo = "Bán đạn đã chọn", keptAmmo = "Đạn cần giữ", ammoPickerTitle = "Chọn đạn cần giữ", ammoPickerHelper = "Đạn được đánh dấu sẽ ở lại trong túi và không bị bán.", ammoPickerDone = "Xong", ammoKeptSummary = "Giữ %d / %d" },
+}
+
+local VALUABLE_SETTINGS_STRINGS = {
+    en = { keptValuables = "High-value items to keep", valuablePickerTitle = "High-value items to keep", valuablePickerHelper = "Checked items stay in your backpack and are not sold.", valuableKeptSummary = "Keep %d / %d" },
+    ["zh-hans"] = { keptValuables = "保留的高价品", valuablePickerTitle = "选择要保留的高价品", valuablePickerHelper = "已勾选的物品会保留在背包中，不会出售。", valuableKeptSummary = "保留 %d / %d" },
+    ["zh-hant"] = { keptValuables = "保留的高價品", valuablePickerTitle = "選擇要保留的高價品", valuablePickerHelper = "已勾選的物品會保留在背包中，不會出售。", valuableKeptSummary = "保留 %d / %d" },
+    ja = { keptValuables = "残す高価アイテム", valuablePickerTitle = "残す高価アイテムを選択", valuablePickerHelper = "チェックしたアイテムはバッグに残り、売却されません。", valuableKeptSummary = "%d / %d を残す" },
+    ko = { keptValuables = "보관할 고가 아이템", valuablePickerTitle = "보관할 고가 아이템 선택", valuablePickerHelper = "체크한 아이템은 가방에 남고 판매되지 않습니다.", valuableKeptSummary = "%d / %d 보관" },
+    de = { keptValuables = "Zu behaltende Wertsachen", valuablePickerTitle = "Wertsachen behalten", valuablePickerHelper = "Markierte Gegenstände bleiben im Inventar und werden nicht verkauft.", valuableKeptSummary = "%d / %d behalten" },
+    fr = { keptValuables = "Objets précieux à garder", valuablePickerTitle = "Objets précieux à garder", valuablePickerHelper = "Les objets cochés restent dans l’inventaire et ne sont pas vendus.", valuableKeptSummary = "Garder %d / %d" },
+    it = { keptValuables = "Oggetti preziosi da conservare", valuablePickerTitle = "Oggetti preziosi da conservare", valuablePickerHelper = "Gli oggetti selezionati restano nell'inventario e non vengono venduti.", valuableKeptSummary = "Conserva %d / %d" },
+    es = { keptValuables = "Objetos valiosos que conservar", valuablePickerTitle = "Objetos valiosos que conservar", valuablePickerHelper = "Los objetos marcados permanecen en el inventario y no se venden.", valuableKeptSummary = "Conservar %d / %d" },
+    ["pt-br"] = { keptValuables = "Itens valiosos a manter", valuablePickerTitle = "Itens valiosos a manter", valuablePickerHelper = "Os itens marcados ficam no inventário e não são vendidos.", valuableKeptSummary = "Manter %d / %d" },
+    ru = { keptValuables = "Ценности, которые нужно оставить", valuablePickerTitle = "Оставить ценности", valuablePickerHelper = "Отмеченные предметы останутся в инвентаре и не будут проданы.", valuableKeptSummary = "Оставить %d / %d" },
+    tr = { keptValuables = "Saklanacak değerli eşyalar", valuablePickerTitle = "Değerli eşyaları sakla", valuablePickerHelper = "İşaretli eşyalar envanterde kalır ve satılmaz.", valuableKeptSummary = "%d / %d sakla" },
+    pl = { keptValuables = "Cenne przedmioty do zachowania", valuablePickerTitle = "Zachowaj cenne przedmioty", valuablePickerHelper = "Zaznaczone przedmioty pozostają w ekwipunku i nie są sprzedawane.", valuableKeptSummary = "Zachowaj %d / %d" },
+    id = { keptValuables = "Barang berharga yang disimpan", valuablePickerTitle = "Simpan barang berharga", valuablePickerHelper = "Barang yang dicentang tetap di inventaris dan tidak dijual.", valuableKeptSummary = "Simpan %d / %d" },
+    ["es-419"] = { keptValuables = "Objetos valiosos que conservar", valuablePickerTitle = "Objetos valiosos que conservar", valuablePickerHelper = "Los objetos marcados permanecen en el inventario y no se venden.", valuableKeptSummary = "Conservar %d / %d" },
+    th = { keptValuables = "ของมีค่าที่เก็บไว้", valuablePickerTitle = "เลือกของมีค่าที่เก็บไว้", valuablePickerHelper = "สิ่งของที่ทำเครื่องหมายจะอยู่ในกระเป๋าและไม่ถูกขาย", valuableKeptSummary = "เก็บ %d / %d" },
+    vi = { keptValuables = "Vật phẩm giá trị cần giữ", valuablePickerTitle = "Chọn vật phẩm giá trị cần giữ", valuablePickerHelper = "Vật phẩm được đánh dấu sẽ ở lại trong túi và không bị bán.", valuableKeptSummary = "Giữ %d / %d" },
+}
+
+local CONSUMABLE_SALE_SETTINGS_STRINGS = {
+    en = { autoSellPalSpheres = "Sell selected Pal Spheres", keptPalSpheres = "Pal Spheres to keep", palSpherePickerTitle = "Pal Spheres to keep", palSpherePickerHelper = "Checked Pal Spheres stay in your backpack and are not sold.", palSphereKeptSummary = "Keep %d / %d", autoSellFishingBait = "Sell selected fishing bait", keptFishingBait = "Fishing bait to keep", fishingBaitPickerTitle = "Fishing bait to keep", fishingBaitPickerHelper = "Checked fishing bait stays in your backpack and is not sold.", fishingBaitKeptSummary = "Keep %d / %d" },
+    ["zh-hans"] = { autoSellPalSpheres = "自动出售帕鲁球", keptPalSpheres = "保留的帕鲁球", palSpherePickerTitle = "选择要保留的帕鲁球", palSpherePickerHelper = "已勾选的帕鲁球会保留在背包中，不会出售。", palSphereKeptSummary = "保留 %d / %d", autoSellFishingBait = "自动出售钓饵", keptFishingBait = "保留的钓饵", fishingBaitPickerTitle = "选择要保留的钓饵", fishingBaitPickerHelper = "已勾选的钓饵会保留在背包中，不会出售。", fishingBaitKeptSummary = "保留 %d / %d" },
+    ["zh-hant"] = { autoSellPalSpheres = "自動出售帕魯球", keptPalSpheres = "保留的帕魯球", palSpherePickerTitle = "選擇要保留的帕魯球", palSpherePickerHelper = "已勾選的帕魯球會保留在背包中，不會出售。", palSphereKeptSummary = "保留 %d / %d", autoSellFishingBait = "自動出售釣餌", keptFishingBait = "保留的釣餌", fishingBaitPickerTitle = "選擇要保留的釣餌", fishingBaitPickerHelper = "已勾選的釣餌會保留在背包中，不會出售。", fishingBaitKeptSummary = "保留 %d / %d" },
+    ja = { autoSellPalSpheres = "選択したパルスフィアを売却", keptPalSpheres = "残すパルスフィア", palSpherePickerTitle = "残すパルスフィアを選択", palSpherePickerHelper = "チェックしたパルスフィアはバッグに残り、売却されません。", palSphereKeptSummary = "%d / %d を残す", autoSellFishingBait = "選択した釣り餌を売却", keptFishingBait = "残す釣り餌", fishingBaitPickerTitle = "残す釣り餌を選択", fishingBaitPickerHelper = "チェックした釣り餌はバッグに残り、売却されません。", fishingBaitKeptSummary = "%d / %d を残す" },
+    ko = { autoSellPalSpheres = "선택한 팰 스피어 판매", keptPalSpheres = "보관할 팰 스피어", palSpherePickerTitle = "보관할 팰 스피어 선택", palSpherePickerHelper = "체크한 팰 스피어는 가방에 남고 판매되지 않습니다.", palSphereKeptSummary = "%d / %d 보관", autoSellFishingBait = "선택한 낚시 미끼 판매", keptFishingBait = "보관할 낚시 미끼", fishingBaitPickerTitle = "보관할 낚시 미끼 선택", fishingBaitPickerHelper = "체크한 낚시 미끼는 가방에 남고 판매되지 않습니다.", fishingBaitKeptSummary = "%d / %d 보관" },
+    de = { autoSellPalSpheres = "Ausgewählte Pal-Sphären verkaufen", keptPalSpheres = "Zu behaltende Pal-Sphären", palSpherePickerTitle = "Pal-Sphären behalten", palSpherePickerHelper = "Markierte Pal-Sphären bleiben im Inventar und werden nicht verkauft.", palSphereKeptSummary = "%d / %d behalten", autoSellFishingBait = "Ausgewählte Angelköder verkaufen", keptFishingBait = "Zu behaltende Angelköder", fishingBaitPickerTitle = "Angelköder behalten", fishingBaitPickerHelper = "Markierte Angelköder bleiben im Inventar und werden nicht verkauft.", fishingBaitKeptSummary = "%d / %d behalten" },
+    fr = { autoSellPalSpheres = "Vendre les Sphères de Pal sélectionnées", keptPalSpheres = "Sphères de Pal à garder", palSpherePickerTitle = "Sphères de Pal à garder", palSpherePickerHelper = "Les Sphères de Pal cochées restent dans l’inventaire et ne sont pas vendues.", palSphereKeptSummary = "Garder %d / %d", autoSellFishingBait = "Vendre les appâts sélectionnés", keptFishingBait = "Appâts à garder", fishingBaitPickerTitle = "Appâts à garder", fishingBaitPickerHelper = "Les appâts cochés restent dans l’inventaire et ne sont pas vendus.", fishingBaitKeptSummary = "Garder %d / %d" },
+    it = { autoSellPalSpheres = "Vendi le Sfere Pal selezionate", keptPalSpheres = "Sfere Pal da conservare", palSpherePickerTitle = "Sfere Pal da conservare", palSpherePickerHelper = "Le Sfere Pal selezionate restano nell'inventario e non vengono vendute.", palSphereKeptSummary = "Conserva %d / %d", autoSellFishingBait = "Vendi le esche selezionate", keptFishingBait = "Esche da conservare", fishingBaitPickerTitle = "Esche da conservare", fishingBaitPickerHelper = "Le esche selezionate restano nell'inventario e non vengono vendute.", fishingBaitKeptSummary = "Conserva %d / %d" },
+    es = { autoSellPalSpheres = "Vender las esferas Pal seleccionadas", keptPalSpheres = "Esferas Pal que conservar", palSpherePickerTitle = "Esferas Pal que conservar", palSpherePickerHelper = "Las esferas Pal marcadas permanecen en el inventario y no se venden.", palSphereKeptSummary = "Conservar %d / %d", autoSellFishingBait = "Vender los cebos seleccionados", keptFishingBait = "Cebos que conservar", fishingBaitPickerTitle = "Cebos que conservar", fishingBaitPickerHelper = "Los cebos marcados permanecen en el inventario y no se venden.", fishingBaitKeptSummary = "Conservar %d / %d" },
+    ["pt-br"] = { autoSellPalSpheres = "Vender Esferas de Pal selecionadas", keptPalSpheres = "Esferas de Pal a manter", palSpherePickerTitle = "Esferas de Pal a manter", palSpherePickerHelper = "As Esferas de Pal marcadas ficam no inventário e não são vendidas.", palSphereKeptSummary = "Manter %d / %d", autoSellFishingBait = "Vender iscas selecionadas", keptFishingBait = "Iscas a manter", fishingBaitPickerTitle = "Iscas a manter", fishingBaitPickerHelper = "As iscas marcadas ficam no inventário e não são vendidas.", fishingBaitKeptSummary = "Manter %d / %d" },
+    ru = { autoSellPalSpheres = "Продавать выбранные Пал-сферы", keptPalSpheres = "Оставляемые Пал-сферы", palSpherePickerTitle = "Оставить Пал-сферы", palSpherePickerHelper = "Отмеченные Пал-сферы останутся в инвентаре и не будут проданы.", palSphereKeptSummary = "Оставить %d / %d", autoSellFishingBait = "Продавать выбранную наживку", keptFishingBait = "Оставляемая наживка", fishingBaitPickerTitle = "Оставить наживку", fishingBaitPickerHelper = "Отмеченная наживка останется в инвентаре и не будет продана.", fishingBaitKeptSummary = "Оставить %d / %d" },
+    tr = { autoSellPalSpheres = "Seçili Pal Kürelerini sat", keptPalSpheres = "Saklanacak Pal Küreleri", palSpherePickerTitle = "Saklanacak Pal Küreleri", palSpherePickerHelper = "İşaretli Pal Küreleri envanterde kalır ve satılmaz.", palSphereKeptSummary = "%d / %d sakla", autoSellFishingBait = "Seçili balık yemini sat", keptFishingBait = "Saklanacak balık yemi", fishingBaitPickerTitle = "Saklanacak balık yemi", fishingBaitPickerHelper = "İşaretli balık yemi envanterde kalır ve satılmaz.", fishingBaitKeptSummary = "%d / %d sakla" },
+    pl = { autoSellPalSpheres = "Sprzedawaj wybrane Kule Pal", keptPalSpheres = "Kule Pal do zachowania", palSpherePickerTitle = "Zachowaj Kule Pal", palSpherePickerHelper = "Zaznaczone Kule Pal pozostają w ekwipunku i nie są sprzedawane.", palSphereKeptSummary = "Zachowaj %d / %d", autoSellFishingBait = "Sprzedawaj wybrane przynęty", keptFishingBait = "Przynęty do zachowania", fishingBaitPickerTitle = "Zachowaj przynęty", fishingBaitPickerHelper = "Zaznaczone przynęty pozostają w ekwipunku i nie są sprzedawane.", fishingBaitKeptSummary = "Zachowaj %d / %d" },
+    id = { autoSellPalSpheres = "Jual Bola Pal yang dipilih", keptPalSpheres = "Bola Pal yang disimpan", palSpherePickerTitle = "Simpan Bola Pal", palSpherePickerHelper = "Bola Pal yang dicentang tetap di inventaris dan tidak dijual.", palSphereKeptSummary = "Simpan %d / %d", autoSellFishingBait = "Jual umpan pancing yang dipilih", keptFishingBait = "Umpan pancing yang disimpan", fishingBaitPickerTitle = "Simpan umpan pancing", fishingBaitPickerHelper = "Umpan pancing yang dicentang tetap di inventaris dan tidak dijual.", fishingBaitKeptSummary = "Simpan %d / %d" },
+    ["es-419"] = { autoSellPalSpheres = "Vender las esferas Pal seleccionadas", keptPalSpheres = "Esferas Pal que conservar", palSpherePickerTitle = "Esferas Pal que conservar", palSpherePickerHelper = "Las esferas Pal marcadas permanecen en el inventario y no se venden.", palSphereKeptSummary = "Conservar %d / %d", autoSellFishingBait = "Vender los cebos seleccionados", keptFishingBait = "Cebos que conservar", fishingBaitPickerTitle = "Cebos que conservar", fishingBaitPickerHelper = "Los cebos marcados permanecen en el inventario y no se venden.", fishingBaitKeptSummary = "Conservar %d / %d" },
+    th = { autoSellPalSpheres = "ขายพัลสเฟียร์ที่เลือก", keptPalSpheres = "พัลสเฟียร์ที่เก็บไว้", palSpherePickerTitle = "เลือกพัลสเฟียร์ที่เก็บไว้", palSpherePickerHelper = "พัลสเฟียร์ที่ทำเครื่องหมายจะอยู่ในกระเป๋าและไม่ถูกขาย", palSphereKeptSummary = "เก็บ %d / %d", autoSellFishingBait = "ขายเหยื่อตกปลาที่เลือก", keptFishingBait = "เหยื่อตกปลาที่เก็บไว้", fishingBaitPickerTitle = "เลือกเหยื่อตกปลาที่เก็บไว้", fishingBaitPickerHelper = "เหยื่อตกปลาที่ทำเครื่องหมายจะอยู่ในกระเป๋าและไม่ถูกขาย", fishingBaitKeptSummary = "เก็บ %d / %d" },
+    vi = { autoSellPalSpheres = "Bán Cầu Pal đã chọn", keptPalSpheres = "Cầu Pal cần giữ", palSpherePickerTitle = "Chọn Cầu Pal cần giữ", palSpherePickerHelper = "Cầu Pal được đánh dấu sẽ ở lại trong túi và không bị bán.", palSphereKeptSummary = "Giữ %d / %d", autoSellFishingBait = "Bán mồi câu đã chọn", keptFishingBait = "Mồi câu cần giữ", fishingBaitPickerTitle = "Chọn mồi câu cần giữ", fishingBaitPickerHelper = "Mồi câu được đánh dấu sẽ ở lại trong túi và không bị bán.", fishingBaitKeptSummary = "Giữ %d / %d" },
+}
+
+for locale, values in pairs(AMMO_SETTINGS_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
+for locale, values in pairs(VALUABLE_SETTINGS_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
+for locale, values in pairs(CONSUMABLE_SALE_SETTINGS_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
 for locale, values in pairs(SETTINGS_EXTRA_STRINGS) do
     local row = SETTINGS_STRINGS[locale]
     if type(row) == "table" then
@@ -1136,6 +1262,10 @@ end
 
 function Localization.settings()
     return SETTINGS_STRINGS[localeKeyFromTag(languageTag())] or SETTINGS_STRINGS.en
+end
+
+function Localization.itemName(staticId)
+    return ItemNames.get(localeKeyFromTag(languageTag()), staticId)
 end
 
 function Localization.format(strings, key, ...)

@@ -18,6 +18,22 @@ return {
 
     -- Also use an accessible Guild Chest in the current base.
     IncludeGuildChest = false,
+    -- Sell only the fixed high-value merchant whitelist before stacking.
+    AutoSellValuables = false,
+    -- Comma-separated high-value item IDs. Remove an ID to keep that item.
+    ValuableSellItems = "Ruby,Sapphire,Eemerald,Diamond,PalItem_ToSell_01,PalItem_ToSell_02,PalItem_ToSell_03,PalItem_ToSell_04,PalItem_ToSell_05",
+    -- Sell only the selected current ammunition before stacking.
+    AutoSellAmmo = false,
+    -- Comma-separated ammunition IDs. Empty protects every ammunition type.
+    AmmoSellItems = "",
+    -- Sell only the selected current Pal Spheres before stacking.
+    AutoSellPalSpheres = false,
+    -- Comma-separated Pal Sphere IDs. Empty protects every Pal Sphere type.
+    PalSphereSellItems = "",
+    -- Sell only the selected current fishing bait before stacking.
+    AutoSellFishingBait = false,
+    -- Comma-separated fishing-bait IDs. Empty protects every fishing-bait type.
+    FishingBaitSellItems = "",
     -- Use small incubators only after large incubators have no empty slots.
     IncludeSmallIncubators = false,
 

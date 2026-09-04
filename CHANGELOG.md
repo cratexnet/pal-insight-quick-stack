@@ -4,13 +4,35 @@
 
 ### Added
 
+- Added default-off automatic sale for the current 10 legal Pal Spheres and
+  4 legal fishing baits. Each category has an icon-assisted keep picker;
+  checked items remain in the backpack, and excluded items are never sold.
+- Added current-game localized names for those catalogs across all 17 supported
+  interface languages. Both categories share the existing pre-storage sale
+  batch and held keyboard/controller picker navigation.
+
+### Fixed
+
+- Fixed item-picker rows losing their fixed content padding after a mouse,
+  keyboard, or controller visual-state refresh, which shifted only the
+  interacted row horizontally.
+- Queued Quick Stack shortcut presses now revalidate the binding and settings
+  window generation before starting a job. Opening and closing settings cannot
+  reactivate a stale press. Static checks passed; in-game verification is pending.
+
+## 1.1.0 - 2026-09-05
+
+### Added
+
 - Added a default-off `IncludeSmallIncubators` setting to standalone and hosted
   settings. Large incubators are planned first; small incubators are used only
   after a bounded recheck finds no empty slots in the discovered large ones.
   Unreadable large-incubator state or a failed large request blocks this fallback.
   Small incubators with an egg or an unclaimed Pal are skipped. Manual egg
-  placement and item exclusions remain respected. The reported small-only setup
-  was confirmed working in game; the broader acceptance matrix remains pending.
+  placement and item exclusions remain respected.
+- Added a default-off `IncludeGuildChest` setting to the standalone and Pal
+  Insight-hosted settings panels. When enabled, Quick Stack can use an accessible
+  Guild Chest in the current guild base after validating permissions and capacity.
 
 ### Changed
 
@@ -24,17 +46,6 @@
 - Fixed the small-incubator option being omitted from each Quick Stack job's
   settings snapshot. Replaced the failing hatched-Pal utility call with the
   current native-equivalent character-ID check and preserved read-failure details.
-
-## 1.1.0 - 2026-09-03
-
-### Added
-
-- Added a default-off `IncludeGuildChest` setting to the standalone and Pal
-  Insight-hosted settings panels.
-- When enabled, Quick Stack can use an accessible Guild Chest in the current
-  guild base. Guild-role access, current-base ownership, shared-container
-  identity, filters, permissions, capacity, and replication readiness are
-  validated before moving items.
 
 ## 1.0.0 - 2026-09-03
 

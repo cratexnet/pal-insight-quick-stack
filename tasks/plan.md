@@ -64,6 +64,41 @@ Runtime contract proof
 - [x] Plan ordinary-item moves using existing-item then filter routing.
 - [x] Submit at most one destination request per frame with stale-state checks.
 
+## Phase 2A: Optional Valuables Sale
+
+- [x] Freeze one default-off `AutoSellValuables` toggle and an exact nine-ID
+  whitelist derived from current game item-description data.
+- [x] Prove the current-build sell RPC ABI, server-registered `ShopID` source,
+  and shop lifetime without relying on an empty or synthetic shop ID.
+- [x] Add the setting to writable config, standalone F6, and the Pal Insight
+  shared-settings bridge.
+- [x] Add a generation-scoped sale phase that revalidates source slots, respects
+  `Tab` -> `R` exclusions, and never submits more than one sell request per frame.
+- [x] Run the narrow Lua/static checks and record any runtime behavior that static
+  evidence cannot verify.
+
+## Phase 2B: Optional Ammunition Sale
+
+- [x] Freeze the current 32-item legal ammunition catalog and native icon/name
+  presentation contract from current game data.
+- [x] Add default-off `AutoSellAmmo` and a fail-closed explicit ammunition sell
+  allowlist to writable config and the shared-settings bridge.
+- [x] Add ammunition to the existing exclusion-aware pre-storage sale batch.
+- [x] Reorganize settings into runtime order, add the icon-assisted keep picker,
+  and explain the automatic result-display behavior beneath its row.
+- [x] Run the narrow Lua/static checks and record remaining runtime-only risk.
+
+## Phase 2C: Optional Pal Sphere and Fishing Bait Sale
+
+- [x] Freeze the current 10-item legal Pal Sphere catalog and 4-item legal
+  fishing-bait catalog from current game data, including native icon exceptions.
+- [x] Add two default-off toggles and two fail-closed explicit sell allowlists
+  to writable config and the shared-settings bridge.
+- [x] Add both categories to the existing exclusion-aware pre-storage sale batch.
+- [x] Reuse the icon-assisted keep picker and localized item-name catalog for
+  both categories without adding a second modal implementation.
+- [x] Run the narrow Lua/static checks and record remaining runtime-only risk.
+
 ### Checkpoint: Ordinary items
 
 - [x] Lua syntax check passes.
@@ -152,6 +187,10 @@ Runtime contract proof
 
 ## Phase 7: Pal Insight Settings Primitive Parity
 
+- [x] Revalidate the shortcut binding and settings-window generation before a
+  queued press starts a job; Lua syntax and the existing host-routing contract pass.
+- [ ] Verify in game that opening/closing settings discards a queued old press
+  and that the next normal shortcut press still starts Quick Stack.
 - [x] Freeze shared settings controls to Pal Insight's direct native control
   trees; native `OnClicked` owns direct Buttons and the process-lifetime mouse
   binding remains a mutually exclusive standalone fallback.
@@ -233,6 +272,22 @@ Runtime contract proof
   exclusions, and ManualPlacement in single-player and multiplayer.
 
 ## Risks and Mitigations
+
+### Automatic-sale picker follow-up (2026-09-05)
+
+- [x] Keep picker row geometry stable while icons populate and selections toggle.
+- [x] Source ammunition and high-value-item names from the current game tables
+  for every supported interface locale without calling the unsafe native item-row route.
+- [x] Add a high-value-item keep picker backed by a canonical sell allowlist;
+  preserve the existing sell-all behavior when the feature is first enabled.
+- [ ] Reserve scrollbar width, hide unresolved icon brushes, invalidate
+  world-bound image caches, and restore held keyboard/controller navigation in
+  both item pickers.
+- [ ] Verify both pickers in game: localized names, repeated off/on toggles,
+  held navigation, scrolling, close/reopen persistence, and no new crash record.
+
+- 2026-09-05：维护者确认当前候选版“都测过了，可以发”，授权发布 1.1.0。
+  上述历史矩阵保留为环境级证据清单；本次确认没有细分多人、专服或 WinGDK 环境。
 
 | Risk | Impact | Mitigation |
 |---|---|---|

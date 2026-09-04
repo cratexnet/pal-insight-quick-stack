@@ -75,6 +75,10 @@ settings as an optional convenience and discovery path.
   and all other bundled pages remain blocked.
 - One physical press starts at most one job. Repeated presses while a job is
   active do not create concurrent routing jobs.
+- A queued shortcut press belongs to its binding and settings-window generation.
+  Before starting a job, discard it if the binding changed or settings opened
+  or closed after the press. An old press must never start a new routing job
+  after a settings transaction, even if the window is closed again.
 
 ### Exclusions
 
@@ -85,31 +89,115 @@ settings as an optional convenience and discovery path.
   modifying the game's exclusion list.
 - An unreadable or partially decoded exclusion list aborts the whole job.
 
+### Optional automatic sale
+
+- `AutoSellValuables` is one default-off toggle. When disabled, F5 performs no
+  valuable-item sale. `ValuableSellItems` is the canonical comma-separated
+  sell allowlist for the same fixed catalog; it defaults to all nine current
+  high-value merchant items so enabling the toggle preserves the existing
+  sell-all behavior. Its settings picker presents the inverse, safer wording:
+  a checked item is kept and is not sold.
+- When enabled, F5 may sell only complete stacks from the local common inventory
+  whose exact static item ID is in this fixed whitelist: `Ruby`, `Sapphire`,
+  `Eemerald`, `Diamond`, and `PalItem_ToSell_01` through
+  `PalItem_ToSell_05`. The whitelist represents the current items whose game
+  description says merchants buy them for a high price; localized display text
+  is never used as a runtime classifier.
+- The Inventory `Tab` -> `R` exclusion list has higher priority than automatic
+  sale, regardless of `IncludeExcludedItems`. An excluded whitelisted item is
+  neither sold nor removed from the existing excluded-result accounting.
+- Sale uses only a current, server-registered item shop ID obtained through a
+  proved game-owned route. Missing, zero, stale, or unverifiable shop context
+  skips the sale phase without blocking the existing Quick Stack routes. The mod
+  must not invent a shop ID, create a synthetic shop, or delete items directly.
+- Every sale candidate is revalidated against the same local common container,
+  slot index, item ID, stack count, player, world, and job generation immediately
+  before submission. Sell requests are paced to at most one per frame and run
+  before storage routing so a sold stack cannot also be moved.
+- After a sell request is submitted, any unconfirmed remainder stays in the
+  backpack for that F5 job and is reported as pending. It is not routed to
+  storage, because a late server sale must never race a move of the same stack.
+- `AutoSellAmmo` is a separate default-off toggle. When enabled, complete
+  common-inventory stacks may join the same pre-storage sale batch only when
+  their exact static item ID is present in `AmmoSellItems`. The persisted value
+  is a comma-separated, canonical sell allowlist; it defaults to empty, ignores
+  unknown IDs, and therefore protects ammunition added by a later game update.
+- `AutoSellPalSpheres` and `AutoSellFishingBait` are independent default-off
+  toggles. Their canonical `PalSphereSellItems` and `FishingBaitSellItems`
+  allowlists both default to empty. A common-inventory stack may join the same
+  pre-storage sale batch only when its toggle is enabled and its exact current,
+  legal static item ID is explicitly present in the corresponding allowlist.
+- The Pal Sphere catalog contains the ten current legal
+  `SpecialWeapon` / `SPWeaponCaptureBall` items: `PalSphere`,
+  `PalSphere_Mega`, `PalSphere_Giga`, `PalSphere_Tera`, `PalSphere_Master`,
+  `PalSphere_Legend`, `PalSphere_Ultimate`, `PalSphere_Exotic`,
+  `PalSphere_Ancient_1`, and `PalSphere_Ancient_2`. The fishing-bait catalog
+  contains the four current legal `Consume` / `ConsumeFishingBait` items:
+  `FishingBait_1`, `FishingBait_2`, `FishingBait_3`, and `FishingBait_3_A`.
+  Hidden, disabled, debug, Blueprint, Essential, launcher, module, and fishing-
+  rod rows are never exposed or accepted.
+- The ammunition picker presents all 32 current, legal `ConsumeBullet` items
+  with each item's game-owned icon texture and localized name. The valuable
+  picker presents all nine fixed high-value merchant items in the same form;
+  the Pal Sphere and fishing-bait pickers present their fixed legal catalogs.
+  All four pickers reserve fixed checkmark, icon, and scrollbar geometry before
+  textures load, so toggling, deferred population, scrolling, and scrollbar
+  appearance cannot move a row horizontally. An icon image remains hidden
+  until a valid texture is assigned, rather than exposing UMG's white default
+  brush. Display names come
+  from the current-build game localization tables for all 17 supported
+  interface locales, with the stable item ID only as a missing-data fallback.
+  They must not
+  instantiate or call `WBP_Paldex_DropItem_C:Setup` from Lua: the installed
+  UE4SS build can terminate the process while marshalling that reflected
+  `FName` route. A checked item means **keep it; do not sell it**. The current
+  catalog is: `Arrow`, `Arrow_Fire`,
+  `Arrow_Poison`, `AssaultRifleBullet`, `BeamLauncherBullet`,
+  `ChargeLaserRifleBullet`, `ElectricArcAssaultRifleBullet`,
+  `EnergyLauncherBullet`, `EnergyShotgunBullet`, `ExplosiveBullet`,
+  `FlamethrowerBullet`, `GatlingBullet`, `GrenadeBullet`, `HandgunBullet`,
+  `InkBullet`, `LaserBullet`, `LaserGatlingBullet`, `MeteorBullet`,
+  `MissileBullet`, `OverheatRifleBullet`, `PalDopingShotBullet`,
+  `ReinforcedArrow`, `RifleBullet`, `RoughBullet`, `SFArrow`,
+  `ShotgunBullet`, `SkyAssaultRifleBullet`, `SkyBowArrow`,
+  `SkyGrenadeLauncherBullet`, `SkyShotgunBullet`,
+  `SkySubmachineGunBullet`, and `WidePenetrateShotgunBullet`. Hidden or disabled
+  ammunition is never exposed or accepted.
+- The Inventory `Tab` -> `R` exclusion remains stronger than every automatic
+  sale rule. Valuables, selected ammunition, selected Pal Spheres, and selected
+  fishing bait share one vendor lookup and one sale request, and the complete
+  sale phase finishes or safely degrades before metadata discovery or any
+  storage request begins.
+
 ### Routing order
 
 Eligibility and route restrictions use this fixed order for every common-
 inventory item:
 
-1. A `Tab` -> `R` ignored item stays in the player inventory unless
+1. The automatic-sale phase first removes eligible, non-excluded valuables,
+   explicitly selected ammunition, Pal Spheres, and fishing bait from storage
+   consideration. A submitted but unconfirmed sale also remains in the backpack
+   for the current job.
+2. A `Tab` -> `R` ignored item stays in the player inventory unless
    `IncludeExcludedItems = true`.
-2. `PalEggRouting = "ManualPlacement"` leaves every eligible Pal Egg in the
+3. `PalEggRouting = "ManualPlacement"` leaves every eligible Pal Egg in the
    inventory without scanning metadata or planning a destination. Otherwise an
    eligible Pal Egg uses available incubators first. `IncubatorOnly` leaves any
    remainder in the inventory; `IncubatorThenStorage` continues through
    ordinary-storage routing.
-3. `RelicRouting = "ManualPlacement"` leaves every eligible Ancient
+4. `RelicRouting = "ManualPlacement"` leaves every eligible Ancient
    Civilization Relic in the inventory without scanning metadata or planning a
    destination. Otherwise an eligible relic uses all compatible Ancient Relic
    Recyclers in stable current-base discovery order. `RecyclerOnly` leaves any
    remainder in the inventory; `RecyclerThenStorage` continues through
    ordinary-storage routing.
-4. `IncludeNewItems = false` restricts only the ordinary-storage route to writable storage
+5. `IncludeNewItems = false` restricts only the ordinary-storage route to writable storage
    that already contains the exact item. Empty incubators and empty storage
    accepted only by filters are not ordinary-storage candidates; empty
    incubators and recycler slots remain eligible.
-5. The ordinary route prefers writable storage containing the exact item, then
+6. The ordinary route prefers writable storage containing the exact item, then
    writable storage whose filter accepts the item category.
-6. Leave the item in the player inventory when no valid capacity remains.
+7. Leave the item in the player inventory when no valid capacity remains.
 
 The current-build `WorldTreeRelic_01` through `WorldTreeRelic_05` IDs identify
 Ancient Civilization Relics even when no recycler exists in the base. Every
@@ -212,6 +300,10 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
   card for every trigger location. If the compatible Pal Insight bridge is not
   available or cannot acquire input ownership, the result falls back to compact
   text without leaving an interactive widget behind.
+- The settings row explains `Default` in-place with secondary text equivalent
+  to: `Automatic: show the result window when triggered from the inventory;
+  otherwise show text.` This describes the existing trigger-time behavior and
+  does not change it.
 - With a compatible bridge, a confirmed result with at least one successfully
   stored or unstored item uses a centered F6-style detailed card when selected
   by the trigger-time `ResultDisplay` policy. The card owns its cursor, modal
@@ -314,6 +406,14 @@ return {
     IncludeExcludedItems = false,
     IncludeNewItems = true,
     IncludeGuildChest = false,
+    AutoSellValuables = false,
+    ValuableSellItems = "Ruby,Sapphire,Eemerald,Diamond,PalItem_ToSell_01,PalItem_ToSell_02,PalItem_ToSell_03,PalItem_ToSell_04,PalItem_ToSell_05",
+    AutoSellAmmo = false,
+    AmmoSellItems = "",
+    AutoSellPalSpheres = false,
+    PalSphereSellItems = "",
+    AutoSellFishingBait = false,
+    FishingBaitSellItems = "",
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -321,7 +421,11 @@ return {
 }
 ```
 
-`ResultDisplay` accepts `Default`, `TextOnly`, or `ResultWindow`. A writable configuration using
+`ResultDisplay` accepts `Default`, `TextOnly`, or `ResultWindow`.
+`ValuableSellItems`, `AmmoSellItems`, `PalSphereSellItems`, and
+`FishingBaitSellItems` accept only canonical comma-separated IDs from their
+current fixed catalogs; normalization removes duplicates and unknown IDs.
+A writable configuration using
 the former `ShowDetailedResults`, `OnlyExistingItems`, `IncludePalEggs`,
 `ExcludePalEggs`, `AltEggSorting`, `IncubatorsFirst`, or `FillByChestFilter`
 fields is migrated or removed and rewritten canonically. Experimental
@@ -383,6 +487,25 @@ reported as an external conflict.
   runtime states show the current distribution channel's install/update link.
   Nexus Mods and CurseForge each publish a separate WinGDK/Game Pass archive;
   the Steam/Win64 archive must not be installed into a WinGDK game directory.
+- The settings body follows runtime order: Basics, Automatic Sale, Storage
+  Rules, then Special Item Storage. Automatic Sale contains the valuables and
+  toggles plus dedicated valuable-item, ammunition, Pal Sphere, and fishing-
+  bait pickers. Each picker is
+  one modal transaction, loads game-owned item icon textures directly and uses
+  the extracted current-build localized item-name catalog without constructing
+  native item-row widgets, clearly states that checked means kept, and persists
+  changes through the same validated settings path as the other controls.
+- Simplified and Traditional Chinese use concise parallel labels for both sale
+  categories: `自动出售高价品` / `保留的高价品` and
+  `自動出售高價品` / `保留的高價品`, matching the ammunition wording.
+- The two new Chinese setting pairs use the same wording structure:
+  `自动出售帕鲁球` / `保留的帕鲁球`, `自动出售钓饵` / `保留的钓饵`,
+  and their Traditional Chinese equivalents. The fishing-bait wording follows
+  the game's official `钓饵` / `釣餌` item names.
+- Both automatic-sale pickers use the same navigation contract as the root
+  settings page. `W`/`S` and Up/Down accept Slate's keyboard-repeat events;
+  controller D-pad and left stick use the retained physical-state repeat path.
+  A light press moves exactly once, while a held input continues moving.
 - Escape or controller Back closes only the hosted Quick Stack panel and
   restores Pal Insight plus focus to the originating row. `F6` closes the whole
   settings stack.
