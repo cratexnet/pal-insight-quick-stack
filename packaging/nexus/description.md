@@ -25,7 +25,7 @@ It is a standalone, client-side UE4SS Lua mod. [url=https://www.nexusmods.com/pa
 [*][url=https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld][b]The experimental Palworld build of RE-UE4SS[/b][/url] — required. Steam users may alternatively use its [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587]Steam Workshop package[/url]; Game Pass users must install the WinGDK runtime manually.
 [/list]
 
-The current release has been tested in single-player on Steam. Game Pass, multiplayer, and dedicated-server client behavior have not yet been verified in game and are not claimed as supported by this release.
+The current release has been tested in single-player on Steam. A community tester also confirmed that it worked without issue on a dedicated server with the mod installed client-side only. The tester's game build and distribution platform were not recorded; Game Pass and co-op behavior have not yet been verified in game.
 
 [size=5][b]INSTALLATION[/b][/size]
 

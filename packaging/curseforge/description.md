@@ -23,7 +23,7 @@ It is a standalone, client-side UE4SS Lua mod. [Pal Insight](https://www.cursefo
 
 The correct Palworld UE4SS runtime is not currently available as a CurseForge Related Project, so install it from one of the official pages linked above.
 
-The current release has been tested in single-player on Steam. Game Pass, multiplayer, and dedicated-server client behavior have not yet been verified in game and are not claimed as supported by this release.
+The current release has been tested in single-player on Steam. A community tester also confirmed that it worked without issue on a dedicated server with the mod installed client-side only. The tester's game build and distribution platform were not recorded; Game Pass and co-op behavior have not yet been verified in game.
 
 ## Installation
 

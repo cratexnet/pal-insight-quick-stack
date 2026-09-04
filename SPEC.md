@@ -44,8 +44,11 @@ settings as an optional convenience and discovery path.
    representative Game Pass acceptance run is completed.
 2. This is a client-installed mod; inventory mutations still use Palworld's
    server-authoritative item RPCs.
-3. Dedicated-server and co-op compatibility remain unverified until in-game
-   acceptance is completed.
+3. A community tester reported on 2026-09-05 that the mod worked without issue
+   on a dedicated server with the mod installed client-side only. This is valid
+   compatibility evidence for release descriptions, but the exact game build,
+   distribution platform, scenario matrix, and logs were not provided. Co-op
+   compatibility remains unverified until in-game acceptance is completed.
 4. Only the local player's common inventory is in scope. Equipment, food,
    sphere, key-item, and unrelated containers must not be scanned as fallback.
 5. The current base is the only destination scope.

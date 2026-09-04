@@ -88,6 +88,10 @@ Runtime contract proof
 - [x] Add incubator-first routing and chest spillover.
 - [x] Add representative manual acceptance and performance ledgers.
 - [ ] Validate single-player, then co-op client, then dedicated-server client.
+  Community evidence recorded on 2026-09-05 confirms dedicated-server use with
+  a client-side-only install. Future release descriptions must cite that bounded
+  report instead of saying dedicated servers are untested; co-op, the exact
+  game build, and the distribution platform remain unverified.
 
 ### Checkpoint: Standalone candidate
 
