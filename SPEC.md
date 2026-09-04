@@ -582,17 +582,23 @@ echo the selected route. Quick Stack rolls back when it cannot publish the open
 acknowledgement and retains a failed close acknowledgement for retry, so the
 parent never restores a competing input route from a partial transaction.
 
-Load order is symmetric. If Pal Insight registers `F6` first, Quick Stack sees
-the occupied chord and does not add a duplicate callback. If Quick Stack
-registers first, Pal Insight later becomes the sole live action owner and the
-retained Quick Stack callback becomes inert while the runtime ownership lease is
-live, even during a temporary actor/UI readiness gap. After
-a Quick Stack hot reload, a retained callback targets only the newest Quick
-Stack generation while no Pal Insight host is live. Quick Stack publishes a
-versioned cooperative-F6 capability so Pal Insight can distinguish this behavior
-from an older or external callback. Quick Stack publishes capability and
-reconciles legacy settings from its existing 500 ms cadence. This idle heartbeat
-reads and writes only scalar shared state; it never prepares widgets, walks
+Load order is symmetric. `IsKeyBindRegistered(F6)` proves only that the chord is
+occupied; it does not identify the callback owner. Quick Stack skips a new
+registration only when the shared generation and cooperative behavior version
+identify a retained Quick Stack callback, or when a live Pal Insight lease owns
+`F6`. For any other occupied `F6`, Quick Stack logs a possible external conflict
+and still registers its standalone settings callback, so an unrelated callback
+cannot make Quick Stack settings unreachable; both external actions may run for
+the same press. If Quick Stack registers first, Pal Insight later becomes the
+sole live action owner within the cooperative pair and the retained Quick Stack
+callback becomes inert while the runtime ownership lease is live, even during a
+temporary actor/UI readiness gap. After a Quick Stack hot reload, a retained
+callback targets only the newest Quick Stack generation while no Pal Insight
+host is live. Quick Stack publishes a versioned cooperative-F6 capability so Pal
+Insight can distinguish this behavior from an older or external callback. Quick
+Stack publishes capability and reconciles legacy settings from its existing
+500 ms cadence. This idle heartbeat reads and writes only scalar shared state;
+it never prepares widgets, walks
 viewport-owned objects, or validates the settings window cache. While Pal
 Insight reports that its settings stack is open, Quick Stack
 additionally runs a lightweight 16 ms request-signal loop. That loop reads only

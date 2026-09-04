@@ -483,6 +483,20 @@ local function dispatchSettingsShortcut()
     end
 end
 
+local function retainedQuickStackF6Callback()
+    if select(1, settingsHostRead("F6Owner")) ~= "QuickStack"
+        or select(1, settingsHostRead("F6BehaviorVersion")) ~= 2 then
+        return false
+    end
+    local ownerGeneration = nonNegativeRevision(select(1,
+        settingsHostRead("F6OwnerGeneration")))
+    local publishedGeneration = nonNegativeRevision(select(1,
+        settingsHostRead("QuickStackGeneration")))
+    return ownerGeneration ~= nil and ownerGeneration > 0
+        and ownerGeneration == publishedGeneration
+        and ownerGeneration < state.settingsHostGeneration
+end
+
 local function registerSettingsShortcut()
     if state.settingsShortcutRegistered then return true, nil end
     initializeSettingsHostGeneration()
@@ -494,10 +508,10 @@ local function registerSettingsShortcut()
     if keyValue == nil then return false, "F6 is unavailable" end
     local queried, registered = pcall(IsKeyBindRegistered, keyValue)
     if not queried then return false, "F6 ownership cannot be queried" end
-    if registered == true then
-        local owner = select(1, settingsHostRead("F6Owner"))
-        if type(owner) ~= "string" or owner == "" then owner = "External" end
-        settingsHostWrite("F6Owner", owner)
+    if registered == true and livePalInsightF6Owner() then
+        return true, nil
+    end
+    if registered == true and retainedQuickStackF6Callback() then
         return true, nil
     end
     state.settingsShortcutCallback = function()
@@ -510,6 +524,10 @@ local function registerSettingsShortcut()
         return false, errorMessage
     end
     state.settingsShortcutRegistered = true
+    if registered == true then
+        log("F6 is already registered by another UE4SS action; Quick Stack "
+            .. "also registered its settings shortcut, so both actions may run")
+    end
     settingsHostWrite("F6BehaviorVersion", 2)
     if not livePalInsightF6Owner() then
         settingsHostWrite("F6OwnerGeneration", state.settingsHostGeneration)
