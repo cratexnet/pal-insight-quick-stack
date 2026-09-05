@@ -46,6 +46,7 @@ const RUNTIME_FILES = Object.freeze([
   'Scripts/pal_insight_bridge.lua',
   'Scripts/palworld.lua',
   'Scripts/quick_stack.lua',
+  'Scripts/release_notes.lua',
   'Scripts/sale_consumables.lua',
   'Scripts/settings.lua',
   'Scripts/settings_ui.lua',
@@ -296,6 +297,8 @@ function assertQuickStackSettings(root) {
     'writable configuration must validate the Holy Water minimum range');
   const settingsUi = fs.readFileSync(
     absolute(root, 'Scripts/settings_ui.lua'), 'utf8');
+  const releaseNotes = fs.readFileSync(
+    absolute(root, 'Scripts/release_notes.lua'), 'utf8');
   const settingsBridge = fs.readFileSync(
     absolute(root, 'Scripts/pal_insight_bridge.lua'), 'utf8');
   const bridgeRelease = settingsBridge.slice(
@@ -304,6 +307,38 @@ function assertQuickStackSettings(root) {
   assert.match(settingsUi,
     /function SettingsUI\.open\(mode,[\s\S]*buildSettingsWindow/,
     'standalone and hosted entry points must use one settings surface');
+  assert.match(releaseNotes,
+    /version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"/,
+    'version updates must list Quick Stack releases newest first');
+  assert.match(releaseNotes,
+    /version\s*=\s*"1\.2\.0"\s*,\s*dateUtc\s*=\s*""/,
+    'an unpublished Quick Stack version must not invent a public timestamp');
+  assert.doesNotMatch(releaseNotes, /version\s*=\s*"Unreleased"/,
+    'Unreleased changes must not appear in player-facing version updates');
+  const versionData = releaseNotes.slice(
+    releaseNotes.indexOf('ReleaseNotes.versions = {'),
+    releaseNotes.indexOf('\nlocal TEXT = {'));
+  const versionBlocks = versionData.split(/\{ version\s*=/).slice(1);
+  assert.equal(versionBlocks.length, 3,
+    'version updates must contain every stable Quick Stack release');
+  for (const block of versionBlocks) {
+    const itemCount = [...block.matchAll(/items\s*=\s*\{([^}]*)\}/g)]
+      .reduce((count, match) => count
+        + (match[1].match(/\d+/g) || []).length, 0);
+    assert.ok(itemCount >= 1 && itemCount <= 4,
+      `each release must contain 1-4 user-visible summaries; found ${itemCount}`);
+    const timestamp = block.match(/dateUtc\s*=\s*"([^"]*)"/)?.[1] || '';
+    assert.match(timestamp, /^(?:|\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/,
+      'verified release timestamps must use YYYY-MM-DD HH:mm:ss UTC');
+  }
+  const releaseLanguages = readJson(root, RELEASE_METADATA).languages;
+  for (const locale of releaseLanguages) {
+    const localePattern = locale.includes('-')
+      ? `\\["${locale.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"\\]\\s*=`
+      : `\\b${locale}\\s*=`;
+    assert.match(releaseNotes, new RegExp(localePattern),
+      `version updates are missing localized copy for ${locale}`);
+  }
   assert.match(settingsUi,
     /Settings\.validateShortcut[\s\S]*Settings\.save/,
     'Quick Stack must retain validation and persistence ownership');
@@ -323,12 +358,12 @@ function assertQuickStackSettings(root) {
     }, 0);
   assert.ok(topLevelLocalCount < 190,
     `settings UI has ${topLevelLocalCount} top-level locals; keep headroom below Lua's 200-local limit`);
-  for (const action of ['steamVote', 'about', 'reset', 'close']) {
+  for (const action of ['steamVote', 'releaseNotes', 'about', 'reset', 'close']) {
     assert.ok(settingsUi.includes(`kind = "${action}"`),
       `settings Header is missing the ${action} action`);
   }
   assert.match(settingsUi,
-    /makeSteamVoteControl[\s\S]*makeIconTrigger\(tree, "ⓘ"[\s\S]*makeIconTrigger\(tree, "↻"[\s\S]*makeIconTrigger\(tree, "×"/,
+    /makeSteamVoteControl[\s\S]*makeIconTrigger\(tree, "≡"[\s\S]*makeIconTrigger\(tree, "ⓘ"[\s\S]*makeIconTrigger\(tree, "↻"[\s\S]*makeIconTrigger\(tree, "×"/,
     'settings Header action order must match Pal Insight');
   assert.match(settingsUi,
     /local function makeIconTrigger[\s\S]*?\/Script\/UMG\.Button[\s\S]*?button\.bIsFocusable = true[\s\S]*?styleHeaderButton[\s\S]*?box:AddChild\(button\)/,
@@ -339,7 +374,7 @@ function assertQuickStackSettings(root) {
   assert.equal((settingsUi.match(/\/Script\/UMG\.CheckBox/g) || []).length, 1,
     'only native toggle rows may construct CheckBox controls');
   assert.equal((settingsUi.match(
-    /^\s*registerDirectActionButton\((?:surface|button|displayButton)\)/gm) || []).length, 6,
+    /^\s*registerDirectActionButton\((?:surface|button|displayButton)\)/gm) || []).length, 7,
     'every direct Button constructor must publish its native action surface');
   assert.match(settingsBridge,
     /BRIDGE_DEFAULT_PATH[\s\S]*function Bridge\.bindActionButtons\(buttons\)[\s\S]*delegateBridge\(\)[\s\S]*OnClicked:Add\([\s\S]*bridge, "PalInsightSearchClearClicked"\)[\s\S]*function Bridge\.nativeActionDelegatesReady/,

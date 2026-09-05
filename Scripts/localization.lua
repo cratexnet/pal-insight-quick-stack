@@ -1264,6 +1264,10 @@ function Localization.settings()
     return SETTINGS_STRINGS[localeKeyFromTag(languageTag())] or SETTINGS_STRINGS.en
 end
 
+function Localization.localeKey()
+    return localeKeyFromTag(languageTag())
+end
+
 function Localization.itemName(staticId)
     return ItemNames.get(localeKeyFromTag(languageTag()), staticId)
 end

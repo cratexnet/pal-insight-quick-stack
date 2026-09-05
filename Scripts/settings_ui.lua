@@ -8,6 +8,7 @@ Ammo.valuables = require("valuables")
 Ammo.saleConsumables = require("sale_consumables")
 
 local SettingsUI = {}
+SettingsUI.releaseNotes = require("release_notes")
 
 local VIS_VISIBLE = 0
 local VIS_COLLAPSED = 1
@@ -111,6 +112,8 @@ local SIZE = {
     aboutSupportActionHeight = 40.0,
     aboutSupportLogoWidth = 124.0,
     aboutSupportLogoHeight = 35.0,
+    releaseNotesIndexWidth = 116.0,
+    releaseNotesPickerRowHeight = 40.0,
 }
 
 local FONT_SIZE = {
@@ -255,6 +258,19 @@ local state = {
     aboutPreviewOpen = false,
     aboutPreviewSourceIndex = nil,
     aboutTextures = {},
+    releaseNotesOverlay = nil,
+    releaseNotesOpen = false,
+    releaseNotesRevision = 0,
+    releaseNotesReturnFocusIndex = nil,
+    releaseNotesFocusPane = 1,
+    releaseNotesPickerIndex = 1,
+    releaseNotesSelectedIndex = 1,
+    releaseNotesButtons = {},
+    releaseNotesPickerButtons = {},
+    releaseNotesPickerScroll = nil,
+    releaseNotesScroll = nil,
+    releaseNotesContent = nil,
+    releaseNotesContentWidth = 360.0,
     steamVoteControl = nil,
     steamVoteNoneWidget = nil,
     steamVoteDownWidget = nil,
@@ -752,9 +768,11 @@ local function makeIconTrigger(tree, glyph, tooltip, role)
     local box = construct(tree, "/Script/UMG.SizeBox")
     local button = construct(tree, "/Script/UMG.Button")
     local iconBox = construct(tree, "/Script/UMG.SizeBox")
-    local size = role == "close" and 27 or role == "reset" and 17 or 18
+    local size = role == "close" and 27 or role == "reset" and 17
+        or role == "releaseNotes" and 20 or 18
     local translation = role == "close" and { X = 1.0, Y = -6.0 }
         or role == "reset" and { X = 1.0, Y = 1.0 }
+        or role == "releaseNotes" and { X = 0.0, Y = -2.0 }
         or { X = 0.0, Y = -1.0 }
     local icon = makeText(tree, glyph, size, COLORS.text, TEXT_CENTER)
     if box == nil or button == nil or iconBox == nil or icon == nil then
@@ -1239,7 +1257,8 @@ local function refreshTriggerSurfaces()
         local hint = ""
         if state.lastInputDevice ~= "mouse" then
             for _, control in ipairs(state.controls or {}) do
-                if control.kind == "steamVote" or control.kind == "about"
+                if control.kind == "steamVote" or control.kind == "releaseNotes"
+                    or control.kind == "about"
                     or control.kind == "reset" or control.kind == "close" then
                     if control.focusIndex == state.focusIndex then
                         hint = tostring(control.tooltip or "")
@@ -2304,6 +2323,7 @@ end
 
 local HEADER_FOCUS_KINDS = {
     steamVote = true,
+    releaseNotes = true,
     about = true,
     reset = true,
     close = true,
@@ -2353,6 +2373,7 @@ state.navigationDirection = function(keyName)
 end
 
 local function navigationRepeatScope()
+    if state.releaseNotesOpen == true then return "releaseNotes", nil end
     if state.aboutOpen == true then return "about", nil end
     if state.activeChoice ~= nil then return "choice", state.activeChoice end
     return "root", nil
@@ -2443,7 +2464,9 @@ local function pollNavigationRepeat()
     FooterGuide.markInputDevice(record.device)
     local horizontal = record.axis == "x" and record.direction or 0
     local vertical = record.axis == "y" and record.direction or 0
-    if record.scope == "about" then
+    if record.scope == "releaseNotes" then
+        state.moveReleaseNotesFocus(horizontal, vertical)
+    elseif record.scope == "about" then
         moveAboutFocus(horizontal, vertical)
     elseif record.scope == "choice" then
         if vertical ~= 0 or (horizontal ~= 0
@@ -2672,6 +2695,9 @@ local function activateControl(control, source, returnFocusIndex)
         return true
     elseif control.kind == "steamVote" then
         return activateSteamVote()
+    elseif control.kind == "releaseNotes" then
+        return Deferred.openReleaseNotesModal(returnFocusIndex
+            or control.focusIndex or state.focusIndex)
     elseif control.kind == "about" then
         return Deferred.openAboutModal()
     elseif control.kind == "reset" then
@@ -2808,6 +2834,45 @@ local function handlePressed(keyName, device, source, shiftDown)
     local navigationAxis = state.navigationDirection(keyName)
     if navigationAxis == nil then cancelNavigationRepeat() end
     if navigationAxis ~= nil and navigationRepeatOwnsPress(keyName) then return true end
+    if state.releaseNotesOpen == true then
+        if keyName == "Escape" then return state.closeReleaseNotesModal(true) end
+        if keyName == "W" or keyName == "Up"
+            or keyName == "Gamepad_DPad_Up"
+            or keyName == "Gamepad_LeftStick_Up" then
+            local moved = state.moveReleaseNotesFocus(0, -1)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
+        elseif keyName == "S" or keyName == "Down"
+            or keyName == "Gamepad_DPad_Down"
+            or keyName == "Gamepad_LeftStick_Down" then
+            local moved = state.moveReleaseNotesFocus(0, 1)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
+        elseif keyName == "A" or keyName == "Left"
+            or keyName == "Gamepad_DPad_Left"
+            or keyName == "Gamepad_LeftStick_Left" then
+            local moved = state.moveReleaseNotesFocus(-1, 0)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
+        elseif keyName == "D" or keyName == "Right"
+            or keyName == "Gamepad_DPad_Right"
+            or keyName == "Gamepad_LeftStick_Right" then
+            local moved = state.moveReleaseNotesFocus(1, 0)
+            if moved then startNavigationRepeat(keyName, device) end
+            return moved
+        elseif keyName == "Tab" then
+            state.releaseNotesFocusPane = state.releaseNotesFocusPane % 3 + 1
+            refreshTriggerSurfaces()
+            return true
+        elseif keyName == "Enter" or keyName == "SpaceBar" then
+            return state.activateReleaseNotesAction()
+        elseif keyName == "Gamepad_FaceButton_Bottom" then
+            state.gamepadAcceptDown = true
+        elseif keyName == "Gamepad_FaceButton_Right" then
+            state.gamepadBackDown = true
+        end
+        return true
+    end
     if state.aboutOpen == true then
         if state.aboutPreviewOpen == true then
             if keyName == "Escape" or keyName == "Enter"
@@ -2986,6 +3051,18 @@ local function handleReleased(keyName)
         state.shortcutCaptureCancelKey = nil
         state.shortcutCaptureCancelUntil = 0.0
         state.gamepadBackDown = false
+        return true
+    end
+    if state.releaseNotesOpen == true then
+        if keyName == "Gamepad_FaceButton_Bottom" then
+            local armed = state.gamepadAcceptDown == true
+            state.gamepadAcceptDown = false
+            if armed then return state.activateReleaseNotesAction() end
+        elseif keyName == "Gamepad_FaceButton_Right" then
+            local armed = state.gamepadBackDown == true
+            state.gamepadBackDown = false
+            if armed then return state.closeReleaseNotesModal(true) end
+        end
         return true
     end
     if state.aboutOpen == true then
@@ -3464,7 +3541,8 @@ end
 local function hoveredRootPointerControl()
     if not state.open or (state.lifecycle ~= "open"
         and state.lifecycle ~= "recovering")
-        or state.aboutOpen == true or state.activeChoice ~= nil then return nil end
+        or state.releaseNotesOpen == true or state.aboutOpen == true
+        or state.activeChoice ~= nil then return nil end
     for _, control in ipairs(state.controls or {}) do
         if isRootSettingControl(control) and pointerControlHovered(control) then
             return control
@@ -3489,6 +3567,19 @@ end
 local function hoveredPointerAction()
     if not state.open or (state.lifecycle ~= "open"
         and state.lifecycle ~= "recovering") then return nil end
+    if state.releaseNotesOpen == true then
+        for index, record in ipairs(state.releaseNotesPickerButtons or {}) do
+            if hoveredWidget(record.widget) then
+                return { scope = "release-notes-version", index = index, owner = record }
+            end
+        end
+        for index, record in ipairs(state.releaseNotesButtons or {}) do
+            if hoveredWidget(record.widget) then
+                return { scope = "release-notes", index = index, owner = record }
+            end
+        end
+        return nil
+    end
     if state.aboutOpen == true then
         if state.aboutPreviewOpen == true then
             if hoveredWidget(state.aboutPreviewCloseWidget) then
@@ -3552,6 +3643,14 @@ local function pointerActionIsCurrent(action)
     if action.scope == "about-preview" then
         return state.aboutOpen == true and state.aboutPreviewOpen == true
     end
+    if action.scope == "release-notes-version" then
+        return state.releaseNotesOpen == true
+            and (state.releaseNotesPickerButtons or {})[action.index] == action.owner
+    end
+    if action.scope == "release-notes" then
+        return state.releaseNotesOpen == true
+            and (state.releaseNotesButtons or {})[action.index] == action.owner
+    end
     if action.scope == "about-roster" then
         return state.aboutOpen == true and state.aboutRosterOpen == true
             and action.owner == state.aboutRosterMode
@@ -3562,10 +3661,12 @@ local function pointerActionIsCurrent(action)
             and (state.aboutActions or {})[action.index] == action.owner
     end
     if action.scope == "choice" then
-        return state.aboutOpen ~= true and state.activeChoice == action.owner
+        return state.releaseNotesOpen ~= true and state.aboutOpen ~= true
+            and state.activeChoice == action.owner
             and action.owner.labels[action.index] ~= nil
     end
-    if action.scope == "root" and state.aboutOpen ~= true
+    if action.scope == "root" and state.releaseNotesOpen ~= true
+        and state.aboutOpen ~= true
         and state.activeChoice == nil then
         for _, control in ipairs(state.controls or {}) do
             if control == action.owner then return true end
@@ -3585,10 +3686,15 @@ end
 
 local function aboutPointerCloseMode(action)
     if type(action) ~= "table" then return nil end
+    if action.scope == "release-notes-version" then
+        return "release-notes-select"
+    end
     if action.scope == "about-preview" then return "preview" end
     if action.scope == "about-roster" then return "roster" end
     if action.scope == "about" and type(action.owner) == "table"
         and action.owner.kind == "close" then return "about" end
+    if action.scope == "release-notes" and type(action.owner) == "table"
+        and action.owner.kind == "close" then return "release-notes" end
     return nil
 end
 
@@ -3598,9 +3704,11 @@ local function queueAboutPointerClose(action)
     state.pendingAboutPointerClose = {
         mode = mode,
         rosterMode = mode == "roster" and action.owner or nil,
+        selectionIndex = mode == "release-notes-select" and action.index or nil,
         generation = state.generation,
         windowSession = state.windowSession,
         aboutRevision = state.aboutRevision,
+        releaseNotesRevision = state.releaseNotesRevision,
         widgetAddress = P.objectAddress(state.widget),
         controllerAddress = P.objectAddress(state.controller),
         worldAddress = controllerWorldAddress(state.controller),
@@ -3613,14 +3721,20 @@ local function pendingAboutPointerCloseIsCurrent(record)
         or state.lifecycle ~= "open"
         or record.generation ~= state.generation
         or record.windowSession ~= state.windowSession
-        or record.aboutRevision ~= state.aboutRevision
         or record.widgetAddress == nil
         or record.widgetAddress ~= P.objectAddress(state.widget)
         or record.controllerAddress == nil
         or record.controllerAddress ~= P.objectAddress(state.controller)
         or record.worldAddress == nil
         or record.worldAddress ~= controllerWorldAddress(state.controller)
-        or state.aboutOpen ~= true then return false end
+        then return false end
+    if record.mode == "release-notes"
+        or record.mode == "release-notes-select" then
+        return state.releaseNotesOpen == true
+            and record.releaseNotesRevision == state.releaseNotesRevision
+    end
+    if record.aboutRevision ~= state.aboutRevision then return false end
+    if state.aboutOpen ~= true then return false end
     if record.mode == "preview" then
         return state.aboutPreviewOpen == true
     end
@@ -3640,6 +3754,10 @@ local function drainPendingAboutPointerClose()
     FooterGuide.markInputDevice("mouse")
     if record.mode == "preview" then return closeAboutPreview(true) end
     if record.mode == "roster" then return closeAboutRoster(true) end
+    if record.mode == "release-notes" then return state.closeReleaseNotesModal(true) end
+    if record.mode == "release-notes-select" then
+        return Deferred.selectReleaseNotesVersion(record.selectionIndex)
+    end
     return closeAboutModal(true)
 end
 
@@ -3669,7 +3787,13 @@ local function activateHoveredDirectAction()
     if queueAboutPointerClose(action) then return true end
     FooterGuide.markInputDevice("mouse")
     local handled = false
-    if action.scope == "about-preview" then
+    if action.scope == "release-notes-version" then
+        state.releaseNotesFocusPane = 1
+        handled = Deferred.selectReleaseNotesVersion(action.index)
+    elseif action.scope == "release-notes" then
+        state.releaseNotesFocusPane = tonumber(action.owner.navPane) or 3
+        handled = state.activateReleaseNotesAction()
+    elseif action.scope == "about-preview" then
         handled = closeAboutPreview(true)
     elseif action.scope == "about-roster" then
         handled = closeAboutRoster(true)
@@ -3869,6 +3993,10 @@ local function pollControls()
     end
     if state.steamVotePalVisualReady ~= true then
         refreshSteamVotePalVisuals()
+    end
+    if state.releaseNotesOpen == true then
+        state.updateReleaseNotesVisuals()
+        return
     end
     if state.aboutOpen == true then
         refreshTriggerSurfaces()
@@ -4834,6 +4962,337 @@ ensureChoiceModal = function()
         log("choice native action delegates unavailable; using mouse fallback")
     end
     return built
+end
+
+state.updateReleaseNotesVisuals = function()
+    for index, record in ipairs(state.releaseNotesPickerButtons or {}) do
+        local focused = state.releaseNotesFocusPane == 1
+            and index == state.releaseNotesPickerIndex
+            and state.lastInputDevice ~= "mouse"
+        local selected = index == state.releaseNotesSelectedIndex
+        if P.isValid(record.widget) then
+            styleHeaderButton(record.widget, "releaseNotes",
+                focused, selected, false)
+        end
+    end
+    for _, record in ipairs(state.releaseNotesButtons or {}) do
+        if P.isValid(record.widget) then
+            styleHeaderButton(record.widget, record.role or "close",
+                state.releaseNotesFocusPane == (record.navPane or 3)
+                    and state.lastInputDevice ~= "mouse",
+                false, false)
+        end
+    end
+    return true
+end
+
+state.renderReleaseNotesVersion = function()
+    local versions = SettingsUI.releaseNotes.versions or {}
+    local index = math.max(1, math.min(#versions,
+        tonumber(state.releaseNotesSelectedIndex) or 1))
+    local entry = versions[index]
+    local content = state.releaseNotesContent
+    if type(entry) ~= "table" or not P.isValid(content) then return false end
+    state.releaseNotesSelectedIndex = index
+    local strings = SettingsUI.releaseNotes.current()
+    local english = SettingsUI.releaseNotes.current("en")
+    pcall(function() content:ClearChildren() end)
+    local width = math.max(140.0, tonumber(state.releaseNotesContentWidth) or 360.0)
+    local headingRow = construct(state.widgetTree, "/Script/UMG.HorizontalBox")
+    local heading = makeText(state.widgetTree,
+        "v" .. tostring(entry.version or ""), 22, COLORS.text)
+    local dateValue = tostring(entry.dateUtc or "")
+    if dateValue ~= "" then dateValue = dateValue .. " UTC" end
+    local date = makeText(state.widgetTree, dateValue, 13, COLORS.textMuted, TEXT_RIGHT)
+    if headingRow == nil or heading == nil or date == nil then return false end
+    local headingSlot = headingRow:AddChild(heading)
+    setFill(headingSlot)
+    align(headingSlot, ALIGN_LEFT, ALIGN_CENTER)
+    align(headingRow:AddChild(date), ALIGN_RIGHT, ALIGN_CENTER)
+    local rowSlot = content:AddChild(headingRow)
+    setPadding(rowSlot, 0, 0, 0, 8)
+    local category = {
+        added = strings.added, changed = strings.changed,
+        performance = strings.performance, fixed = strings.fixed,
+    }
+    for sectionIndex, section in ipairs(entry.groups or {}) do
+        local title = makeText(state.widgetTree,
+            tostring(category[section.kind] or section.kind or ""),
+            18, COLORS.text)
+        if title == nil then return false end
+        local titleSlot = content:AddChild(title)
+        setPadding(titleSlot, 0,
+            sectionIndex == 1 and 0 or SIZE.aboutSectionGap, 0, 6)
+        for itemIndex, copyIndex in ipairs(section.items or {}) do
+            local value = strings[copyIndex] or english[copyIndex] or ""
+            local bullet = makeText(state.widgetTree,
+                "• " .. tostring(value), 16, COLORS.muted)
+            if bullet == nil then return false end
+            setTextWrap(bullet, width)
+            local bulletSlot = content:AddChild(bullet)
+            setPadding(bulletSlot, 0, itemIndex == 1 and 0 or 5, 0, 0)
+        end
+    end
+    if P.isValid(state.releaseNotesScroll) then
+        pcall(function() state.releaseNotesScroll:ScrollToStart() end)
+    end
+    return true
+end
+
+Deferred.selectReleaseNotesVersion = function(index)
+    local versions = SettingsUI.releaseNotes.versions or {}
+    index = math.max(1, math.min(#versions, tonumber(index) or 1))
+    if type(versions[index]) ~= "table" then return false end
+    state.releaseNotesPickerIndex = index
+    state.releaseNotesSelectedIndex = index
+    if not state.renderReleaseNotesVersion() then return false end
+    state.updateReleaseNotesVisuals()
+    local record = (state.releaseNotesPickerButtons or {})[index]
+    if type(record) == "table" and P.isValid(record.box)
+        and P.isValid(state.releaseNotesPickerScroll) then
+        pcall(function()
+            state.releaseNotesPickerScroll:ScrollWidgetIntoView(
+                record.box, false, 0, 8.0)
+        end)
+    end
+    return true
+end
+
+state.moveReleaseNotesFocus = function(horizontal, vertical)
+    if state.releaseNotesOpen ~= true then return false end
+    horizontal = tonumber(horizontal) or 0
+    vertical = tonumber(vertical) or 0
+    if horizontal ~= 0 then
+        state.releaseNotesFocusPane = math.max(1, math.min(3,
+            state.releaseNotesFocusPane + (horizontal < 0 and -1 or 1)))
+    elseif vertical ~= 0 then
+        if state.releaseNotesFocusPane == 1 then
+            local target = math.max(1, math.min(#(SettingsUI.releaseNotes.versions or {}),
+                state.releaseNotesPickerIndex + (vertical < 0 and -1 or 1)))
+            if target ~= state.releaseNotesPickerIndex then
+                return Deferred.selectReleaseNotesVersion(target)
+            end
+        elseif state.releaseNotesFocusPane == 2
+            and P.isValid(state.releaseNotesScroll) then
+            pcall(function()
+                local offset = tonumber(state.releaseNotesScroll:GetScrollOffset()) or 0.0
+                state.releaseNotesScroll:SetScrollOffset(
+                    math.max(0.0, offset + (vertical < 0 and -64.0 or 64.0)))
+            end)
+        end
+    end
+    state.updateReleaseNotesVisuals()
+    return true
+end
+
+state.activateReleaseNotesAction = function()
+    if state.releaseNotesOpen ~= true then return false end
+    if state.releaseNotesFocusPane == 3 then
+        return state.closeReleaseNotesModal(true)
+    end
+    if state.releaseNotesFocusPane == 1 then
+        return Deferred.selectReleaseNotesVersion(state.releaseNotesPickerIndex)
+    end
+    return true
+end
+
+state.closeReleaseNotesModal = function(restoreFocus)
+    if state.releaseNotesOpen ~= true then return false end
+    cancelNavigationRepeat()
+    state.pointerAction = nil
+    state.pendingAboutPointerClose = nil
+    state.releaseNotesOpen = false
+    state.releaseNotesRevision = state.releaseNotesRevision + 1
+    if P.isValid(state.releaseNotesOverlay) then
+        pcall(function() state.releaseNotesOverlay:SetVisibility(VIS_COLLAPSED) end)
+    end
+    local returnIndex = state.releaseNotesReturnFocusIndex
+    state.releaseNotesReturnFocusIndex = nil
+    if restoreFocus == true and state.open and returnIndex ~= nil then
+        focusEntry(returnIndex, state.lastInputDevice, false)
+    end
+    refreshTriggerSurfaces()
+    return true
+end
+
+Deferred.buildReleaseNotesModal = function(tree, root, strings,
+        viewportWidth, viewportHeight)
+    local width = math.min(SIZE.aboutWidth, math.max(320.0, viewportWidth - 48.0))
+    local height = math.min(SIZE.aboutHeight, math.max(360.0, viewportHeight - 48.0))
+    local innerWidth = width - SIZE.windowOutline * 2.0 - 32.0
+    local indexWidth = math.min(SIZE.releaseNotesIndexWidth,
+        math.max(96.0, innerWidth * 0.24))
+    local overlay = construct(tree, "/Script/UMG.CanvasPanel")
+    local dim = construct(tree, "/Script/UMG.Border")
+    local box = construct(tree, "/Script/UMG.SizeBox")
+    local outline = construct(tree, "/Script/UMG.Border")
+    local panel = construct(tree, "/Script/UMG.Border")
+    local layout = construct(tree, "/Script/UMG.VerticalBox")
+    local header = construct(tree, "/Script/UMG.HorizontalBox")
+    local body = construct(tree, "/Script/UMG.HorizontalBox")
+    local indexBox = construct(tree, "/Script/UMG.SizeBox")
+    local indexSurface = construct(tree, "/Script/UMG.Border")
+    local indexScroll = construct(tree, "/Script/UMG.ScrollBox")
+    local indexList = construct(tree, "/Script/UMG.VerticalBox")
+    local dividerBox = construct(tree, "/Script/UMG.SizeBox")
+    local divider = construct(tree, "/Script/UMG.Border")
+    local contentSurface = construct(tree, "/Script/UMG.Border")
+    local scroll = construct(tree, "/Script/UMG.ScrollBox")
+    local content = construct(tree, "/Script/UMG.VerticalBox")
+    if overlay == nil or dim == nil or box == nil or outline == nil
+        or panel == nil or layout == nil or header == nil or body == nil
+        or indexBox == nil or indexSurface == nil or indexScroll == nil
+        or indexList == nil or dividerBox == nil or divider == nil
+        or contentSurface == nil or scroll == nil or content == nil then
+        return false
+    end
+    state.releaseNotesOverlay = overlay
+    state.releaseNotesScroll = scroll
+    state.releaseNotesContent = content
+    state.releaseNotesPickerScroll = indexScroll
+    state.releaseNotesButtons = {}
+    state.releaseNotesPickerButtons = {}
+    state.releaseNotesContentWidth = math.max(96.0,
+        innerWidth - indexWidth - SIZE.aboutSectionGap - 49.0
+            - SIZE.scrollbarGutter)
+    local overlaySlot = root:AddChild(overlay)
+    overlaySlot:SetAnchors({ Minimum = { X = 0, Y = 0 }, Maximum = { X = 1, Y = 1 } })
+    overlaySlot:SetOffsets({ Left = 0, Top = 0, Right = 0, Bottom = 0 })
+    overlaySlot:SetZOrder(3)
+    overlay:SetVisibility(VIS_COLLAPSED)
+    dim:SetBrushColor(COLORS.modal)
+    local dimSlot = overlay:AddChild(dim)
+    dimSlot:SetAnchors({ Minimum = { X = 0, Y = 0 }, Maximum = { X = 1, Y = 1 } })
+    dimSlot:SetOffsets({ Left = 0, Top = 0, Right = 0, Bottom = 0 })
+    dimSlot:SetZOrder(0)
+    box:SetWidthOverride(width)
+    box:SetHeightOverride(height)
+    local boxSlot = overlay:AddChild(box)
+    boxSlot:SetAnchors({ Minimum = { X = 0.5, Y = 0.5 }, Maximum = { X = 0.5, Y = 0.5 } })
+    boxSlot:SetAlignment({ X = 0.5, Y = 0.5 })
+    boxSlot:SetPosition({ X = 0, Y = 0 })
+    boxSlot:SetAutoSize(true)
+    boxSlot:SetZOrder(1)
+    outline:SetBrushColor(COLORS.outline)
+    outline:SetPadding({ Left = 1, Top = 1, Right = 1, Bottom = 1 })
+    panel:SetBrushColor(COLORS.content)
+    panel:SetPadding({ Left = 16, Top = 16, Right = 16, Bottom = 12 })
+    align(box:AddChild(outline), ALIGN_FILL, ALIGN_FILL)
+    align(outline:AddChild(panel), ALIGN_FILL, ALIGN_FILL)
+    align(panel:AddChild(layout), ALIGN_FILL, ALIGN_FILL)
+    local title = makeText(tree, strings.title, 20, COLORS.text)
+    local close = makeIconTrigger(tree, "×", currentStrings().close, "close")
+    if title == nil or close == nil then return false end
+    local titleSlot = header:AddChild(title)
+    setFill(titleSlot)
+    align(titleSlot, ALIGN_LEFT, ALIGN_CENTER)
+    align(header:AddChild(close.box), ALIGN_RIGHT, ALIGN_CENTER)
+    local headerSlot = layout:AddChild(header)
+    setPadding(headerSlot, 0, 0, 0, SIZE.aboutSectionGap)
+    state.releaseNotesButtons = {
+        { kind = "close", role = "close", widget = close.widget,
+          navPane = 3, tooltip = currentStrings().close },
+    }
+    indexBox:SetWidthOverride(indexWidth)
+    indexSurface:SetBrushColor(COLORS.section)
+    indexSurface:SetPadding({ Left = 4, Top = 4, Right = 4, Bottom = 4 })
+    indexScroll:SetAlwaysShowScrollbar(false)
+    indexScroll.AlwaysShowScrollbarTrack = false
+    align(indexScroll:AddChild(indexList), ALIGN_FILL, ALIGN_FILL)
+    align(indexSurface:AddChild(indexScroll), ALIGN_FILL, ALIGN_FILL)
+    align(indexBox:AddChild(indexSurface), ALIGN_FILL, ALIGN_FILL)
+    local indexSlot = body:AddChild(indexBox)
+    setPadding(indexSlot, 0, 0, 8, 0)
+    dividerBox:SetWidthOverride(SIZE.windowOutline)
+    divider:SetBrushColor(COLORS.outline)
+    align(dividerBox:AddChild(divider), ALIGN_FILL, ALIGN_FILL)
+    local dividerSlot = body:AddChild(dividerBox)
+    setPadding(dividerSlot, 0, 0, SIZE.aboutSectionGap, 0)
+    contentSurface:SetBrushColor(COLORS.control)
+    contentSurface:SetPadding({ Left = 16, Top = 14, Right = 16, Bottom = 14 })
+    scroll:SetAlwaysShowScrollbar(false)
+    scroll.AlwaysShowScrollbarTrack = false
+    align(scroll:AddChild(content), ALIGN_FILL, ALIGN_LEFT)
+    align(contentSurface:AddChild(scroll), ALIGN_FILL, ALIGN_FILL)
+    local contentSlot = body:AddChild(contentSurface)
+    setFill(contentSlot)
+    align(contentSlot, ALIGN_FILL, ALIGN_FILL)
+    local bodySlot = layout:AddChild(body)
+    setFill(bodySlot)
+    align(bodySlot, ALIGN_FILL, ALIGN_FILL)
+    for index, entry in ipairs(SettingsUI.releaseNotes.versions or {}) do
+        local rowBox = construct(tree, "/Script/UMG.SizeBox")
+        local button = construct(tree, "/Script/UMG.Button")
+        local labelValue = "v" .. tostring(entry.version or "")
+        if tostring(entry.version or "") == tostring(state.version) then
+            labelValue = labelValue .. "   " .. strings.current
+        end
+        local label = makeText(tree, labelValue, 14, COLORS.text)
+        if rowBox == nil or button == nil or label == nil then return false end
+        rowBox:SetHeightOverride(SIZE.releaseNotesPickerRowHeight)
+        button.bIsFocusable = true
+        button:SetToolTipText(FText(strings.selectVersion))
+        local buttonStyle = button.WidgetStyle
+        buttonStyle.NormalPadding = { Left = 12, Top = 0, Right = 12, Bottom = 0 }
+        buttonStyle.PressedPadding = buttonStyle.NormalPadding
+        button.WidgetStyle = buttonStyle
+        align(button:AddChild(label), ALIGN_LEFT, ALIGN_CENTER)
+        align(rowBox:AddChild(button), ALIGN_FILL, ALIGN_FILL)
+        local rowSlot = indexList:AddChild(rowBox)
+        setPadding(rowSlot, 0, index == 1 and 0 or 4, 0, 0)
+        registerDirectActionButton(button)
+        state.releaseNotesPickerButtons[index] = {
+            kind = "version", widget = button, box = rowBox, label = label,
+        }
+    end
+    return state.renderReleaseNotesVersion()
+end
+
+Deferred.ensureReleaseNotesModal = function()
+    if P.isValid(state.releaseNotesOverlay) then return true end
+    if not state.open or not P.isValid(state.widgetTree)
+        or not P.isValid(state.root) then return false end
+    local viewportWidth, viewportHeight = logicalViewportSize(state.controller)
+    local built = Deferred.buildReleaseNotesModal(state.widgetTree, state.root,
+        SettingsUI.releaseNotes.current(), viewportWidth, viewportHeight)
+    if built and InputOwner.cookedInputActive()
+        and not InputOwner.bindActionButtons(state.directActionButtons) then
+        log("version updates native action delegates unavailable; using mouse fallback")
+    end
+    if not built then
+        if P.isValid(state.releaseNotesOverlay) then
+            pcall(function() state.releaseNotesOverlay:RemoveFromParent() end)
+        end
+        state.releaseNotesOverlay = nil
+    end
+    return built
+end
+
+Deferred.openReleaseNotesModal = function(sourceIndex)
+    if not Deferred.ensureReleaseNotesModal()
+        or not P.isValid(state.releaseNotesOverlay) then return false end
+    cancelNavigationRepeat()
+    state.pointerAction = nil
+    state.pendingAboutPointerClose = nil
+    state.releaseNotesOpen = true
+    state.releaseNotesRevision = state.releaseNotesRevision + 1
+    state.releaseNotesReturnFocusIndex = tonumber(sourceIndex) or state.focusIndex
+    state.releaseNotesFocusPane = 1
+    local currentIndex = 1
+    for index, entry in ipairs(SettingsUI.releaseNotes.versions or {}) do
+        if tostring(entry.version or "") == tostring(state.version) then
+            currentIndex = index
+            break
+        end
+    end
+    state.releaseNotesPickerIndex = currentIndex
+    state.releaseNotesSelectedIndex = currentIndex
+    if not Deferred.selectReleaseNotesVersion(currentIndex) then return false end
+    pcall(function() state.releaseNotesOverlay:SetVisibility(VIS_VISIBLE) end)
+    FooterGuide.markInputDevice(state.lastInputDevice)
+    state.updateReleaseNotesVisuals()
+    focusNavigationRoot()
+    return true
 end
 
 local function openAboutUrl(urlKey)
@@ -6362,6 +6821,17 @@ local function clearWindowReferences()
     state.steamVoteTextures = {}
     state.steamVotePalTexture = nil
     state.aboutTextures = {}
+    state.releaseNotesOverlay = nil
+    state.releaseNotesOpen = false
+    state.releaseNotesReturnFocusIndex = nil
+    state.releaseNotesFocusPane = 1
+    state.releaseNotesPickerIndex = 1
+    state.releaseNotesSelectedIndex = 1
+    state.releaseNotesButtons = {}
+    state.releaseNotesPickerButtons = {}
+    state.releaseNotesPickerScroll = nil
+    state.releaseNotesScroll = nil
+    state.releaseNotesContent = nil
     state.scroll = nil
     state.nestedOverlay = nil
     state.nestedTitle = nil
@@ -6447,6 +6917,7 @@ local function prepareWindowForOpen(mode)
     if not P.isValid(state.widget) then return false end
     local strings = currentStrings()
     closeChoiceModal(false)
+    state.closeReleaseNotesModal(false)
     closeAboutModal(false)
     state.pointerAction = nil
     state.pendingAboutPointerClose = nil
@@ -6601,9 +7072,14 @@ local function buildSettingsWindow(controller, mode)
             strings.creator or "by cratexnet",
             11, COLORS.textMuted, TEXT_LEFT)
         local voteBox = makeSteamVoteControl(tree, strings)
+        local releaseStrings = SettingsUI.releaseNotes.current()
+        local releaseNotesAction = makeIconTrigger(tree, "≡",
+            releaseStrings.title, "releaseNotes")
         local aboutAction = makeIconTrigger(tree, "ⓘ", strings.about, "about")
         local resetAction = makeIconTrigger(tree, "↻", strings.reset, "reset")
         local closeAction = makeIconTrigger(tree, "×", strings.close, "close")
+        local releaseNotesCell = releaseNotesAction ~= nil
+            and makeHeaderActionCell(tree, releaseNotesAction.box) or nil
         local aboutCell = aboutAction ~= nil
             and makeHeaderActionCell(tree, aboutAction.box) or nil
         local resetCell = resetAction ~= nil
@@ -6616,8 +7092,10 @@ local function buildSettingsWindow(controller, mode)
             or modeText == nil or headerActionArea == nil
             or headerActionStack == nil or headerActionRow == nil
             or headerActionHintBox == nil or headerActionHint == nil
-            or aboutAction == nil or resetAction == nil or closeAction == nil
-            or aboutCell == nil or resetCell == nil or closeCell == nil then
+            or releaseNotesAction == nil or aboutAction == nil
+            or resetAction == nil or closeAction == nil
+            or releaseNotesCell == nil or aboutCell == nil
+            or resetCell == nil or closeCell == nil then
             error("settings header is unavailable")
         end
         headerSize:SetMinDesiredHeight(64.0)
@@ -6642,7 +7120,7 @@ local function buildSettingsWindow(controller, mode)
         align(versionSlot, ALIGN_LEFT, ALIGN_CENTER)
         local modeSlot = identity:AddChild(modeText)
         setTextWrap(modeText, math.max(1.0,
-            contentWidth - 24.0 - (voteBox ~= nil and 74.0 or 0.0) - 124.0))
+            contentWidth - 24.0 - (voteBox ~= nil and 74.0 or 0.0) - 168.0))
         setPadding(modeSlot, 0, 2, 0, 0)
         align(modeSlot, ALIGN_LEFT, ALIGN_CENTER)
         if voteBox ~= nil then
@@ -6651,8 +7129,13 @@ local function buildSettingsWindow(controller, mode)
             align(voteSlot, ALIGN_CENTER, ALIGN_LEFT)
         end
         headerActionArea:SetWidthOverride(
-            SIZE.headerAction * 3.0 + SIZE.headerActionGap * 2.0)
+            SIZE.headerAction * 4.0 + SIZE.headerActionGap * 3.0)
         headerActionArea:SetHeightOverride(52.0)
+        local releaseNotesSlot = headerActionRow:AddChild(releaseNotesCell)
+        align(releaseNotesSlot, ALIGN_CENTER, ALIGN_CENTER)
+        if not addHeaderActionGap(tree, headerActionRow) then
+            error("settings header Version Updates gap is unavailable")
+        end
         local aboutSlot = headerActionRow:AddChild(aboutCell)
         align(aboutSlot, ALIGN_CENTER, ALIGN_CENTER)
         if not addHeaderActionGap(tree, headerActionRow) then
@@ -6768,6 +7251,10 @@ local function buildSettingsWindow(controller, mode)
             registerFocusable(state.steamVoteControl, voteBox)
             state.controls[#state.controls + 1] = state.steamVoteControl
         end
+        local releaseNotesControl = {
+            kind = "releaseNotes", widget = releaseNotesAction.widget,
+            tooltip = releaseStrings.title,
+        }
         local aboutControl = {
             kind = "about", widget = aboutAction.widget, tooltip = strings.about,
         }
@@ -6777,9 +7264,12 @@ local function buildSettingsWindow(controller, mode)
         local closeControl = {
             kind = "close", widget = closeAction.widget, tooltip = strings.close,
         }
+        registerFocusable(releaseNotesControl,
+            releaseNotesAction.box, releaseNotesAction)
         registerFocusable(aboutControl, aboutAction.box, aboutAction)
         registerFocusable(resetControl, resetAction.box, resetAction)
         registerFocusable(closeControl, closeAction.box, closeAction)
+        state.controls[#state.controls + 1] = releaseNotesControl
         state.controls[#state.controls + 1] = aboutControl
         state.controls[#state.controls + 1] = resetControl
         state.controls[#state.controls + 1] = closeControl
@@ -7200,6 +7690,7 @@ function SettingsUI.close(reason)
         commitNumberEditor(numberControl, "number-close")
     end
     closeChoiceModal(false)
+    state.closeReleaseNotesModal(false)
     closeAboutModal(false)
     local unavailableOwner = reason == "host-unavailable"
         or reason == "context-changed"

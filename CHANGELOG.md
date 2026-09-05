@@ -6,25 +6,17 @@
 
 ### Added
 
-- Added automatic selling for the following configurable item categories:
-  - High-value merchant items (9 types)
-  - Ammunition (32 types)
-  - Pal Spheres (10 types)
-  - Fishing bait (4 types)
-- Each category has an independent toggle and an icon-based keep list. All
-  categories are disabled by default, and checked items will not be sold.
-- Item selectors support mouse, keyboard, and controller input. Item names
-  follow all 17 supported game languages.
+- Added automatic selling for four independently configurable item categories:
+  9 high-value merchant items, 32 ammunition types, 10 Pal Sphere types, and
+  4 fishing baits. Every category is disabled by default.
+- Added icon-assisted keep lists for every sale category. Checked items are not
+  sold, and item names follow all 17 supported game languages. The selectors
+  support mouse, keyboard, and controller input.
 - Automatic selling runs before Quick Stack storage. Items excluded through
-  Inventory `Tab → R` are always protected.
-- Sale results are shown through the selected result-display mode.
-
-### Changed
-
-- Reorganized settings into Basics, Automatic Sale, Storage Rules, and Special
-  Item Storage.
-- Added an explanation of when Automatic mode uses the result window or a text
-  notification.
+  Inventory `Tab → R` are always protected, and sales use the selected result-
+  display mode.
+- Added a localized Version Updates panel beside About. It supports mouse,
+  keyboard, and controller navigation and shows concise release summaries.
 
 ## 1.1.0 - 2026-09-05
 

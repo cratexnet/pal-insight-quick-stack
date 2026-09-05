@@ -273,6 +273,24 @@ Runtime contract proof
 
 ## Risks and Mitigations
 
+### In-game version updates (2026-09-05)
+
+- [x] Add the Version Updates Header action immediately before About.
+- [x] Show static, newest-first Quick Stack release history with a running-
+  version marker and no unverified public timestamp.
+- [x] Localize the modal chrome, category headings, and release copy for all 17
+  supported interface languages.
+- [x] Preserve mouse, keyboard, controller, held-navigation, modal close, and
+  exact Header-focus restoration behavior.
+- [x] Match Pal Insight's Version Updates glyph size and optical translation.
+- [x] Defer pointer selection outside the native Button callback, scope queued
+  actions to the Version Updates revision, and reset selection plus scroll state
+  when reopening so a prior modal cannot leak state.
+- [x] Pass the narrow existing release static checks.
+- [ ] Verify mouse, keyboard, controller, held navigation, scrolling, close,
+  and Header-focus restoration in game after an explicitly approved build and
+  installation.
+
 ### Automatic-sale picker follow-up (2026-09-05)
 
 - [x] Keep picker row geometry stable while icons populate and selections toggle.

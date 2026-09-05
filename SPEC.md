@@ -533,8 +533,8 @@ reported as an external conflict.
   restore that clicked control. Header actions retain the existing content
   selection across their modal transaction.
 - The fixed Header matches Pal Insight's settings chrome: the optional Steam
-  Workshop vote control precedes About, Restore Defaults, and Close in that
-  order, using the same native UMG Button brushes, dimensions, spacing, icon
+  Workshop vote control precedes Version Updates, About, Restore Defaults, and
+  Close in that order, using the same native UMG Button brushes, dimensions, spacing, icon
   canvases, semantic hover/pressed colors, and focus treatment. While focus is
   in this Header action row, keyboard/controller Left and Right move through
   the currently interactive actions in display order and wrap at both ends;
@@ -594,6 +594,25 @@ reported as an external conflict.
   sentence pattern as Pal Insight, with Quick Stack named as the product. Copy
   is complete in all 17 supported locales; external destinations open outside
   the game, while the modal keeps input ownership and remains open.
+- Version Updates opens a Quick Stack-owned, lazily built modal. Its left pane
+  lists Quick Stack versions newest first and marks the running version; its
+  right pane shows the selected version under localized Added, Changed,
+  Performance, and Fixed headings. Release data is static and localized in all
+  17 supported interface languages; the runtime does not parse `CHANGELOG.md`
+  or perform network access. A release timestamp is shown only when it is the
+  earliest verified public timestamp across official distribution channels;
+  repository commit time is not a release time, and an unverified timestamp is
+  left blank. Mouse, keyboard, and controller share the existing modal input
+  owner. Directional input selects versions, changes panes, or scrolls content;
+  held controller D-pad and left-stick input use the same bounded repeat route
+  as the rest of the settings surface. Closing returns focus to the Version
+  Updates Header action. Its Header glyph uses the same `20`-point `≡` and
+  `{ X = 0, Y = -2 }` optical translation as Pal Insight. Pointer actions are
+  scoped by the Version Updates revision rather than the About revision.
+  Version selection is deferred out of the native Button callback before the
+  content tree is rebuilt, and a queued action from a closed modal cannot
+  affect a later reopen. Closing and reopening resets both version-selection
+  fields and both scroll panes to the running version before input resumes.
 - The three product columns always remain one equal-width row and use identical
   `title nameplate -> framed media -> action row` geometry. Each column has one
   neutral card surface and the current product receives no persistent outline,
