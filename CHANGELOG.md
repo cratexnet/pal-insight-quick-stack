@@ -2,23 +2,29 @@
 
 ## Unreleased
 
+## 1.2.0 - 2026-09-05
+
 ### Added
 
-- Added default-off automatic sale for the current 10 legal Pal Spheres and
-  4 legal fishing baits. Each category has an icon-assisted keep picker;
-  checked items remain in the backpack, and excluded items are never sold.
-- Added current-game localized names for those catalogs across all 17 supported
-  interface languages. Both categories share the existing pre-storage sale
-  batch and held keyboard/controller picker navigation.
+- Added automatic selling for the following configurable item categories:
+  - High-value merchant items (9 types)
+  - Ammunition (32 types)
+  - Pal Spheres (10 types)
+  - Fishing bait (4 types)
+- Each category has an independent toggle and an icon-based keep list. All
+  categories are disabled by default, and checked items will not be sold.
+- Item selectors support mouse, keyboard, and controller input. Item names
+  follow all 17 supported game languages.
+- Automatic selling runs before Quick Stack storage. Items excluded through
+  Inventory `Tab → R` are always protected.
+- Sale results are shown through the selected result-display mode.
 
-### Fixed
+### Changed
 
-- Fixed item-picker rows losing their fixed content padding after a mouse,
-  keyboard, or controller visual-state refresh, which shifted only the
-  interacted row horizontally.
-- Queued Quick Stack shortcut presses now revalidate the binding and settings
-  window generation before starting a job. Opening and closing settings cannot
-  reactivate a stale press. Static checks passed; in-game verification is pending.
+- Reorganized settings into Basics, Automatic Sale, Storage Rules, and Special
+  Item Storage.
+- Added an explanation of when Automatic mode uses the result window or a text
+  notification.
 
 ## 1.1.0 - 2026-09-05
 

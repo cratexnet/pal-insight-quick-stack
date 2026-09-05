@@ -58,7 +58,7 @@ local QuickStack = require("quick_stack")
 local Palworld = require("palworld")
 
 local TAG = "[PalInsightQuickStack] "
-local VERSION = "1.1.0"
+local VERSION = "1.2.0"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
 local SETTINGS_HOST_PROTOCOL_VERSION = 3
