@@ -7167,7 +7167,9 @@ local function buildSettingsWindow(controller, mode)
         align(headerSlot, ALIGN_FILL, ALIGN_FILL)
         setPadding(headerSlot, 0, 0, 0, 8)
 
-        scroll:SetAlwaysShowScrollbar(false)
+        -- This single page always overflows. Reserve the scrollbar from the
+        -- first Slate layout pass so right-aligned controls cannot shift later.
+        scroll:SetAlwaysShowScrollbar(true)
         scroll.AlwaysShowScrollbarTrack = false
         scroll:SetScrollbarThickness({
             X = SIZE.scrollbarThickness, Y = SIZE.scrollbarThickness,

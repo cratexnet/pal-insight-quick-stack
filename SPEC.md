@@ -631,6 +631,10 @@ reported as an external conflict.
   structure remains intentionally different: Quick Stack has one settings page
   instead of Pal Insight's tab deck, and its Footer exposes only operations that
   the Quick Stack panel can actually perform.
+- The single Quick Stack settings page always exceeds its content viewport, so
+  its main ScrollBox reserves and shows the scrollbar before entering the
+  widget tree. The first visible layout and every cached reopen therefore use
+  the same row width; scrollbar discovery must not move right-aligned controls.
 - Closing About restores the exact parent settings selection captured before
   opening it. That virtual selection remains visible for mouse, keyboard, and
   controller alike; pointer hover is transient and must not erase it.

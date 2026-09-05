@@ -229,6 +229,8 @@ Runtime contract proof
   success, timeout, or runtime supersession.
 - [x] Verify in game that the first hosted open reuses the prepared settings
   tree (`window_cache=hit`, 19 ms observed) on the Insight-to-Quick-Stack click.
+- [x] Reserve the main one-page settings scrollbar before its first Slate
+  layout pass so the cold open cannot shift right-aligned controls.
 - [ ] Verify mouse, keyboard, and controller behavior in game before syncing or
   packaging.
 
