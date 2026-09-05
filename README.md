@@ -2,7 +2,7 @@
 
 面向 Palworld 1.0 的独立 UE4SS Lua 模组。默认在基地内按 `F5`，把玩家普通背包中符合条件的物品归入当前基地的对应容器。
 
-> 当前版本：`1.2.0`。维护者已于 2026-09-05 确认当前候选版测试完成并同意发布。
+> 当前版本：`1.3.0`。
 > 本次新增默认关闭的自动出售功能，可分别配置高价品、弹药、帕鲁球和钓饵及其
 > 保留列表；多人、专服和 Game Pass 的具体测试环境未单独记录，不据此宣称这些
 > 环境已验证。
@@ -130,6 +130,9 @@ return {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    BreedingFarmCakeFirst = true,
+    FoodBoxFirst = true,
+    MedicineRackFirst = false,
     IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
@@ -149,6 +152,12 @@ return {
   `Tab → R` 排除项优先保留。
 - 四个 `*SellItems` 字段是实际出售名单；设置界面以更安全的反向方式呈现，
   勾选代表保留、不出售。弹药、帕鲁球和钓饵默认名单为空，即初始保护全部。
+- `BreedingFarmCakeFirst`：5 种蛋糕依次使用配种牧场、冷藏设施和普通储物箱，
+  绝不会进入饲料箱；默认开启。
+- `FoodBoxFirst`：除蛋糕外的食物依次使用饲料箱、冷藏设施和普通储物箱；默认
+  开启。要随身保留某种食物，请先在背包中按 `Tab → R` 排除。
+- `MedicineRackFirst`：医疗药品优先放入药品架，没有可用位置时仍放入普通
+  储物箱；默认关闭。
 - `IncludeSmallIncubators`：也使用小型孵化器；默认关闭。先投大型，再确认已发现的
   大型均无空位，才向无蛋、无待领取帕鲁的小型投放。大型状态不明、请求失败或仍有
   空位时，本次跳过小型；`ManualPlacement` 仍完全跳过帕鲁蛋。

@@ -34,6 +34,10 @@ return {
     AutoSellFishingBait = false,
     -- Comma-separated fishing-bait IDs. Empty protects every fishing-bait type.
     FishingBaitSellItems = "",
+    -- Put cakes in Breeding Farms before cold and ordinary storage.
+    BreedingFarmCakeFirst = true,
+    -- Put non-cake food in Pal Food Boxes before cold and ordinary storage.
+    FoodBoxFirst = true,
     -- Put medical supplies in Medicine Racks before ordinary storage.
     MedicineRackFirst = false,
     -- Use small incubators only after large incubators have no empty slots.

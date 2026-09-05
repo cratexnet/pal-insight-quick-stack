@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+## 1.3.0 - 2026-09-05
+
+### Added
+
+- Added optional Medicine Rack priority for the 3 current medical supplies.
+  When no usable Medicine Rack is available or all racks are full, items
+  continue to ordinary storage. The option is disabled by default.
+- Added dedicated food routing, enabled by default. The 5 cakes use Breeding
+  Farms first, while other food uses Pal Food Boxes first; both routes continue
+  through cold storage and then ordinary storage. Cakes never enter Pal Food
+  Boxes, and Inventory `Tab → R` exclusions remain protected.
+
+### Changed
+
+- Reorganized settings into General, Automatic Sale, and Special Items tabs.
+  Tabs support mouse, keyboard, and controller navigation, with visible arrow
+  controls on both sides. Small-incubator usage and Holy Water quantity are
+  displayed as child options of their corresponding routing settings.
+
 ## 1.2.0 - 2026-09-05
 
 ### Added

@@ -156,6 +156,10 @@ function assertQuickStackSettings(root) {
       assert.match(source, new RegExp(`^\\s*${field}\\s*=\\s*false\\b`, 'm'),
         `${relative} must default ${field} to false`);
     }
+    for (const field of ['BreedingFarmCakeFirst', 'FoodBoxFirst']) {
+      assert.match(source, new RegExp(`^\\s*${field}\\s*=\\s*true\\b`, 'm'),
+        `${relative} must default ${field} to true`);
+    }
     for (const field of [
       'AmmoSellItems', 'PalSphereSellItems', 'FishingBaitSellItems',
     ]) {
@@ -243,8 +247,26 @@ function assertQuickStackSettings(root) {
     /isRelic[\s\S]*?job\.config\.RelicRouting\s*==\s*"ManualPlacement"/,
     'manual relic routing must skip automatic placement');
   assert.match(quickStack,
-    /not\s+job\.config\.IncludeNewItems\s+and\s+not\s+recheck\.entry\.isRecycler\s+and\s+not\s+recheck\.entry\.isRecyclerBoost\s+and\s+not\s+recheck\.containsNeeded/,
-    'IncludeNewItems must be rechecked before submission');
+    /not\s+job\.config\.IncludeNewItems\s+and\s+recheck\.entry\.isOrdinaryStorage\s+and\s+not\s+recheck\.containsNeeded/,
+    'IncludeNewItems must be rechecked for ordinary storage before submission');
+  assert.match(quickStack,
+    /local\s+function\s+queueDedicatedFallback[\s\S]*?job\.fallbackRound\s*~=\s*0[\s\S]*?entry\.isMedicineRack[\s\S]*?entry\.isBreedingFarm[\s\S]*?entry\.isFoodBox[\s\S]*?entry\.isColdStorage/,
+    'only first-pass dedicated storage failures may enter bounded fallback planning');
+  assert.match(quickStack,
+    /local\s+function\s+skipRequest\([^)]*retryDedicated[\s\S]*?retryDedicated\s+and\s+queueDedicatedFallback/,
+    'pre-submission destination failures must be able to queue dedicated fallback');
+  assert.doesNotMatch(quickStack,
+    /RequestMoveToContainer_ToServer[\s\S]*?if\s+not\s+sent\s+then[\s\S]*?queueDedicatedFallback\(job,\s*request\)/,
+    'an attempted move RPC must not be retried when its server outcome is uncertain');
+  assert.match(quickStack,
+    /beginFallbackPlanning\s*=\s*function[\s\S]*?job\.fallbackRound\s*~=\s*0[\s\S]*?job\.fallbackRound\s*=\s*1/,
+    'dedicated fallback planning must run at most once');
+  assert.match(quickStack,
+    /newRouteState\(\s*job,\s*pending\.item,\s*pending\.num,\s*job\.closedRequestContainerKeys\)/,
+    'dedicated fallback planning must exclude processed destinations');
+  assert.match(quickStack,
+    /if\s+job\.requestIndex\s*>\s*#job\.requests\s+then[\s\S]*?beginFallbackPlanning\(job\)[\s\S]*?beginCompletionWait\(job\)/,
+    'fallback planning must drain the original request queue before completion');
   assert.match(quickStack,
     /local\s+recyclers\s*=\s*item\.isRelic\s+and\s+job\.recyclers\s+or\s+\{\}/,
     'compatible relics must always consider current-base recyclers');
@@ -308,19 +330,19 @@ function assertQuickStackSettings(root) {
     /function SettingsUI\.open\(mode,[\s\S]*buildSettingsWindow/,
     'standalone and hosted entry points must use one settings surface');
   assert.match(releaseNotes,
-    /version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"[\s\S]*version\s*=\s*"0\.1\.0"/,
+    /version\s*=\s*"1\.3\.0"[\s\S]*version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"[\s\S]*version\s*=\s*"0\.1\.0"/,
     'version updates must list Quick Stack releases newest first');
   assert.match(releaseNotes,
-    /version\s*=\s*"1\.2\.0"\s*,\s*dateUtc\s*=\s*"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/,
-    'the Quick Stack release must record its UTC publication timestamp');
+    /version\s*=\s*"1\.3\.0"\s*,\s*dateUtc\s*=\s*"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/,
+    'the running Quick Stack version must record its UTC version-upgrade timestamp');
   assert.doesNotMatch(releaseNotes, /version\s*=\s*"Unreleased"/,
     'Unreleased changes must not appear in player-facing version updates');
   const versionData = releaseNotes.slice(
     releaseNotes.indexOf('ReleaseNotes.versions = {'),
     releaseNotes.indexOf('\nlocal TEXT = {'));
   const versionBlocks = versionData.split(/\{ version\s*=/).slice(1);
-  assert.equal(versionBlocks.length, 4,
-    'version updates must contain every public Quick Stack release');
+  assert.equal(versionBlocks.length, 5,
+    'version updates must contain the running version and every public Quick Stack release');
   for (const block of versionBlocks) {
     const itemCount = [...block.matchAll(/items\s*=\s*\{([^}]*)\}/g)]
       .reduce((count, match) => count

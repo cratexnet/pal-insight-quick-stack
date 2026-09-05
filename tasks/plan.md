@@ -261,6 +261,27 @@ Runtime contract proof
   listen-client, and dedicated-client in-game acceptance before claiming
   multiplayer support.
 
+## Down-vote acknowledgement (2026-09-05)
+
+- [x] Replace the black down-thumb and inverted Chillet state with the ordinary
+  outline up-thumb action; retain only the confirmed up-vote presentation.
+- [x] Query the Quick Stack Workshop vote only after a real standalone or hosted
+  settings-open request, never during startup, world entry, prewarm, or idle
+  closed-panel work.
+- [x] Show the large acknowledgement on every down-voter settings open, with no
+  initial action selection and no F6, Escape, or controller-Back bypass.
+- [x] Keep an unresolved vote query outside the settings-open transaction,
+  acknowledge hosted open only after resolution, and preconstruct the
+  one-button modal while the settings widget is still hidden.
+- [x] Run the narrow existing Lua and settings-input checks; leave in-game
+  behavior pending until installation receives separate approval.
+- [x] Preconstruct the one-button acknowledgement while hidden so its dim layer
+  and card appear atomically, without a dark intermediate frame.
+- [x] Omit the Header vote action for a down vote instead of asking the user to
+  change their mind; retain it only for no-vote and confirmed up-vote states.
+- [x] Give the down-vote acknowledgement a three-pixel cyan focus outline and
+  matching title while ordinary nested modals retain their neutral thin frame.
+
 ## Optional small incubators (2026-09-04)
 
 - [x] Add the default-off setting, persistence, shared settings, and all 17 locales.
@@ -277,8 +298,9 @@ Runtime contract proof
 
 ## Optional Medicine Rack priority (2026-09-05)
 
-- [x] Define the scope as the four current `EPalItemTypeB::Medicine` medical
-  supplies and the single `PalMedicineBox` Medicine Rack type.
+- [x] Define the scope as the three current legal `EPalItemTypeB::Medicine`
+  supplies, the legacy `MindControlDrug` ID for old inventories, and the single
+  `PalMedicineBox` Medicine Rack type.
 - [x] Add a default-off persisted and shared `MedicineRackFirst` setting.
 - [x] Identify Medicine Racks from the current base through the dedicated
   `UPalMapObjectPalMedicineBoxModel` class without another scan.
@@ -306,6 +328,25 @@ Runtime contract proof
   shoulders to finish an active numeric edit before switching pages.
 - [x] Make keyboard route deduplication symmetric so a global-first `Q`/`E`
   press cannot be repeated by the widget-preview or cooked-actor route.
+- [x] Replace the stale eight-button interaction assertion with the current ten
+  direct Button constructor surfaces.
+
+## Optional food-facility priority (2026-09-05)
+
+- [x] Add default-on persisted and shared `BreedingFarmCakeFirst` and
+  `FoodBoxFirst` settings.
+- [x] Identify the current-base Breeding Farm and Pal Food Box models without
+  another base scan, and recognize only the five verified cold-storage IDs.
+- [x] Route five cake IDs through Breeding Farm, cold storage, then ordinary
+  storage without ever using a Pal Food Box; route other food through Pal Food
+  Boxes, cold storage, then ordinary storage.
+- [x] Keep `Tab` -> `R` authoritative and explain whole-item food retention in
+  every supported locale without adding a 94-item picker.
+- [x] Run the narrow existing static checks; leave in-game destination behavior
+  pending explicit installation approval.
+- [x] Replan unchanged sources from a pre-submission dedicated-storage failure
+  once, excluding every processed destination. Never retry after RPC invocation
+  starts, including wrapper errors whose server outcome may already be pending.
 
 ## Risks and Mitigations
 
@@ -315,7 +356,8 @@ Runtime contract proof
   keep the right action row limited to About, Restore Defaults, and Close.
 - [x] Show static, newest-first Quick Stack release history with a running-
   version marker, verified historical public timestamps at source precision,
-  and the current version's UTC timestamp captured when publication begins.
+  and the current version's UTC timestamp captured when its version number is
+  upgraded; update that time later only when necessary.
 - [x] Mark the running version only with a green five-point star; do not append
   a localized Current label. Match Pal Insight's index-row geometry, typography,
   state colors, and fixed trailing marker cell.
@@ -333,6 +375,9 @@ Runtime contract proof
   actions to the Version Updates revision, and reset selection plus scroll state
   when reopening so a prior modal cannot leak state.
 - [x] Pass the narrow existing release static checks.
+- [x] Add the 1.3.0 Medicine Rack, food-routing, and settings-tab summaries to
+  the repository changelog and all 17 in-game locales, recording the release-
+  preparation time as `2026-09-05 15:29:40 UTC`.
 - [ ] Verify mouse, keyboard, controller, held navigation, scrolling, close,
   and Header-focus restoration in game after an explicitly approved build and
   installation.

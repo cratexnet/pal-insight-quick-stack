@@ -180,34 +180,55 @@ inventory item:
    for the current job.
 2. A `Tab` -> `R` ignored item stays in the player inventory unless
    `IncludeExcludedItems = true`.
-3. When `MedicineRackFirst = true`, the current-build `Herbs`, `Medicines`,
-   `LuxuryMedicines`, and `MindControlDrug` medical supplies use compatible
-   Medicine Racks first. Medicine Racks are identified by the dedicated
+3. When `BreedingFarmCakeFirst = true`, the five current legal cake IDs
+   (`Cake`, `Cake02`, `Cake03`, `Cake04`, and `Cake05`) use compatible current-
+   base Breeding Farm containers first. Any remainder uses a recognized cold-
+   storage facility and then ordinary storage; it never uses a Pal Food Box.
+   When `FoodBoxFirst = true`, other current legal `EPalItemTypeA::Food` items
+   use compatible normal or refrigerated Pal Food Boxes first, then recognized
+   cold storage, and finally ordinary storage. The cold-storage allowlist is
+   limited to the current map-object IDs `CoolerBox`, `Refrigerator`,
+   `CoolerElectric`, `CoolerMedieval`, and `CoolerAncient`. Both settings are
+   default-on, and disabling both preserves the existing ordinary route.
+   A dedicated request that becomes invalid, full, rejecting, or unreadable
+   before RPC submission queues its unchanged sources for one bounded fallback
+   planning pass after the original request queue drains. That pass excludes
+   every already processed destination and cannot schedule another fallback
+   pass. Once RPC invocation is attempted, the request is never retried even if
+   the wrapper reports an error, because its server outcome may still be
+   pending. `Tab` -> `R` exclusions remain authoritative for all food and cake
+   IDs.
+4. When `MedicineRackFirst = true`, the three current legal `Herbs`,
+   `Medicines`, and `LuxuryMedicines` medical supplies use compatible Medicine
+   Racks first. The legacy `MindControlDrug` ID remains recognized for old
+   inventories even though the current item table marks it `bLegalInGame =
+   false`. Medicine Racks are identified by the dedicated
    `/Script/Pal.PalMapObjectPalMedicineBoxModel` concrete-model class (whose
    current map-object ID is `PalMedicineBox`), not by the generic storage-model
    classes. Any remainder continues through ordinary-storage routing. A
-   missing, full, or rejecting Medicine Rack never prevents the ordinary
-   fallback. With the preference disabled, Medicine Racks remain eligible as
-   ordinary storage.
-4. `PalEggRouting = "ManualPlacement"` leaves every eligible Pal Egg in the
+   Medicine Rack rejected before submission uses the same single bounded
+   fallback pass described above. With the preference disabled, Medicine Racks
+   remain eligible as ordinary storage.
+5. `PalEggRouting = "ManualPlacement"` leaves every eligible Pal Egg in the
    inventory without scanning metadata or planning a destination. Otherwise an
    eligible Pal Egg uses available incubators first. `IncubatorOnly` leaves any
    remainder in the inventory; `IncubatorThenStorage` continues through
    ordinary-storage routing.
-5. `RelicRouting = "ManualPlacement"` leaves every eligible Ancient
+6. `RelicRouting = "ManualPlacement"` leaves every eligible Ancient
    Civilization Relic in the inventory without scanning metadata or planning a
    destination. Otherwise an eligible relic uses all compatible Ancient Relic
    Recyclers in stable current-base discovery order. `RecyclerOnly` leaves any
    remainder in the inventory; `RecyclerThenStorage` continues through
    ordinary-storage routing.
-6. `IncludeNewItems = false` restricts only the ordinary-storage route to writable storage
+7. `IncludeNewItems = false` restricts only the ordinary-storage route to writable storage
    that already contains the exact item. Empty incubators and empty storage
    accepted only by filters are not ordinary-storage candidates; empty
-   Medicine Racks, incubators, and recycler slots remain eligible through their
-   dedicated routes.
-7. The ordinary route prefers writable storage containing the exact item, then
+   Breeding Farms, Pal Food Boxes, cold-storage facilities, Medicine Racks,
+   incubators, and recycler slots remain eligible through their dedicated
+   routes.
+8. The ordinary route prefers writable storage containing the exact item, then
    writable storage whose filter accepts the item category.
-8. Leave the item in the player inventory when no valid capacity remains.
+9. Leave the item in the player inventory when no valid capacity remains.
 
 The current-build `WorldTreeRelic_01` through `WorldTreeRelic_05` IDs identify
 Ancient Civilization Relics even when no recycler exists in the base. Every
@@ -424,6 +445,8 @@ return {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    BreedingFarmCakeFirst = true,
+    FoodBoxFirst = true,
     MedicineRackFirst = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
@@ -450,9 +473,24 @@ fields is migrated or removed and rewritten canonically. Experimental
 `MedicineRackFirst = false` is the default, including existing configurations.
 When enabled, Quick Stack identifies the current-build `PalMedicineBox` through
 its dedicated `UPalMapObjectPalMedicineBoxModel` class, keeps its container
-permission and filter data authoritative, and routes only the four current-build
-`EPalItemTypeB::Medicine` item IDs there before ordinary storage. Medicine Racks
+permission and filter data authoritative, and routes only the four recognized
+`EPalItemTypeB::Medicine` IDs there before ordinary storage: three current legal
+items plus the legacy `MindControlDrug` ID for old inventories. Medicine Racks
 remain ordinary-storage candidates when this preference is disabled.
+
+`BreedingFarmCakeFirst = true` and `FoodBoxFirst = true` are the defaults.
+Existing configurations that do not yet contain these fields are rewritten with
+both enabled; an explicit user choice of `false` remains unchanged. The
+Breeding Farm route is restricted to the five current legal cake IDs advertised
+by the current cooked
+`BP_BuildObject_BreedFarm` asset. The Pal Food Box route excludes those cake
+IDs so a failed Breeding Farm route cannot turn a valuable cake into ordinary
+Pal feed. The five recognized cold-storage map-object IDs remain ordinary
+storage when neither preference is active. Dedicated food routes accept empty
+compatible slots regardless of `IncludeNewItems`; the final ordinary-storage
+fallback continues to obey it. The settings helper tells users to use the
+game's inventory `Tab` -> `R` action when an entire food type must stay in the
+backpack; per-item reserve quantities are outside this feature.
 
 Manual edits made while the game is running are not required to hot-reload.
 Users should close the game, edit the writable file, and restart. Modifier
@@ -516,8 +554,9 @@ reported as an external conflict.
 - The settings body uses three fixed top tabs. `General` contains the shortcut,
   result display, ignored/new-item settings, and Guild Chest setting;
   `Automatic Sale` contains the valuables, ammunition, Pal Sphere, and fishing-
-  bait toggles plus their keep pickers; `Special Items` contains Medicine Rack,
-  Pal Egg, small-incubator, Ancient Relic, and World Tree Holy Water settings.
+  bait toggles plus their keep pickers; `Special Items` contains Breeding Farm,
+  Pal Food Box, Medicine Rack, Pal Egg, small-incubator, Ancient Relic, and
+  World Tree Holy Water settings.
   The small-incubator toggle is visually indented beneath Pal Egg routing;
   Holy Water remains an independent setting because its behavior is not gated
   by relic routing. Pages are built once and only their visibility changes, so
@@ -537,10 +576,14 @@ reported as an external conflict.
   the extracted current-build localized item-name catalog without constructing
   native item-row widgets, clearly states that checked means kept, and persists
   changes through the same validated settings path as the other controls.
-- Special Item Storage begins with a default-off `MedicineRackFirst` toggle.
+- Special Item Storage includes a default-off `MedicineRackFirst` toggle.
   Its helper explains that medical supplies use Medicine Racks first and still
   fall back to ordinary storage when no usable rack is available or all racks
   are full.
+- Special Item Storage also exposes default-on `BreedingFarmCakeFirst` and
+  `FoodBoxFirst` toggles. Their helpers describe the cold-storage and ordinary-
+  storage fallbacks, state that cake never enters a Pal Food Box, and direct
+  users to inventory `Tab` -> `R` to keep an entire food type in the backpack.
 - Simplified and Traditional Chinese use concise parallel labels for both sale
   categories: `自动出售高价品` / `保留的高价品` and
   `自動出售高價品` / `保留的高價品`, matching the ammunition wording.
@@ -653,15 +696,15 @@ reported as an external conflict.
   version label; its
   right pane shows the selected version under localized Added, Changed,
   Performance, and Fixed headings. Release data is static and localized in all
-  17 supported interface languages. The 1.2.0 entries reproduce the finalized
-  `CHANGELOG.md` release bullets without a second editorial rewrite, while
+  17 supported interface languages. The 1.2.0 and 1.3.0 entries reproduce the
+  finalized `CHANGELOG.md` release bullets without a second editorial rewrite, while
   historical entries are checked against their official release records,
   including the public `0.1.0` release. The
-  runtime does not parse `CHANGELOG.md` or perform network access. A release
-  timestamp is recorded in UTC when public release begins, then reconciled to
-  the earliest verified public timestamp across official distribution channels;
-  repository commit time is not a release time. The stored value preserves the
-  precision exposed by the source platform instead of inventing seconds. Mouse,
+  runtime does not parse `CHANGELOG.md` or perform network access. A version
+  timestamp is recorded in UTC when its version number is upgraded. It may be
+  updated later when necessary, such as to reconcile an official distribution
+  timestamp; repository commit time is not used as a substitute. The stored
+  value preserves the precision of its source instead of inventing seconds. Mouse,
   keyboard, and controller share the existing modal input
   owner. Directional input selects versions, changes panes, or scrolls content;
   held controller D-pad and left-stick input use the same bounded repeat route
@@ -700,16 +743,35 @@ reported as an external conflict.
   controller alike; pointer hover is transient and must not erase it.
 - Workshop voting is owned by a Quick Stack-specific native helper and targets
   Quick Stack Workshop item `3792968111`; it must never read or change Pal
-  Insight item `3778493118`. The visual states and interaction rules match Pal
-  Insight: an outline thumb for no vote, an inverted Chillet with a black down
-  thumb for a down vote, and a normal Chillet with a gold up thumb for an up
-  vote. Every state must preserve the thumb silhouette; a solid color rectangle
-  is not an acceptable fallback. The Chillet portrait keeps its fixed canvas
-  but receives angle-aware optical vertical compensation for the asymmetric
-  source art and an angle-aware horizontal mirror so both the upright and
-  inverted portrait face the adjacent thumb; the thumb remains geometrically
-  centered. Only no-vote/down-vote states can submit an up vote. Non-Workshop
-  packages omit the helper and therefore omit the control.
+  Insight item `3778493118`. The Header shows the outline up-thumb action only
+  for a user who has not voted, and the normal Chillet with a gold up-thumb
+  only after an up vote. A down vote has no Header vote control or corrective
+  copy; its only settings treatment is the acknowledgement described below.
+  The former black down thumb and inverted Chillet presentation are not used.
+  Non-Workshop packages omit the helper and therefore omit the control.
+- Steam vote initialization and polling must not run during startup, world
+  entry, settings prewarm, or an idle closed-panel heartbeat. The first real
+  standalone or hosted settings-open request starts the query after gameplay
+  readiness has passed and waits for a stable result before opening the panel;
+  missing helpers and query failures fail open. The open transaction never
+  constructs a query modal. The single-action acknowledgement surface is
+  preconstructed while the settings widget is still hidden. When the stable
+  result is a down vote, the complete panel and acknowledgement become visible
+  together in one presentation step; the modal dim layer must never appear by
+  itself for an intermediate frame. A down vote opens this large, centered
+  acknowledgement on every settings open. It contains sincere
+  author-effort, feedback-welcome, and gratitude copy plus one confirmation
+  action. Its card uses the established cyan focus color as a three-pixel
+  emphasis outline over the normal dark surface, and the title uses the same
+  accent; ordinary choice and reset modals retain the neutral thin outline.
+  The action has no initial keyboard/controller selection: mouse users
+  must click it directly, while keyboard/controller users must first navigate
+  once and then confirm. Escape, controller Back, F6, and hosted close routes
+  are consumed while this acknowledgement owns the modal transaction. A hosted
+  panel publishes `ExtensionSettingsCloseBlocked` together with its host
+  generation, Quick Stack generation, and open revision. Pal Insight may
+  consume a close request only when every value matches the currently hosted
+  panel; stale or partial publications never block a later runtime.
 - Opening and closing are transactional. An open acknowledgement is published
   only after the widget and modal input lease are both live. A closed
   acknowledgement is published only after input isolation and the prior input

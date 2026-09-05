@@ -65,7 +65,15 @@ local MEDICAL_SUPPLY_IDS = {
     Herbs = true,
     Medicines = true,
     LuxuryMedicines = true,
+    -- Retain the current table's illegal legacy ID for old inventories.
     MindControlDrug = true,
+}
+local CAKE_ITEM_IDS = {
+    Cake = true,
+    Cake02 = true,
+    Cake03 = true,
+    Cake04 = true,
+    Cake05 = true,
 }
 local function isRelicId(staticId)
     return RELIC_ITEM_IDS[staticId] == true
@@ -96,6 +104,8 @@ local function snapshotJobConfig(config)
         AutoSellFishingBait = config.AutoSellFishingBait == true,
         FishingBaitSellItems = SaleConsumables.fishingBait.sellSet(
             config.FishingBaitSellItems),
+        BreedingFarmCakeFirst = config.BreedingFarmCakeFirst == true,
+        FoodBoxFirst = config.FoodBoxFirst == true,
         MedicineRackFirst = config.MedicineRackFirst == true,
         IncludeSmallIncubators = config.IncludeSmallIncubators == true,
         PalEggRouting = config.PalEggRouting,
@@ -817,6 +827,15 @@ local function indexContainer(job, entry)
         job.medicineRacks[#job.medicineRacks + 1] = entry
         return
     end
+    if entry.isBreedingFarm then
+        job.breedingFarms[#job.breedingFarms + 1] = entry
+        return
+    end
+    if entry.isFoodBox then
+        job.foodBoxes[#job.foodBoxes + 1] = entry
+    elseif entry.isColdStorage then
+        job.coldStorages[#job.coldStorages + 1] = entry
+    end
 
     for itemId in pairs(entry.contains) do
         local unique = job.uniqueById[itemId]
@@ -938,12 +957,16 @@ local function prepareContainerEntry(job, candidate)
         restricted = false,
     }
     if candidate.kind == "storage" or candidate.kind == "medicine_rack"
+        or candidate.kind == "breeding_farm" or candidate.kind == "food_box"
+        or candidate.kind == "cold_storage"
         or candidate.kind == "guild_storage" then
         local filterError
         filterOff, filterError = P.readFilterOff(candidate.container)
         if filterOff == nil then return nil, filterError end
     end
     if candidate.kind == "storage" or candidate.kind == "recycler"
+        or candidate.kind == "breeding_farm" or candidate.kind == "food_box"
+        or candidate.kind == "cold_storage"
         or candidate.kind == "medicine_rack"
         or candidate.kind == "guild_storage" then
         local permissionError
@@ -960,8 +983,14 @@ local function prepareContainerEntry(job, candidate)
     return {
         kind = candidate.kind,
         isStorage = candidate.kind == "storage" or candidate.kind == "medicine_rack"
+            or candidate.kind == "guild_storage" or candidate.kind == "breeding_farm"
+            or candidate.kind == "food_box" or candidate.kind == "cold_storage",
+        isOrdinaryStorage = candidate.kind == "storage"
             or candidate.kind == "guild_storage",
         isMedicineRack = candidate.kind == "medicine_rack",
+        isBreedingFarm = candidate.kind == "breeding_farm",
+        isFoodBox = candidate.kind == "food_box",
+        isColdStorage = candidate.kind == "cold_storage",
         isGuildStorage = candidate.kind == "guild_storage",
         isIncubator = candidate.kind == "incubator" or candidate.kind == "small_incubator",
         isSmallIncubator = candidate.kind == "small_incubator",
@@ -1094,6 +1123,8 @@ end
 
 local function appendCandidate(job, model, concrete, container, kind, instanceId)
     local retryReads = kind == "storage" or kind == "medicine_rack"
+        or kind == "breeding_farm" or kind == "food_box"
+        or kind == "cold_storage"
         or kind == "incubator" or kind == "small_incubator"
     if not retryReads then
         local _, key = containerGuid(container)
@@ -1116,7 +1147,7 @@ end
 
 local function addCandidate(job, model, concrete, kind, instanceId)
     local autoDestroy = false
-    if kind == "storage" then
+    if kind == "storage" or kind == "food_box" or kind == "cold_storage" then
         pcall(function() autoDestroy = concrete.bAutoDestroyIfEmpty == true end)
         if autoDestroy then return end
     end
@@ -1277,6 +1308,9 @@ startBaseSnapshot = function(job)
     job.incubators = {}
     job.smallIncubators = {}
     job.medicineRacks = {}
+    job.breedingFarms = {}
+    job.foodBoxes = {}
+    job.coldStorages = {}
     job.largeIncubatorCandidates = job.smallIncubatorClass ~= nil and {} or nil
     job.recyclers = {}
     job.recyclerBoosts = {}
@@ -1381,12 +1415,33 @@ local function preferPlannedDestinations(job, entries)
     return preferred
 end
 
-local function newRouteState(job, item)
+local function copyVisited(entries)
+    local copied = {}
+    for key in pairs(entries or {}) do copied[key] = true end
+    return copied
+end
+
+local function withoutFoodBoxes(entries)
+    local filtered = {}
+    for _, entry in ipairs(entries) do
+        if not entry.isFoodBox then filtered[#filtered + 1] = entry end
+    end
+    return filtered
+end
+
+local function newRouteState(job, item, amount, visited)
     local incubators = {}
     if item.isEgg then
         incubators = job.incubators
     end
     local metadata = job.metadata[item.id]
+    local isCake = CAKE_ITEM_IDS[item.id] == true
+    local usesBreedingFarm = isCake and job.config.BreedingFarmCakeFirst
+    local usesFoodBox = not isCake and job.config.FoodBoxFirst
+        and metadata.typeA == "Food"
+    local protectsCake = isCake
+        and (job.config.BreedingFarmCakeFirst or job.config.FoodBoxFirst)
+    local usesColdStorage = usesBreedingFarm or usesFoodBox or protectsCake
     local usesMedicineRack = job.config.MedicineRackFirst
         and MEDICAL_SUPPLY_IDS[item.id] == true
     local contained = preferPlannedDestinations(
@@ -1395,6 +1450,10 @@ local function newRouteState(job, item)
         job,
         job.config.IncludeNewItems
             and (job.containersByAcceptedCategory[metadata.category] or {}) or {})
+    if protectsCake then
+        contained = withoutFoodBoxes(contained)
+        accepted = withoutFoodBoxes(accepted)
+    end
     local recyclers = item.isRelic and job.recyclers or {}
     local recyclerBoosts = item.isHolyWater and job.recyclerBoosts or {}
     local ordinaryFallback = (not item.isEgg
@@ -1402,6 +1461,15 @@ local function newRouteState(job, item)
         and (not item.isRelic
             or job.config.RelicRouting == "RecyclerThenStorage")
     local stages = {}
+    if usesBreedingFarm then
+        stages[#stages + 1] = { kind = "normal", entries = job.breedingFarms }
+    end
+    if usesFoodBox then
+        stages[#stages + 1] = { kind = "normal", entries = job.foodBoxes }
+    end
+    if usesColdStorage then
+        stages[#stages + 1] = { kind = "normal", entries = job.coldStorages }
+    end
     if usesMedicineRack then
         stages[#stages + 1] = { kind = "normal", entries = job.medicineRacks }
     end
@@ -1430,13 +1498,20 @@ local function newRouteState(job, item)
             or job.compatibleAcceptedCategories[metadata.category]))
     return {
         item = item,
-        remaining = item.num,
-        visited = {},
+        remaining = math.min(item.num,
+            math.max(0, math.floor(tonumber(amount) or item.num))),
+        visited = copyVisited(visited),
         stageIndex = 1,
         candidateIndex = 1,
         stages = stages,
-        reportRemainder = (usesMedicineRack or item.isEgg or item.isRelic
+        reportRemainder = (usesBreedingFarm or usesFoodBox or usesColdStorage
+            or usesMedicineRack or item.isEgg or item.isRelic
             or item.isHolyWater or #recyclers > 0 or hasOrdinaryDestination)
+            and not (usesBreedingFarm
+                and job.unresolvedDestinationKinds.breeding_farm)
+            and not (usesFoodBox and job.unresolvedDestinationKinds.food_box)
+            and not (usesColdStorage
+                and job.unresolvedDestinationKinds.cold_storage)
             and not (usesMedicineRack
                 and job.unresolvedDestinationKinds.medicine_rack)
             and not (item.isEgg and job.unresolvedDestinationKinds.incubator)
@@ -1478,6 +1553,7 @@ end
 
 local processNextRequest
 local beginCompletionWait
+local beginFallbackPlanning
 
 local function planItemsSlice(job)
     if not identityMatches(job) then
@@ -1528,20 +1604,105 @@ end
 beginPlanning = function(job)
     job.requests = {}
     job.requestByContainer = {}
+    job.closedRequestContainerKeys = {}
+    job.fallbackRound = 0
+    job.fallbackItems = {}
+    job.fallbackByItem = {}
     job.planItemIndex = 1
     job.routeState = nil
     scheduleJobStep(job, NEXT_SLICE_MS, planItemsSlice, "plan")
 end
 
-local function skipRequest(job, reason)
-    local entry = job.requests[job.requestIndex].entry
+local function queueDedicatedFallback(job, request)
+    local entry = request ~= nil and request.entry or nil
+    if job.fallbackRound ~= 0 or entry == nil
+        or not (entry.isMedicineRack or entry.isBreedingFarm
+            or entry.isFoodBox or entry.isColdStorage) then return false end
+    for _, source in ipairs(request.sources) do
+        local pending = job.fallbackByItem[source.item]
+        if pending == nil then
+            pending = { item = source.item, num = 0 }
+            job.fallbackByItem[source.item] = pending
+            job.fallbackItems[#job.fallbackItems + 1] = pending
+        end
+        pending.num = pending.num + source.num
+    end
+    return true
+end
+
+local function closeRequest(job, request)
+    local key = request.entry.containerKey
+    job.closedRequestContainerKeys[key] = true
+    if job.requestByContainer[key] == request then
+        job.requestByContainer[key] = nil
+    end
+end
+
+local function skipRequest(job, reason, retryDedicated, reportFull)
+    local request = job.requests[job.requestIndex]
+    local entry = request.entry
+    local queued = retryDedicated and queueDedicatedFallback(job, request)
+    if reportFull and not queued then
+        for _, source in ipairs(request.sources) do
+            addItemCount(job.fullItems, job.fullById,
+                source.id, source.item.staticId, source.num)
+            job.fullTotal = job.fullTotal + source.num
+        end
+    end
     if entry.isIncubator and not entry.isSmallIncubator then
         job.failedLargeIncubatorRequest = true
     end
     debugLog("skipping stale destination request: " .. tostring(reason))
+    closeRequest(job, request)
     job.recheck = nil
     job.requestIndex = job.requestIndex + 1
     scheduleJobStep(job, NEXT_SLICE_MS, processNextRequest, "request")
+end
+
+local function planFallbackSlice(job)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    local operations = 0
+    while operations < PLAN_OPERATIONS_PER_SLICE
+        and job.fallbackItemIndex <= #job.fallbackItems do
+        if job.fallbackRouteState == nil then
+            local pending = job.fallbackItems[job.fallbackItemIndex]
+            job.fallbackRouteState = newRouteState(
+                job, pending.item, pending.num, job.closedRequestContainerKeys)
+        end
+        local complete = routeOneOperation(job, job.fallbackRouteState)
+        operations = operations + 1
+        if complete then
+            local route = job.fallbackRouteState
+            if route.remaining > 0 and route.reportRemainder then
+                addItemCount(job.fullItems, job.fullById,
+                    route.item.id, route.item.staticId, route.remaining)
+                job.fullTotal = job.fullTotal + route.remaining
+            end
+            job.fallbackRouteState = nil
+            job.fallbackItemIndex = job.fallbackItemIndex + 1
+        end
+    end
+    if job.fallbackItemIndex <= #job.fallbackItems then
+        scheduleJobStep(job, NEXT_SLICE_MS, planFallbackSlice, "plan")
+        return
+    end
+    job.fallbackItems = {}
+    job.fallbackByItem = {}
+    job.fallbackRouteState = nil
+    scheduleJobStep(job, NEXT_SLICE_MS, processNextRequest, "request")
+end
+
+beginFallbackPlanning = function(job)
+    if job.fallbackRound ~= 0 or #job.fallbackItems == 0 then return false end
+    job.fallbackRound = 1
+    job.fallbackItemIndex = 1
+    job.fallbackRouteState = nil
+    debugLog("planning one bounded dedicated-storage fallback pass")
+    scheduleJobStep(job, NEXT_SLICE_MS, planFallbackSlice, "plan")
+    return true
 end
 
 local function sourceStillMatches(job, item, required)
@@ -1571,8 +1732,7 @@ local function capacityAcceptsRequest(job, recheck)
     end
 
     for _, source in ipairs(recheck.request.sources) do
-        if not job.config.IncludeNewItems and not recheck.entry.isRecycler
-            and not recheck.entry.isRecyclerBoost
+        if not job.config.IncludeNewItems and recheck.entry.isOrdinaryStorage
             and not recheck.containsNeeded[source.id] then return false end
         local metadata = job.metadata[source.id]
         local remaining = source.num
@@ -1632,12 +1792,7 @@ local function submitRecheckedRequest(job)
     end
     if not capacityAcceptsRequest(job, recheck) then
         recordPerformanceDetail(job, "recheck_validate", validateStartedAt)
-        for _, source in ipairs(request.sources) do
-            addItemCount(job.fullItems, job.fullById,
-                source.id, source.item.staticId, source.num)
-            job.fullTotal = job.fullTotal + source.num
-        end
-        skipRequest(job, "destination capacity changed")
+        skipRequest(job, "destination capacity changed", true, true)
         return
     end
 
@@ -1701,6 +1856,7 @@ local function submitRecheckedRequest(job)
                 (job.submittedByItem[source.item] or 0) + source.num
         end
     end
+    closeRequest(job, request)
     job.recheck = nil
     job.requestIndex = job.requestIndex + 1
     scheduleJobStep(job, RPC_INTERVAL_MS, processNextRequest, "request")
@@ -1713,7 +1869,7 @@ local function scanRecheckSlotsSlice(job)
     end
     local recheck = job.recheck
     if recheck == nil or not isValid(recheck.entry.container) then
-        skipRequest(job, "destination became invalid")
+        skipRequest(job, "destination became invalid", true)
         return
     end
     local stop = math.min(recheck.slotIndex + RECHECK_SLOTS_PER_SLICE - 1,
@@ -1722,12 +1878,12 @@ local function scanRecheckSlotsSlice(job)
     for index = recheck.slotIndex, stop do
         local slot, readable = arrayValue(recheck.slots, index)
         if not readable or not isValid(slot) then
-            skipRequest(job, "destination slot is unreadable")
+            skipRequest(job, "destination slot is unreadable", true)
             return
         end
         local staticId = slotStaticId(slot)
         if staticId == nil then
-            skipRequest(job, "destination item id is unreadable")
+            skipRequest(job, "destination item id is unreadable", true)
             return
         end
         if staticId == "None" then
@@ -1739,7 +1895,7 @@ local function scanRecheckSlotsSlice(job)
                 local stackCount
                 local stackOk = pcall(function() stackCount = tonumber(slot.StackCount) end)
                 if not stackOk or stackCount == nil or stackCount < 1 then
-                    skipRequest(job, "destination stack count is unreadable")
+                    skipRequest(job, "destination stack count is unreadable", true)
                     return
                 end
                 if recheck.entry.isRecyclerBoost then
@@ -1909,6 +2065,7 @@ processNextRequest = function(job)
         return
     end
     if job.requestIndex > #job.requests then
+        if beginFallbackPlanning(job) then return end
         beginCompletionWait(job)
         return
     end
@@ -1929,7 +2086,7 @@ processNextRequest = function(job)
     end
     if not isValid(entry.model) or not isValid(entry.concrete)
         or not isValid(entry.container) then
-        skipRequest(job, "destination object became invalid")
+        skipRequest(job, "destination object became invalid", true)
         return
     end
     local currentModel
@@ -1953,12 +2110,12 @@ processNextRequest = function(job)
         or not isValid(currentContainer)
         or P.objectAddress(currentModel) ~= entry.modelAddress
         or P.objectAddress(currentConcrete) ~= entry.concreteAddress then
-        skipRequest(job, "current-base destination model changed")
+        skipRequest(job, "current-base destination model changed", true)
         return
     end
     local _, routedContainerKey = containerGuid(currentContainer)
     if routedContainerKey ~= entry.containerKey then
-        skipRequest(job, "current-base destination container changed")
+        skipRequest(job, "current-base destination container changed", true)
         return
     end
     entry.model = currentModel
@@ -1998,12 +2155,15 @@ processNextRequest = function(job)
     if entry.isStorage then
         local filterError
         currentFilter, filterError = P.readFilterOff(entry.container)
-        if currentFilter == nil then skipRequest(job, filterError); return end
+        if currentFilter == nil then skipRequest(job, filterError, true); return end
     end
     if entry.isStorage or entry.isRecycler then
         local permissionError
         currentPermission, permissionError = P.readPermission(entry.container)
-        if currentPermission == nil then skipRequest(job, permissionError); return end
+        if currentPermission == nil then
+            skipRequest(job, permissionError, true)
+            return
+        end
     end
     local currentEntry = {
         isStorage = entry.isStorage,
@@ -2018,7 +2178,7 @@ processNextRequest = function(job)
     local neededIds = {}
     for _, source in ipairs(request.sources) do
         if not P.destinationAllows(currentEntry, source.item, job.metadata[source.id]) then
-            skipRequest(job, "destination filter or permission changed")
+            skipRequest(job, "destination filter or permission changed", true)
             return
         end
         neededIds[source.id] = true
@@ -2027,7 +2187,10 @@ processNextRequest = function(job)
     local slots
     local slotsOk = pcall(function() slots = entry.container.ItemSlotArray end)
     local slotCount = slotsOk and arrayLength(slots) or nil
-    if slotCount == nil then skipRequest(job, "destination slots are unreadable"); return end
+    if slotCount == nil then
+        skipRequest(job, "destination slots are unreadable", true)
+        return
+    end
     job.recheck = {
         request = request,
         entry = entry,

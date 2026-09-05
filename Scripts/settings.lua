@@ -21,6 +21,8 @@ local DEFAULTS = {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    BreedingFarmCakeFirst = true,
+    FoodBoxFirst = true,
     MedicineRackFirst = false,
     IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
@@ -47,6 +49,8 @@ local ORDER = {
     "PalSphereSellItems",
     "AutoSellFishingBait",
     "FishingBaitSellItems",
+    "BreedingFarmCakeFirst",
+    "FoodBoxFirst",
     "MedicineRackFirst",
     "IncludeSmallIncubators",
     "PalEggRouting",
@@ -257,7 +261,8 @@ local function parseConfig(text)
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
         "IncludeGuildChest", "AutoSellValuables", "AutoSellAmmo",
         "AutoSellPalSpheres", "AutoSellFishingBait",
-        "MedicineRackFirst", "IncludeSmallIncubators",
+        "BreedingFarmCakeFirst", "FoodBoxFirst", "MedicineRackFirst",
+        "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
     }) do
         local value = parseBoolean(text, name)
@@ -320,6 +325,8 @@ local function parseConfig(text)
         or parseBoolean(text, "AutoSellFishingBait") == nil
         or validatedFishingBaitSellItems == nil
         or validatedFishingBaitSellItems ~= fishingBaitSellItems
+        or parseBoolean(text, "BreedingFarmCakeFirst") == nil
+        or parseBoolean(text, "FoodBoxFirst") == nil
         or parseBoolean(text, "MedicineRackFirst") == nil
         or parseBoolean(text, "IncludeSmallIncubators") == nil
         or legacyShowDetailedResults ~= nil
@@ -351,7 +358,8 @@ local function normalizeConfig(candidate, log)
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
         "IncludeGuildChest", "AutoSellValuables", "AutoSellAmmo",
         "AutoSellPalSpheres", "AutoSellFishingBait",
-        "MedicineRackFirst", "IncludeSmallIncubators",
+        "BreedingFarmCakeFirst", "FoodBoxFirst", "MedicineRackFirst",
+        "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
     }) do
         if type(candidate[name]) == "boolean" then out[name] = candidate[name] end
@@ -479,6 +487,11 @@ local function configText(config)
         "    -- Sell only selected current fishing bait; an empty list protects all.",
         "    AutoSellFishingBait = " .. tostring(config.AutoSellFishingBait) .. ",",
         string.format("    FishingBaitSellItems = %q,", config.FishingBaitSellItems),
+        "    -- Put cakes in Breeding Farms before cold and ordinary storage.",
+        "    BreedingFarmCakeFirst = "
+            .. tostring(config.BreedingFarmCakeFirst) .. ",",
+        "    -- Put non-cake food in Pal Food Boxes before cold and ordinary storage.",
+        "    FoodBoxFirst = " .. tostring(config.FoodBoxFirst) .. ",",
         "    -- Put medical supplies in Medicine Racks before ordinary storage.",
         "    MedicineRackFirst = " .. tostring(config.MedicineRackFirst) .. ",",
         "    -- Small incubators are used only after large incubators are full.",

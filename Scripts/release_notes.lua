@@ -2,11 +2,14 @@ local Localization = require("localization")
 
 local ReleaseNotes = {}
 
--- Keep 1-5 single-topic, user-visible summaries per public release. Record the
--- current release's UTC timestamp when publication begins, then reconcile it to
--- the earliest verified public timestamp across official channels. Preserve
--- source precision rather than inventing seconds. Repository times are not releases.
+-- Keep 1-5 single-topic, user-visible summaries per version. Record the UTC
+-- timestamp when its version number is upgraded. Update it later only when
+-- necessary, preserving source precision rather than inventing seconds.
 ReleaseNotes.versions = {
+    { version = "1.3.0", dateUtc = "2026-09-05 15:29:40", groups = {
+        { kind = "added", items = { 18, 19 } },
+        { kind = "changed", items = { 20 } },
+    } },
     { version = "1.2.0", dateUtc = "2026-09-05 02:55:05", groups = {
         { kind = "added", items = { 1, 2, 3, 4 } },
     } },
@@ -45,6 +48,9 @@ local TEXT = {
         [15] = "Added native-style progress messages and result cards for stored, excluded, and storage-full items, localized in all 17 Palworld interface languages.",
         [16] = "Added standalone shortcut configuration and optional shortcut editing through Pal Insight 1.8.0 or later. Pal Insight remained optional.",
         [17] = "Split storage scans into bounded steps and serialized destination requests to reduce one-frame stalls, with destination revalidation before each move.",
+        [18] = "Added optional Medicine Rack priority for the 3 current medical supplies. When no usable Medicine Rack is available or all racks are full, items continue to ordinary storage. The option is disabled by default.",
+        [19] = "Added dedicated food routing, enabled by default. The 5 cakes use Breeding Farms first, while other food uses Pal Food Boxes first; both routes continue through cold storage and then ordinary storage. Cakes never enter Pal Food Boxes, and Inventory Tab → R exclusions remain protected.",
+        [20] = "Reorganized settings into General, Automatic Sale, and Special Items tabs. Tabs support mouse, keyboard, and controller navigation, with visible arrow controls on both sides. Small-incubator usage and Holy Water quantity are displayed as child options of their corresponding routing settings.",
     },
     ["zh-hans"] = {
         title = "版本更新", selectVersion = "选择版本", added = "新增", changed = "改动", performance = "性能优化", fixed = "问题修复",
@@ -65,6 +71,9 @@ local TEXT = {
         [15] = "新增原生风格的进度提示和结果卡片，显示已收纳、已排除及仓库已满的物品，并支持全部 17 种帕鲁界面语言。",
         [16] = "新增独立快捷键设置，也可通过 Pal Insight 1.8.0 或更高版本编辑快捷键；Pal Insight 始终为可选依赖。",
         [17] = "将仓库扫描拆分为有界步骤，并逐个发送目标移动请求，以减少单帧卡顿；每次移动前都会重新验证目标。",
+        [18] = "新增可选的药品柜优先收纳，适用于当前 3 种医疗药品。没有药品柜或已满时，仍会收纳到普通储物箱；默认关闭。",
+        [19] = "新增默认开启的食物专用收纳路线。5 种蛋糕优先进入配种牧场，其他食物优先进入饲料箱；随后均依次使用冷藏设施和普通储物箱。蛋糕不会进入饲料箱，背包 Tab → R 排除项仍受保护。",
+        [20] = "将设置重新整理为常规、自动出售和特殊物品 3 个顶部分页。分页支持鼠标、键盘和手柄操作，左右两侧均有可见的切换箭头。“使用小型孵化器”和“圣水数量”会显示为对应收纳规则的子选项。",
     },
     ["zh-hant"] = {
         title = "版本更新", selectVersion = "選擇版本", added = "新增", changed = "變更", performance = "效能最佳化", fixed = "問題修正",
@@ -85,6 +94,9 @@ local TEXT = {
         [15] = "新增原生風格的進度提示和結果卡片，顯示已收納、已排除及倉庫已滿的物品，並支援全部 17 種帕魯介面語言。",
         [16] = "新增獨立快捷鍵設定，也可透過 Pal Insight 1.8.0 或更高版本編輯快捷鍵；Pal Insight 始終為選用依賴。",
         [17] = "將倉庫掃描拆分為有界步驟，並逐一傳送目標移動請求，以減少單幀卡頓；每次移動前都會重新驗證目標。",
+        [18] = "新增可選的藥品櫃優先收納，適用於目前 3 種醫療藥品。沒有藥品櫃或已滿時，仍會收納到普通儲物箱；預設關閉。",
+        [19] = "新增預設開啟的食物專用收納路線。5 種蛋糕優先進入配種牧場，其他食物優先進入飼料箱；之後均依序使用冷藏設施和普通儲物箱。蛋糕不會進入飼料箱，背包 Tab → R 排除項仍受保護。",
+        [20] = "將設定重新整理為一般、自動出售和特殊物品 3 個頂部分頁。分頁支援滑鼠、鍵盤和控制器操作，左右兩側均有可見的切換箭頭。「使用小型孵化器」和「聖水數量」會顯示為對應收納規則的子選項。",
     },
     ja = {
         title = "更新履歴", selectVersion = "バージョンを選択", added = "追加", changed = "変更", performance = "パフォーマンス", fixed = "修正",
@@ -105,6 +117,9 @@ local TEXT = {
         [15] = "収納済み、除外、容量不足を示すネイティブ風の進行通知と結果カードを追加し、17言語に対応しました。",
         [16] = "単体用ショートカット設定と、Pal Insight 1.8.0以降からの任意編集を追加しました。Pal Insightは必須ではありません。",
         [17] = "収納スキャンを上限付きの段階に分割し、宛先要求を直列化して1フレームの停止を軽減しました。各移動前に宛先を再検証します。",
+        [18] = "現行の医薬品3種を薬品棚へ優先収納する任意設定を追加しました。使用できる空きがない場合は通常収納へ進みます。初期設定はオフです。",
+        [19] = "食料専用ルートを追加し、初期設定でオンにしました。ケーキ5種は配合牧場、その他の食料はフードボックスを優先し、どちらも冷蔵設備、通常収納の順に進みます。ケーキはフードボックスに入らず、バッグの Tab → R 除外は保護されます。",
+        [20] = "設定を「一般」「自動売却」「特殊アイテム」の3タブに再編しました。タブはマウス、キーボード、コントローラーに対応し、両側に表示される矢印でも切り替えられます。小型孵化器の使用と聖水の数量は、対応する収納設定の子項目として表示されます。",
     },
     ko = {
         title = "버전 업데이트", selectVersion = "버전 선택", added = "추가", changed = "변경", performance = "성능", fixed = "수정",
@@ -125,6 +140,9 @@ local TEXT = {
         [15] = "보관됨, 제외됨, 용량 부족 아이템을 보여 주는 기본 스타일 진행 메시지와 결과 카드를 추가하고 17개 언어를 지원했습니다.",
         [16] = "독립 실행형 단축키 설정과 Pal Insight 1.8.0 이상에서의 선택적 단축키 편집을 추가했습니다. Pal Insight는 필수가 아닙니다.",
         [17] = "보관함 스캔을 제한된 단계로 나누고 대상 이동 요청을 직렬화해 단일 프레임 멈춤을 줄였으며, 이동 전마다 대상을 다시 확인했습니다.",
+        [18] = "현재 의약품 3종을 약품 보관함에 우선 보관하는 선택 설정을 추가했습니다. 사용할 공간이 없으면 일반 보관함으로 계속합니다. 기본값은 꺼짐입니다.",
+        [19] = "기본으로 켜진 식품 전용 경로를 추가했습니다. 케이크 5종은 배합 목장, 나머지 식품은 먹이 상자를 우선하며, 두 경로 모두 냉장 시설과 일반 보관함 순으로 계속합니다. 케이크는 먹이 상자에 들어가지 않으며, 가방 Tab → R 제외 항목은 계속 보호됩니다.",
+        [20] = "설정을 일반, 자동 판매, 특수 아이템 3개 탭으로 재구성했습니다. 탭은 마우스, 키보드, 컨트롤러를 지원하며 양쪽의 화살표 버튼으로도 전환할 수 있습니다. 소형 부화기 사용과 성수 수량은 각 보관 규칙의 하위 옵션으로 표시됩니다.",
     },
 }
 
@@ -215,6 +233,69 @@ local COMPACT_120 = {
         "Đã thêm danh sách giữ có biểu tượng cho từng nhóm. Vật phẩm được chọn sẽ không bị bán và tên hỗ trợ đủ 17 ngôn ngữ trò chơi. Bộ chọn hỗ trợ chuột, bàn phím và tay cầm.",
         "Bán tự động chạy trước khi Quick Stack cất đồ. Vật phẩm bị loại trừ qua Túi đồ Tab → R luôn được bảo vệ và giao dịch dùng chế độ hiển thị kết quả đã chọn.",
         "Đã thêm lịch sử phiên bản được bản địa hóa, mở bằng cách chọn số phiên bản trong tiêu đề Cài đặt.",
+    },
+}
+
+local COMPACT_130 = {
+    de = {
+        "Optionale Priorität für Medizinschränke bei den 3 aktuellen Heilmitteln. Ohne nutzbaren Platz folgt normales Lager. Standardmäßig deaktiviert.",
+        "Eigene Lebensmittelrouten, standardmäßig aktiviert: 5 Kuchen zuerst zur Zuchtfarm, anderes Essen zuerst zur Futterkiste; danach Kühllager und normales Lager. Kuchen kommen nie in Futterkisten; Inventar-Ausschlüsse mit Tab → R bleiben geschützt.",
+        "Einstellungen in die Tabs Allgemein, Automatischer Verkauf und Spezialgegenstände gegliedert. Navigation per Maus, Tastatur, Controller und sichtbaren Pfeilen auf beiden Seiten. Kleine Brutkästen und Weihwassermenge erscheinen als Unteroptionen der jeweiligen Route.",
+    },
+    fr = {
+        "Ajout d'une priorité facultative aux Armoires à pharmacie pour les 3 médicaments actuels. Sans place utilisable, les objets vont au stockage ordinaire. Désactivée par défaut.",
+        "Ajout de routes alimentaires activées par défaut : les 5 gâteaux vont d'abord aux Fermes d'élevage, les autres aliments aux Mangeoires, puis au stockage froid et ordinaire. Les gâteaux ne vont jamais aux Mangeoires et les exclusions Inventaire Tab → R restent protégées.",
+        "Réorganisation des paramètres en trois onglets : Général, Vente automatique et Objets spéciaux. Navigation par souris, clavier, manette et flèches visibles des deux côtés. Les petits incubateurs et la quantité d'Eau sacrée apparaissent comme sous-options de leur route.",
+    },
+    it = {
+        "Aggiunta la priorità opzionale agli Armadietti medicinali per i 3 medicinali attuali. Senza spazio utilizzabile, gli oggetti passano al deposito normale. Disattivata per impostazione predefinita.",
+        "Aggiunti percorsi per il cibo, attivi per impostazione predefinita: le 5 torte vanno prima agli Allevamenti, gli altri cibi alle Mangiatoie, poi ai depositi refrigerati e normali. Le torte non entrano mai nelle Mangiatoie e le esclusioni Inventario Tab → R restano protette.",
+        "Impostazioni riorganizzate nelle schede Generale, Vendita automatica e Oggetti speciali. Navigazione con mouse, tastiera, controller e frecce visibili su entrambi i lati. Le incubatrici piccole e la quantità di Acqua Sacra appaiono come sotto-opzioni del rispettivo percorso.",
+    },
+    es = {
+        "Se añadió prioridad opcional para Botiquines con los 3 medicamentos actuales. Si no queda espacio utilizable, los objetos pasan al almacenamiento normal. Desactivada de forma predeterminada.",
+        "Se añadieron rutas de comida activadas por defecto: los 5 pasteles van primero a Ranchos de cría y el resto a Comederos; después usan almacenamiento frío y normal. Los pasteles nunca entran en Comederos y las exclusiones Inventario Tab → R siguen protegidas.",
+        "Se reorganizaron los ajustes en las pestañas General, Venta automática y Objetos especiales. Admiten ratón, teclado, mando y flechas visibles a ambos lados. Las incubadoras pequeñas y la cantidad de Agua sagrada aparecen como subopciones de su ruta correspondiente.",
+    },
+    ["pt-br"] = {
+        "Adicionada prioridade opcional para Armários de remédios com os 3 medicamentos atuais. Sem espaço utilizável, os itens seguem para armazenamento comum. Desativada por padrão.",
+        "Adicionadas rotas de comida ativadas por padrão: os 5 bolos vão primeiro para Fazendas de reprodução e os demais alimentos para Caixas de ração; depois, armazenamento frio e comum. Bolos nunca entram em Caixas de ração e as exclusões Inventário Tab → R continuam protegidas.",
+        "Configurações reorganizadas nas abas Geral, Venda automática e Itens especiais. Navegação por mouse, teclado, controle e setas visíveis nos dois lados. Incubadoras pequenas e a quantidade de Água Sagrada aparecem como subopções da rota correspondente.",
+    },
+    ru = {
+        "Добавлен необязательный приоритет аптечных шкафов для 3 текущих лекарств. Если места нет, предметы отправляются в обычное хранилище. По умолчанию отключено.",
+        "Добавлены включённые по умолчанию маршруты еды: 5 тортов сначала отправляются на фермы разведения, остальная еда — в кормушки, затем в холодильники и обычные хранилища. Торты никогда не попадают в кормушки, а исключения Инвентаря Tab → R сохраняются.",
+        "Настройки разделены на вкладки «Общие», «Автопродажа» и «Особые предметы». Доступны мышь, клавиатура, контроллер и видимые стрелки с обеих сторон. Малые инкубаторы и количество Святой воды показаны как подпункты соответствующих маршрутов.",
+    },
+    tr = {
+        "Mevcut 3 ilaç için isteğe bağlı İlaç Dolabı önceliği eklendi. Kullanılabilir yer yoksa eşyalar normal depoya gider. Varsayılan olarak kapalıdır.",
+        "Varsayılan olarak açık yiyecek rotaları eklendi: 5 pasta önce Çiftleştirme Çiftliklerine, diğer yiyecekler Yem Kutularına; sonra soğuk ve normal depoya gider. Pastalar asla Yem Kutularına girmez ve Envanter Tab → R hariç tutmaları korunur.",
+        "Ayarlar Genel, Otomatik Satış ve Özel Eşyalar sekmeleri olarak düzenlendi. Fare, klavye, kontrolcü ve iki yandaki görünür oklar desteklenir. Küçük kuluçka kullanımı ve Kutsal Su miktarı ilgili rotanın alt seçeneği olarak gösterilir.",
+    },
+    pl = {
+        "Dodano opcjonalny priorytet Szafek medycznych dla 3 obecnych leków. Gdy brak miejsca, przedmioty trafiają do zwykłego magazynu. Domyślnie wyłączone.",
+        "Dodano domyślnie włączone trasy żywności: 5 ciast najpierw trafia do Ferm hodowlanych, pozostała żywność do Karmników, a potem do chłodni i zwykłych magazynów. Ciasta nigdy nie trafiają do Karmników, a wykluczenia Ekwipunku Tab → R pozostają chronione.",
+        "Ustawienia podzielono na karty Ogólne, Automatyczna sprzedaż i Przedmioty specjalne. Obsługiwane są mysz, klawiatura, kontroler i widoczne strzałki po obu stronach. Małe inkubatory i ilość Wody Świętej są podopcjami odpowiednich tras.",
+    },
+    id = {
+        "Menambahkan prioritas opsional Lemari Obat untuk 3 obat saat ini. Jika tidak ada ruang yang dapat digunakan, item diteruskan ke penyimpanan biasa. Mati secara default.",
+        "Menambahkan rute makanan yang aktif secara default: 5 kue mendahulukan Peternakan Pembiakan, makanan lain mendahulukan Kotak Pakan, lalu penyimpanan dingin dan biasa. Kue tidak pernah masuk Kotak Pakan dan pengecualian Inventaris Tab → R tetap dilindungi.",
+        "Pengaturan disusun menjadi tab Umum, Jual Otomatis, dan Item Khusus. Mendukung navigasi mouse, keyboard, kontroler, serta panah yang terlihat di kedua sisi. Inkubator kecil dan jumlah Air Suci ditampilkan sebagai subopsi rute terkait.",
+    },
+    ["es-419"] = {
+        "Se agregó prioridad opcional para Botiquines con los 3 medicamentos actuales. Si no queda espacio utilizable, los objetos pasan al almacenamiento normal. Desactivada de forma predeterminada.",
+        "Se agregaron rutas de comida activadas por defecto: los 5 pasteles van primero a Ranchos de cría y el resto a Comederos; después usan almacenamiento frío y normal. Los pasteles nunca entran en Comederos y las exclusiones Inventario Tab → R siguen protegidas.",
+        "Se reorganizaron los ajustes en las pestañas General, Venta automática y Objetos especiales. Admiten mouse, teclado, control y flechas visibles a ambos lados. Las incubadoras pequeñas y la cantidad de Agua sagrada aparecen como subopciones de su ruta correspondiente.",
+    },
+    th = {
+        "เพิ่มตัวเลือกให้ตู้ยาเป็นปลายทางแรกสำหรับยาปัจจุบัน 3 ชนิด หากไม่มีที่ว่างจะส่งต่อไปคลังทั่วไป โดยปิดเป็นค่าเริ่มต้น",
+        "เพิ่มเส้นทางอาหารที่เปิดเป็นค่าเริ่มต้น: เค้ก 5 ชนิดไปฟาร์มผสมพันธุ์ก่อน อาหารอื่นไปกล่องอาหารก่อน จากนั้นจึงใช้คลังเย็นและคลังทั่วไป เค้กจะไม่เข้ากล่องอาหาร และของที่ยกเว้นผ่านช่องเก็บของ Tab → R ยังได้รับการปกป้อง",
+        "จัดการตั้งค่าเป็นแท็บทั่วไป ขายอัตโนมัติ และไอเท็มพิเศษ รองรับเมาส์ คีย์บอร์ด จอย และลูกศรที่มองเห็นได้ทั้งสองด้าน การใช้ตู้ฟักเล็กและจำนวนน้ำศักดิ์สิทธิ์จะแสดงเป็นตัวเลือกย่อยของเส้นทางที่เกี่ยวข้อง",
+    },
+    vi = {
+        "Thêm tùy chọn ưu tiên Tủ thuốc cho 3 loại thuốc hiện tại. Khi không còn chỗ dùng được, vật phẩm chuyển sang kho thường. Mặc định tắt.",
+        "Thêm tuyến thức ăn mặc định bật: 5 loại bánh ưu tiên Trại phối giống, thức ăn khác ưu tiên Hòm thức ăn, sau đó đến kho lạnh và kho thường. Bánh không bao giờ vào Hòm thức ăn và loại trừ Túi đồ Tab → R vẫn được bảo vệ.",
+        "Sắp xếp lại cài đặt thành các thẻ Chung, Bán tự động và Vật phẩm đặc biệt. Hỗ trợ chuột, bàn phím, tay cầm và mũi tên hiển thị hai bên. Máy ấp nhỏ và số lượng Nước Thánh được hiển thị như tùy chọn con của tuyến tương ứng.",
     },
 }
 
@@ -342,6 +423,9 @@ for locale, copy in pairs(COMPACT) do
     local row = UI[locale]
     for index, value in pairs(copy) do row[index] = value end
     for index, value in ipairs(COMPACT_120[locale]) do row[index] = value end
+    for index, value in ipairs(COMPACT_130[locale]) do
+        row[index + 17] = value
+    end
     row[12] = COMPACT_110_FIXED[locale]
     for index, value in ipairs(COMPACT_BETA[locale]) do
         row[index + 12] = value
