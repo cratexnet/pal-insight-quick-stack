@@ -49,6 +49,7 @@ local COLORS = {
     actionInfo = { R = 0.209, G = 0.533, B = 0.665, A = 1.0 },
     actionWarning = { R = 0.807, G = 0.451, B = 0.102, A = 1.0 },
     actionDanger = { R = 0.800, G = 0.390, B = 0.380, A = 1.0 },
+    currentVersion = { R = 0.353, G = 0.773, B = 0.412, A = 1.0 },
     stateCapture = { R = 0.209, G = 0.533, B = 0.665, A = 1.0 },
     checkboxHover = { R = 0.930, G = 0.947, B = 0.956, A = 1.0 },
     text = { R = 0.930, G = 0.947, B = 0.956, A = 1.0 },
@@ -183,7 +184,7 @@ local ABOUT_URLS = {
 -- ordered by each person's first useful public Quick Stack feedback.
 local ABOUT_CREDITS = {
     thanks = {
-        nexus = {},
+        nexus = { "moogiemode", "Krounj" },
         steam = {
             { name = "lainverse", utf8Prefix = { 0xF0, 0x9F, 0xA6, 0x84 } },
         },
@@ -5223,12 +5224,11 @@ Deferred.buildReleaseNotesModal = function(tree, root, strings,
     for index, entry in ipairs(SettingsUI.releaseNotes.versions or {}) do
         local rowBox = construct(tree, "/Script/UMG.SizeBox")
         local button = construct(tree, "/Script/UMG.Button")
+        local buttonContent = construct(tree, "/Script/UMG.HorizontalBox")
         local labelValue = "v" .. tostring(entry.version or "")
-        if tostring(entry.version or "") == tostring(state.version) then
-            labelValue = labelValue .. "   " .. strings.current
-        end
         local label = makeText(tree, labelValue, 14, COLORS.text)
-        if rowBox == nil or button == nil or label == nil then return false end
+        if rowBox == nil or button == nil or buttonContent == nil
+            or label == nil then return false end
         rowBox:SetHeightOverride(SIZE.releaseNotesPickerRowHeight)
         button.bIsFocusable = true
         button:SetToolTipText(FText(strings.selectVersion))
@@ -5236,7 +5236,16 @@ Deferred.buildReleaseNotesModal = function(tree, root, strings,
         buttonStyle.NormalPadding = { Left = 12, Top = 0, Right = 12, Bottom = 0 }
         buttonStyle.PressedPadding = buttonStyle.NormalPadding
         button.WidgetStyle = buttonStyle
-        align(button:AddChild(label), ALIGN_LEFT, ALIGN_CENTER)
+        align(buttonContent:AddChild(label), ALIGN_LEFT, ALIGN_CENTER)
+        if tostring(entry.version or "") == tostring(state.version) then
+            local starGap = construct(tree, "/Script/UMG.SizeBox")
+            local star = makeText(tree, "★", 14, COLORS.currentVersion)
+            if starGap == nil or star == nil then return false end
+            starGap:SetWidthOverride(8.0)
+            align(buttonContent:AddChild(starGap), ALIGN_LEFT, ALIGN_CENTER)
+            align(buttonContent:AddChild(star), ALIGN_LEFT, ALIGN_CENTER)
+        end
+        align(button:AddChild(buttonContent), ALIGN_LEFT, ALIGN_CENTER)
         align(rowBox:AddChild(button), ALIGN_FILL, ALIGN_FILL)
         local rowSlot = indexList:AddChild(rowBox)
         setPadding(rowSlot, 0, index == 1 and 0 or 4, 0, 0)

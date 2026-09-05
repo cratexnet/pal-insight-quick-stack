@@ -595,11 +595,16 @@ reported as an external conflict.
   is complete in all 17 supported locales; external destinations open outside
   the game, while the modal keeps input ownership and remains open.
 - Version Updates opens a Quick Stack-owned, lazily built modal. Its left pane
-  lists Quick Stack versions newest first and marks the running version; its
+  lists Quick Stack versions newest first and marks the running version with a
+  green five-point star, without a textual Current label; its
   right pane shows the selected version under localized Added, Changed,
   Performance, and Fixed headings. Release data is static and localized in all
-  17 supported interface languages; the runtime does not parse `CHANGELOG.md`
-  or perform network access. A release timestamp is shown only when it is the
+  17 supported interface languages. The 1.2.0 entries reproduce the finalized
+  `CHANGELOG.md` release bullets without a second editorial rewrite, while
+  historical entries are checked against their official release records,
+  including the public `0.1.0` release. The
+  runtime does not parse `CHANGELOG.md` or perform network access. A release
+  timestamp is shown only when it is the
   earliest verified public timestamp across official distribution channels;
   repository commit time is not a release time, and an unverified timestamp is
   left blank. Mouse, keyboard, and controller share the existing modal input

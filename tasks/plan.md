@@ -280,6 +280,12 @@ Runtime contract proof
 - [x] Add the Version Updates Header action immediately before About.
 - [x] Show static, newest-first Quick Stack release history with a running-
   version marker and no unverified public timestamp.
+- [x] Mark the running version only with a green five-point star; do not append
+  a localized Current label.
+- [x] Reproduce the finalized 1.2.0 changelog bullets in the panel and audit
+  older summaries against their official release records.
+- [x] Include the public 0.1.0 Beta in history; retain the default-off details
+  from 1.1.0 and the Holy Water and package details from 1.0.0.
 - [x] Localize the modal chrome, category headings, and release copy for all 17
   supported interface languages.
 - [x] Preserve mouse, keyboard, controller, held-navigation, modal close, and

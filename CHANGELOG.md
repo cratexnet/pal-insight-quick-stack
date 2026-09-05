@@ -70,7 +70,7 @@ rules, a full settings panel, clearer results, and smoother storage runs.
   controller.
 - Press `F6` to open Quick Stack settings. With a compatible Pal Insight
   version, the same panel opens inside Pal Insight. All 17 Palworld interface
-  languages are supported, and `0.1.0-beta.1` settings migrate automatically.
+  languages are supported, and `0.1.0` settings migrate automatically.
 
 ### Performance
 
@@ -87,7 +87,7 @@ rules, a full settings panel, clearer results, and smoother storage runs.
 The core single-player storage flow has been tested. Multiplayer and
 dedicated-server clients remain unverified.
 
-## 0.1.0-beta.1 - 2026-08-30
+## 0.1.0 - 2026-08-30
 
 ### Initial beta
 

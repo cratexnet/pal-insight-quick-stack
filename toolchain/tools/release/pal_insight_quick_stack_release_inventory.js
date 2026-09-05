@@ -308,7 +308,7 @@ function assertQuickStackSettings(root) {
     /function SettingsUI\.open\(mode,[\s\S]*buildSettingsWindow/,
     'standalone and hosted entry points must use one settings surface');
   assert.match(releaseNotes,
-    /version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"/,
+    /version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"[\s\S]*version\s*=\s*"0\.1\.0"/,
     'version updates must list Quick Stack releases newest first');
   assert.match(releaseNotes,
     /version\s*=\s*"1\.2\.0"\s*,\s*dateUtc\s*=\s*""/,
@@ -319,14 +319,14 @@ function assertQuickStackSettings(root) {
     releaseNotes.indexOf('ReleaseNotes.versions = {'),
     releaseNotes.indexOf('\nlocal TEXT = {'));
   const versionBlocks = versionData.split(/\{ version\s*=/).slice(1);
-  assert.equal(versionBlocks.length, 3,
-    'version updates must contain every stable Quick Stack release');
+  assert.equal(versionBlocks.length, 4,
+    'version updates must contain every public Quick Stack release');
   for (const block of versionBlocks) {
     const itemCount = [...block.matchAll(/items\s*=\s*\{([^}]*)\}/g)]
       .reduce((count, match) => count
         + (match[1].match(/\d+/g) || []).length, 0);
-    assert.ok(itemCount >= 1 && itemCount <= 4,
-      `each release must contain 1-4 user-visible summaries; found ${itemCount}`);
+    assert.ok(itemCount >= 1 && itemCount <= 5,
+      `each release must contain 1-5 user-visible summaries; found ${itemCount}`);
     const timestamp = block.match(/dateUtc\s*=\s*"([^"]*)"/)?.[1] || '';
     assert.match(timestamp, /^(?:|\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/,
       'verified release timestamps must use YYYY-MM-DD HH:mm:ss UTC');
