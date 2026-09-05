@@ -330,10 +330,10 @@ function assertQuickStackSettings(root) {
     /function SettingsUI\.open\(mode,[\s\S]*buildSettingsWindow/,
     'standalone and hosted entry points must use one settings surface');
   assert.match(releaseNotes,
-    /version\s*=\s*"1\.3\.0"[\s\S]*version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"[\s\S]*version\s*=\s*"0\.1\.0"/,
+    /version\s*=\s*"1\.3\.1"[\s\S]*version\s*=\s*"1\.3\.0"[\s\S]*version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"[\s\S]*version\s*=\s*"0\.1\.0"/,
     'version updates must list Quick Stack releases newest first');
   assert.match(releaseNotes,
-    /version\s*=\s*"1\.3\.0"\s*,\s*dateUtc\s*=\s*"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/,
+    /version\s*=\s*"1\.3\.1"\s*,\s*dateUtc\s*=\s*"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/,
     'the running Quick Stack version must record its UTC version-upgrade timestamp');
   assert.doesNotMatch(releaseNotes, /version\s*=\s*"Unreleased"/,
     'Unreleased changes must not appear in player-facing version updates');
@@ -341,7 +341,7 @@ function assertQuickStackSettings(root) {
     releaseNotes.indexOf('ReleaseNotes.versions = {'),
     releaseNotes.indexOf('\nlocal TEXT = {'));
   const versionBlocks = versionData.split(/\{ version\s*=/).slice(1);
-  assert.equal(versionBlocks.length, 5,
+  assert.equal(versionBlocks.length, 6,
     'version updates must contain the running version and every public Quick Stack release');
   for (const block of versionBlocks) {
     const itemCount = [...block.matchAll(/items\s*=\s*\{([^}]*)\}/g)]

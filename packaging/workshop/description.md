@@ -1,104 +1,144 @@
-[h1]Pal Insight: Quick Stack | 一键归箱[/h1]
+[h1]Pal Insight: Quick Stack - Move Backpack Items to Storage with One Key[/h1]
 
-[b]One key, one clean backpack.[/b]
+[b]Come home, press one key, and get back to the adventure.[/b]
 
-Press [b]F5[/b] while standing inside your current base. Quick Stack moves matching items from your normal inventory into compatible storage in that base.
+Press [b]F5[/b] inside your current base. Quick Stack can sell selected items, then move eligible normal-backpack items into suitable storage in that base.
 
-在当前基地内按 [b]F5[/b]，即可把普通背包中符合条件的物品收纳到该基地兼容的储存容器。
+[img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]What it does | 功能[/h2]
-
-[list]
-[*]Uses only storage objects from the base you are currently inside.
-[*]Respects Quick Move exclusions added through Inventory [b]Tab > R[/b] by default, with optional storage rules.
-[*]Can optionally use an accessible Guild Chest in the current guild base. This setting is off by default.
-[*]Can optionally use empty small incubators after large incubators are full. Skips incubators with an egg or an unclaimed Pal. This setting is off by default.
-[*]Prefers incubators for eligible Pal Eggs, then existing matching stacks, then compatible private storage whose filters accept the item.
-[*]Shows a native-style result card for stored, excluded, and not-stored items.
-[*]Follows all 17 interface languages currently included with Palworld.
-[*]Splits work into bounded slices and serializes destination requests to keep frame-time work bounded.
-[/list]
+[h2]What's New in 1.3.0[/h2]
 
 [list]
-[*]仅使用角色当前所在基地的储存设施。
-[*]默认遵循背包 [b]Tab > R[/b] 添加的快速移动排除项，并提供可选收纳规则。
-[*]可选择使用当前公会基地中有权限访问的公会箱；此设置默认关闭。
-[*]可选择在大型孵化器已满后使用空的小型孵化器；跳过已有蛋或有待领取帕鲁的孵化器，此设置默认关闭。
-[*]符合条件的帕鲁蛋优先进入孵化器；其他物品依次优先匹配已有堆叠和允许该物品的私人储存容器。
-[*]用原生风格结果卡区分已收纳、用户排除和因空间或仓库设置限制而未能收纳的物品。
-[*]自动跟随 Palworld 当前界面语言，覆盖游戏现有的全部 17 种界面语言。
-[*]分帧处理并串行提交储存请求，避免持续掉帧。
+[*][b]Medicine Rack priority:[/b] Optionally route the 3 current medical supplies to Medicine Racks first. If no usable rack is available or all racks are full, they continue to ordinary storage. This option is off by default.
+[*][b]Dedicated food routing:[/b] The 5 cakes use Breeding Farms first, while other food uses Pal Food Boxes first. Both routes then continue through cold storage and ordinary storage. Cakes never enter Pal Food Boxes. This option is on by default.
+[*][b]Tabbed settings:[/b] Settings are organized into General, Automatic Sale, and Special Items tabs, with mouse, keyboard, controller, and visible arrow navigation. Small-Incubator usage and Holy Water quantity appear as child options of their routing settings.
 [/list]
 
-[h2]Requirements | 依赖[/h2]
+Version 1.2.0 added automatic selling, keep lists, sale-before-storage ordering, and release history. Version 1.1.0 added optional Guild Chest and small-Incubator support.
+
+[h2]All Features[/h2]
+
+[b]Automatic selling[/b]
 
 [list]
-[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587][b]UE4SS Experimental (Palworld)[/b][/url] — required and declared as this item's Workshop dependency.
-[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight[/url] is optional.
+[*]Enable valuables, ammunition, Pal Spheres, and fishing bait separately
+[*]Use icon-assisted keep lists with mouse, keyboard, or controller
+[*]Keep all [b]Tab > R[/b] excluded items safe from selling
 [/list]
+
+Review keep lists before enabling selling. High-value items initially allow all 9 items; other categories initially keep everything.
+
+[b]Quick storage[/b]
 
 [list]
-[*]本条目已声明 [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587][b]UE4SS Experimental (Palworld)[/b][/url] 为必需依赖。
-[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight[/url] 是可选模组，不安装也可以正常使用 Quick Stack。
+[*]Processes only the normal backpack and current base
+[*]Leaves equipment, food slots, Key Items, and unsupported areas untouched
+[*]Respects [b]Tab > R[/b] exclusions by default
+[*]Can include excluded items without changing Palworld's exclusion list
+[*]Can allow new item types in compatible ordinary-storage slots
+[*]Can use an accessible current-base Guild Chest when enabled
+[*]Always checks capacity, permissions, and item filters
 [/list]
 
-Quick Stack 1.2.0 has been tested in single-player. A community tester also confirmed that it worked without issue on a dedicated server with the mod installed client-side only. The tester's game build and distribution platform were not recorded; co-op behavior has not yet been verified.
+[b]Dedicated storage routing[/b]
 
-Quick Stack 1.2.0 已完成单人测试。一名社区玩家另行确认：在专用服务器上仅客户端安装本模组即可正常使用。该玩家使用的游戏构建及发行平台未记录；co-op 行为尚未完成实机验证。
+[list]
+[*]Optionally send the 3 medical supplies to Medicine Racks first, then ordinary storage
+[*]Send the 5 cakes to Breeding Farms first, then cold storage and ordinary storage
+[*]Send other food to Pal Food Boxes first, then cold and ordinary storage; cakes never enter Pal Food Boxes
+[*]Send Pal Eggs to Incubators only, Incubators then ordinary storage, or keep them for manual placement
+[*]Optionally use small Incubators after large ones are full; Incubators with an egg or unclaimed Pal are skipped
+[*]Send Ancient Civilization Relics to Recyclers only, Recyclers then ordinary storage, or keep them for manual placement
+[*]Keep 1–100 World Tree Holy Water in each Recycler; default 10
+[/list]
 
-[b]Do not combine Steam Workshop, Nexus, and CurseForge copies.[/b]
+Medicine Rack priority is off by default; food routing is on. [b]Tab > R[/b] exclusions stay protected, so use them for food or dishes you want to keep.
 
-[b]请勿同时安装 Steam Workshop、Nexus 和 CurseForge 版本。[/b]
+[b]Results[/b]
 
-[h2]Shortcut settings | 快捷键设置[/h2]
+[list]
+[*]Choose Automatic, Text Only, or Result Window
+[*]Review sold, stored, excluded, and unstored items
+[*]Use native icons and localized names in detailed results
+[*]Fall back to text when the detailed window is unavailable
+[/list]
 
-The default shortcut is [b]F5[/b]. / 默认快捷键为 [b]F5[/b]。
+Items count as sold or stored only after the backpack confirms the quantity decrease.
 
-Press [b]F6[/b] to open Quick Stack's own settings panel. Change the shortcut,
-notification style, storage rules, special-item routing, and World Tree Holy
-Water minimum without editing files.
+[h2]Settings and Pal Insight[/h2]
 
-按 [b]F6[/b] 打开 Quick Stack 自己的设置面板，无需手动修改文件即可调整快捷键、提示方式、收纳规则、特殊物品路由及每台转换器保留的世界树圣水数量。
+[list]
+[*][b]F5[/b] — run selling and storage
+[*][b]F6[/b] — open Quick Stack Settings when running standalone
+[/list]
 
-[b]With [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight 2.0.0 or later[/url] | 与 [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight 2.0.0 或更高版本[/url] 配合[/b]
+Settings are organized into [b]General[/b], [b]Automatic Sale[/b], and [b]Special Items[/b] tabs. Use the mouse, keyboard, controller, or the visible arrows on both sides to change tabs. Small-Incubator usage and World Tree Holy Water quantity are shown as child options of their corresponding routing settings.
+
+Configure shortcuts, results, selling, keep lists, and every storage route in game.
+
+Settings survive Workshop updates and import existing 0.1.x settings.
+
+With [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 or newer[/b][/url], open the same settings from:
 
 [b]F6 > Extensions > Pal Insight: Quick Stack[/b]
 
-The same Quick Stack panel opens from Pal Insight's Extensions page. Quick
-Stack remains fully functional without Pal Insight; if Pal Insight is installed
-but disabled, [b]F6[/b] opens the standalone panel.
+Quick Stack still owns selling, movement, and settings. If Pal Insight is disabled, its standalone F6 panel remains available.
 
-可从 Pal Insight 的“扩展”页面打开同一套 Quick Stack 设置。未安装 Pal Insight 时 Quick Stack 仍可独立使用；即使已经安装但没有启用 Pal Insight，[b]F6[/b] 也会打开独立设置面板。
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
 
-Settings are stored in [code]%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua[/code], so Workshop updates do not overwrite them. Existing [code]PalInsightQuickStack-config.lua[/code] settings from 0.1.x are imported automatically and the old file is left unchanged.
-
-设置保存在 [code]%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua[/code]，创意工坊更新不会覆盖。升级时会自动导入 0.1.x 的 [code]PalInsightQuickStack-config.lua[/code]，旧文件保持不变。
-
-[b]Storage routing | 收纳路由[/b]
+[h2]Language, Safety, and Performance[/h2]
 
 [list]
-[*]Inventory [b]Tab > R[/b] ignored items unless [code]IncludeExcludedItems[/code] is enabled / [b]Tab > R[/b] 忽略项（除非启用包含已忽略物品）
-[*][code]PalEggRouting[/code] can keep Pal Eggs in inventory, fall back from incubators to storage, or leave every egg for manual placement / [code]PalEggRouting[/code] 可让帕鲁蛋留在背包、从孵蛋器回退普通仓库，或全部交由玩家手动放置
-[*][code]RelicRouting[/code] can keep relics in inventory, fall back from Recyclers to storage, or leave every relic for manual placement / [code]RelicRouting[/code] 可让古代文明遗物留在背包、从转换器回退普通仓库，或全部交由玩家手动放置
-[*]Each recycler is topped up to [code]WorldTreeHolyWaterMinimum[/code] World Tree Holy Water (default 10, range 1-100); the remainder follows ordinary-storage rules / 每台转换器的世界树圣水补到 [code]WorldTreeHolyWaterMinimum[/code]（默认 10，范围 1-100），剩余圣水按普通仓库规则收纳
-[*][code]IncludeNewItems = false[/code] only restricts ordinary storage / 关闭 [code]IncludeNewItems[/code] 只限制普通仓库，不影响空孵蛋器或转换器槽位
-[*][code]IncludeGuildChest = true[/code] allows an accessible Guild Chest in the current guild base and is off by default / 开启 [code]IncludeGuildChest[/code] 后可使用当前公会基地中有权限访问的公会箱；默认关闭
+[*]Supports all 17 current Palworld interface languages
+[*]Uses Palworld's native item icons and localized names
+[*]Searches only the current base
+[*]Splits work into bounded game-thread slices
+[*]Sends destination requests one at a time
+[*]Rechecks the player, base, source item, destination, filters, permissions, and capacity
+[*]Stops when required state changes or cannot be verified
+[*]Runs entirely on the client
 [/list]
 
-[code]IncludeExcludedItems[/code] only affects Quick Stack and never changes Palworld's ignored-item list. / [code]IncludeExcludedItems[/code] 只影响本次收纳，不会修改游戏中的忽略列表。
+Avoid other inventory actions while the in-progress message is visible.
 
-[h2]Safety and behavior | 安全与行为[/h2]
+[h2]Installation[/h2]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587][b]Required: UE4SS Experimental (Palworld)[/b][/url]
+
+[olist]
+[*]Subscribe to UE4SS Experimental and Pal Insight: Quick Stack.
+[*]Enable both in [b]Palworld > Options > Mod Management[/b].
+[*]Save, allow Palworld to restart, enter a base, and press F5.
+[/olist]
+
+[b]Use one Quick Stack installation channel only.[/b] Do not combine Workshop, Nexus, CurseForge, or Game Pass copies.
+
+[h2]Compatibility[/h2]
 
 [list]
-[*]Only the normal player inventory and the current base are considered.
-[*]Capacity, filters, permissions, exclusions, and destination identity are rechecked before each request.
-[*]Quick Stack stops instead of guessing when required state cannot be verified.
-[*]Avoid other inventory operations while the progress message is visible.
+[*]Steam single-player: Tested
+[*]Pal Insight 2.0.0 integration: Supported
+[*]Dedicated server: One tester reported successful client-side-only use; build and platform were not recorded
+[*]Co-op: Not verified
+[*]Game Pass/WinGDK: Package verified statically; in-game acceptance not verified
 [/list]
 
-[list]
-[*]仅处理普通玩家背包与当前基地。
-[*]每次请求前都会重新检查容量、筛选设置、权限、排除项和目标身份。
-[*]无法确认必要状态时会停止，不会猜测或强行移动。
-[*]进度提示显示期间，请勿执行其他背包操作。
-[/list]
+[h2]Troubleshooting and Support[/h2]
+
+[b]F5 does nothing:[/b] Confirm that you are inside a base, UE4SS and Quick Stack are enabled, the shortcut is correct, and only one Quick Stack copy is installed.
+
+[b]Items were not sold or stored:[/b] Check the sale toggle, keep list, [b]Tab > R[/b], Medicine Rack, food, Egg, Relic, and ordinary-storage routing, filters, permissions, and capacity.
+
+Bug reports should include platform, versions, settings, reproduction steps, expected and actual results, the complete UE4SS log, and crash files.
+
+[h2]Palworld Breeding Calculator[/h2]
+
+Use the [url=https://cratex.app/games/palworld/breeding][b]CrateX.app Palworld Breeding Calculator[/b][/url] to import a save, compare routes using Pals you already own, or search general breeding combinations. Save processing runs locally in your browser and remains on your device.
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787096480-407403883.jpg[/img][/url]
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787598334-1162571780.png[/img][/url]
+
+[url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]Complete Changelog[/b][/url]
+
+For credits, open [b]F6 > About > Special Thanks[/b] in game.

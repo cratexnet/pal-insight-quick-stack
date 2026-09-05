@@ -74,6 +74,11 @@ Runtime contract proof
   shared-settings bridge.
 - [x] Add a generation-scoped sale phase that revalidates source slots, respects
   `Tab` -> `R` exclusions, and never submits more than one sell request per frame.
+- [x] Prefer an existing entry in the server's registered item-shop map, verify
+  the same entry again before RPC submission, and keep the current-base merchant
+  discovery route only as a bounded fallback.
+- [x] Skip one unreadable loaded NPC without aborting the remaining worker,
+  loaded-human, and current-base character-container merchant candidates.
 - [x] Run the narrow Lua/static checks and record any runtime behavior that static
   evidence cannot verify.
 
@@ -86,6 +91,8 @@ Runtime contract proof
 - [x] Add ammunition to the existing exclusion-aware pre-storage sale batch.
 - [x] Reorganize settings into runtime order, add the icon-assisted keep picker,
   and explain the automatic result-display behavior beneath its row.
+- [x] Detect the active Inventory/Equipment page independently of cursor state,
+  with one bounded lifecycle-cache backfill at F5 and all other Tab pages blocked.
 - [x] Run the narrow Lua/static checks and record remaining runtime-only risk.
 
 ## Phase 2C: Optional Pal Sphere and Fishing Bait Sale
@@ -347,6 +354,42 @@ Runtime contract proof
 - [x] Replan unchanged sources from a pre-submission dedicated-storage failure
   once, excluding every processed destination. Never retry after RPC invocation
   starts, including wrapper errors whose server outcome may already be pending.
+
+## Automatic-sale merchant discovery correction (2026-09-06)
+
+- [x] Treat both `Food` and `Meal` metadata categories as food-facility items.
+- [x] Discover every current-base assigned worker from the Worker Director's
+  persistent character container without depending on physical work position.
+- [x] Discover loaded non-worker human merchants through the current world's
+  persistent `PalObjectCollector.PalCharacter_NPC` property and require their
+  physical location to resolve inside the current base.
+- [x] Remove cross-frame retention of `GetHumanNPCs`, `GetCharacterHandleSlots`,
+  and `TryGetItemShop` out-parameter values from the sale route.
+- [x] Report skipped automatic-sale candidates in the result while continuing
+  normal storage routing.
+- [x] Replace the disproved Viewing Cage collector assumption with current-base
+  map-object character-container discovery, including ordinary and replicated
+  phantom actors, without enumerating building types or using `FindAllOf`.
+- [x] Revalidate a map-object merchant against its model, concrete model,
+  character container, slot handle, and actor before submitting the sale.
+- [x] Preserve skipped-sale item snapshots and list all affected item names and
+  quantities in a dedicated detailed-result section; keep compact feedback
+  count-only.
+- [x] Separate compact result titles from content, classify final outcomes as
+  completed, partial, attention, or failed, and keep each sale/storage outcome
+  on its own line.
+- [x] Reuse the same semantic title classifier in detailed results and localize
+  the processing plus four final title states for all 17 interface locales.
+- [x] Add a default-on independent setting at the start of Automatic Sale that
+  keeps sale candidates in the backpack when no usable merchant is found; when
+  disabled, preserve the existing normal-storage fallback and report the
+  selected outcome in all 17 interface locales.
+- [x] Add one prominent, non-focusable line above that setting explaining that
+  automatic selling reads the party's localized Noble/Fine Furs passives and
+  applies them to sale prices.
+- [x] Defer input-hook Escape/controller-Back close work until the active
+  callback has returned, so hiding the hosted panel cannot invalidate UE4SS's
+  reflected parameters or return value.
 
 ## Risks and Mitigations
 

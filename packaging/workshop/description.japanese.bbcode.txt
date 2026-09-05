@@ -1,0 +1,128 @@
+[h1]Pal Insight: Quick Stack - バックパックのアイテムをワンキー収納[/h1]
+
+[b]拠点に戻り、キーを1つ押して、冒険へ戻ろう。[/b]
+
+現在の拠点内で [b]F5[/b] を押すと、設定したアイテムを売却した後、通常バッグ内の対象アイテムをその拠点の適切な収納先へ移します。
+
+[img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
+
+[h2]1.3.0の新機能[/h2]
+
+[list]
+[*][b]薬品棚を優先：[/b]現行の医薬品3種を薬品棚へ優先収納できます。使用可能な薬品棚がない場合や満杯の場合は、通常収納へ進みます。初期設定はオフです。
+[*][b]食料専用ルート：[/b]ケーキ5種は配合牧場、その他の食料はエサ箱を優先し、その後は冷蔵設備、通常収納の順に進みます。ケーキはエサ箱に入りません。初期設定はオンです。
+[*][b]タブ式設定：[/b]設定を「一般」「自動売却」「特殊アイテム」の3タブに再編しました。マウス、キーボード、コントローラー、両側の矢印に対応し、小型孵化器と聖水の数量は対応するルートの子項目として表示されます。
+[/list]
+
+[h2]全機能[/h2]
+
+[b]自動売却[/b]
+
+[list]
+[*]高価買取品、弾薬、パルスフィア、釣り餌を個別に有効化
+[*]アイコン付き保持リストをマウス、キーボード、コントローラーで操作
+[*]バッグの [b]Tab > R[/b] 除外品は常に売却から保護
+[/list]
+
+[b]クイック収納[/b]
+
+[list]
+[*]通常バッグと現在の拠点のみを処理
+[*]装備、食料スロット、重要アイテム、非対応領域には触れない
+[*]初期設定で [b]Tab > R[/b] 除外を尊重
+[*]Palworldの除外リストを変更せず、除外品の収納を任意で許可
+[*]通常収納の互換空きスロットへ新しいアイテム種を任意で収納
+[*]現在のギルド拠点で利用可能なギルドチェストを任意で使用
+[*]容量、権限、アイテムフィルターを常に確認
+[/list]
+
+[b]専用収納ルート[/b]
+
+[list]
+[*]医薬品3種を薬品棚、通常収納の順に収納可能
+[*]ケーキ5種を配合牧場、冷蔵設備、通常収納の順に収納
+[*]その他の食料をエサ箱、冷蔵設備、通常収納の順に収納。ケーキはエサ箱に入れない
+[*]パルの卵を孵化器のみ、孵化器から通常収納、または手動配置のためバッグに保持
+[*]大型孵化器が満杯の後に小型孵化器を任意で使用。卵や未回収パルのいる孵化器は除外
+[*]古代文明の遺物を遺物変換器のみ、変換器から通常収納、または手動配置のため保持
+[*]各変換器に世界樹の聖水を1～100個保持。初期値は10
+[/list]
+
+[b]結果[/b]
+
+[list]
+[*]自動、テキストのみ、結果ウィンドウから選択
+[*]売却済み、収納済み、除外、未収納のアイテムを確認
+[*]詳細結果にネイティブアイコンとローカライズ名を使用
+[*]詳細ウィンドウを開けない場合はテキストへフォールバック
+[/list]
+
+[h2]設定とPal Insight[/h2]
+
+[list]
+[*][b]F5[/b] — 売却と収納を実行
+[*][b]F6[/b] — 単体動作時にQuick Stack設定を開く
+[/list]
+
+設定はMODフォルダー外に保存され、Workshop更新後も維持されます。既存の0.1.x設定も自動で取り込みます。
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0以降[/b][/url]が有効な場合、同じ設定を次から開けます：
+
+[b]F6 > 拡張機能 > Pal Insight: Quick Stack[/b]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
+
+[h2]言語、安全性、パフォーマンス[/h2]
+
+[list]
+[*]Palworldの現行インターフェイス17言語に対応
+[*]Palworldのネイティブアイコンとローカライズ名を使用
+[*]現在の拠点のみを検索
+[*]処理を上限付きのゲームスレッド作業へ分割
+[*]宛先要求を1件ずつ送信
+[*]プレイヤー、拠点、移動元、宛先、フィルター、権限、容量を再確認
+[*]必要な状態が変化した場合や確認できない場合は停止
+[*]クライアントだけで動作
+[/list]
+
+[h2]インストール[/h2]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587][b]必須：UE4SS Experimental (Palworld)[/b][/url]
+
+[olist]
+[*]UE4SS ExperimentalとPal Insight: Quick Stackをサブスクライブします。
+[*][b]Palworld > オプション > MOD管理[/b]で両方を有効にします。
+[*]保存してゲームの再起動を許可し、拠点に入ってF5を押します。
+[/olist]
+
+[b]Quick Stackは1つの配布元だけを使用してください。[/b]Workshop、Nexus、CurseForge、Game Pass版を併用しないでください。
+
+[h2]互換性[/h2]
+
+[list]
+[*]Steamシングルプレイヤー：テスト済み
+[*]Pal Insight 2.0.0連携：対応
+[*]専用サーバー：クライアントのみの導入で動作した報告1件。ゲームビルドと配布元は未記録
+[*]Co-op：未検証
+[*]Game Pass/WinGDK：パッケージの静的検証済み。実機検証は未完了
+[/list]
+
+[h2]トラブルシューティングとサポート[/h2]
+
+[b]F5が反応しない：[/b]拠点内にいること、UE4SSとQuick Stackが有効なこと、ショートカットが正しいこと、Quick Stackが1つだけ導入されていることを確認してください。
+
+[b]売却または収納されない：[/b]売却設定、保持リスト、[b]Tab > R[/b]、薬品棚、食料、卵、遺物、通常収納のルート、フィルター、権限、容量を確認してください。
+
+不具合報告には、プラットフォーム、バージョン、設定、再現手順、期待結果、実際の結果、完全なUE4SSログ、クラッシュファイルを含めてください。
+
+[h2]Palworld配合計算機[/h2]
+
+CrateX.appの[url=https://cratex.app/games/palworld/breeding][b]Palworld配合計算機[/b][/url]では、セーブを読み込んで所有パルから配合ルートを比較したり、一般的な配合組み合わせを検索したりできます。セーブデータはブラウザー内で処理され、端末外へ送信されません。
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787096480-407403883.jpg[/img][/url]
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787598334-1162571780.png[/img][/url]
+
+[url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]完全な更新履歴[/b][/url]
+
+完全なクレジットはゲーム内の [b]F6 > About > Special Thanks[/b] を開いてください。

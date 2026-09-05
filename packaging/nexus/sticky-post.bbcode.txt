@@ -1,0 +1,76 @@
+[b][color=#00ff00][size=5]PAL INSIGHT: QUICK STACK 1.3.0 — START HERE[/size][/color][/b]
+
+Press [b]F5[/b] inside your current base to sell configured items, then store eligible normal-backpack items.
+
+Quick Stack is a standalone client-side UE4SS Lua mod. Pal Insight is optional.
+
+[b]WHAT'S NEW IN 1.3.0[/b]
+
+[list]
+[*]Optional Medicine Rack priority for the 3 current medical supplies. It is off by default; unavailable or full racks fall back to ordinary storage.
+[*]Default-on food routing: the 5 cakes use Breeding Farms first, while other food uses Pal Food Boxes first. Both continue through cold storage and ordinary storage. Cakes never enter Pal Food Boxes, and [b]Tab > R[/b] exclusions remain protected.
+[*]Settings now use General, Automatic Sale, and Special Items tabs with mouse, keyboard, controller, and arrow navigation. Small-Incubator use and Holy Water quantity appear under their routing options.
+[/list]
+
+Version 1.2.0 added optional selling for 9 high-value items, 32 ammunition types, 10 Pal Spheres, and 4 fishing baits, plus icon keep lists and release history.
+
+Version 1.1.0 added default-off Guild Chest and small-Incubator support.
+
+[b]QUICK START[/b]
+
+[list=1]
+[*]Install the [url=https://github.com/Okaetsu/RE-UE4SS/releases/tag/experimental-palworld]experimental Palworld build of RE-UE4SS[/url].
+[*]Download [b]Steam/Win64[/b] or [b]Game Pass/WinGDK[/b] for your game.
+[*]Extract it into the game folder containing the [b]Pal[/b] directory.
+[*]Enter a base and press [b]F5[/b].
+[/list]
+
+Press [b]F6[/b] for Settings. With Pal Insight active, use [b]F6 > Extensions > Pal Insight: Quick Stack[/b].
+
+[b]Use one installation channel only.[/b] Do not combine Nexus, CurseForge, or Workshop copies, or mix Win64 and WinGDK packages. Close Palworld before updating.
+
+[b]AUTOMATIC SELLING[/b]
+
+All four categories are off by default. Checked keep-list items and Inventory [b]Tab > R[/b] exclusions are never sold. High-value items initially allow all 9 items; the other lists initially keep everything.
+
+Selling runs before storage. Allowing ignored items in storage never allows them to be sold.
+
+[b]DEFAULT STORAGE RULES[/b]
+
+[list]
+[*]Only the normal backpack and current base are used.
+[*]Ignored items stay in your backpack; ordinary storage may receive new item types.
+[*]Guild Chests, small Incubators, and Medicine Rack priority are off.
+[*]The 5 cakes use Breeding Farms, cold storage, then ordinary storage; never Pal Food Boxes.
+[*]Other food uses Pal Food Boxes, cold storage, then ordinary storage.
+[*]Pal Eggs use large Incubators only.
+[*]Relics use Ancient Relic Recyclers only; each Recycler keeps 10 World Tree Holy Water.
+[/list]
+
+F6 Settings can change these rules. Medicine Rack priority covers 3 current medical supplies and falls back to ordinary storage. Use [b]Tab > R[/b] to keep food in your backpack. Large Incubators take priority; occupied small ones are skipped.
+
+[b]RESULTS AND PAL INSIGHT[/b]
+
+Choose [b]Automatic[/b], [b]Text only[/b], or [b]Result window[/b]. Standalone Quick Stack uses text. [url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight 2.0.0 or later[/url] can show detailed sold, stored, excluded, and unstored results; otherwise Quick Stack falls back to text.
+
+Quick Stack alone, or with Pal Insight disabled, uses its own F6 Settings. With both active, Pal Insight owns F6. F5 always runs Quick Stack.
+
+Settings are saved outside the mod folder and 0.1.x settings migrate automatically.
+
+[b]PLATFORM STATUS[/b]
+
+Steam single-player, all 17 interface languages, and Pal Insight 2.0.0 integration are supported. Multiplayer/co-op is not fully verified. One dedicated-server tester reported successful client-side-only use, but their build and platform were not recorded. Game Pass/WinGDK packaging is statically verified; in-game acceptance remains unverified.
+
+[b]TROUBLESHOOTING[/b]
+
+If F5 does nothing, confirm that you are inside a base, verify the shortcut and package, install only one copy, and inspect [b]UE4SS.log[/b].
+
+If an item was not sold or stored, check its sale toggle, keep list, [b]Tab > R[/b], routing, filters, permissions, capacity, and backpack location.
+
+[b]REPORTING A PROBLEM[/b]
+
+Include platform, play mode, versions, settings, reproduction steps, and complete [b]UE4SS.log[/b]. For crashes, attach the original [b].dmp[/b] and runtime/crash XML.
+
+[b]LINKS[/b]
+
+[url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight[/url] | [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3792968111]Workshop[/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack]CurseForge[/url]

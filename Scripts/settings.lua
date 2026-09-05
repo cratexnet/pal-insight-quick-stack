@@ -21,6 +21,7 @@ local DEFAULTS = {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    KeepSaleItemsWhenNoMerchant = true,
     BreedingFarmCakeFirst = true,
     FoodBoxFirst = true,
     MedicineRackFirst = false,
@@ -49,6 +50,7 @@ local ORDER = {
     "PalSphereSellItems",
     "AutoSellFishingBait",
     "FishingBaitSellItems",
+    "KeepSaleItemsWhenNoMerchant",
     "BreedingFarmCakeFirst",
     "FoodBoxFirst",
     "MedicineRackFirst",
@@ -261,6 +263,7 @@ local function parseConfig(text)
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
         "IncludeGuildChest", "AutoSellValuables", "AutoSellAmmo",
         "AutoSellPalSpheres", "AutoSellFishingBait",
+        "KeepSaleItemsWhenNoMerchant",
         "BreedingFarmCakeFirst", "FoodBoxFirst", "MedicineRackFirst",
         "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
@@ -325,6 +328,7 @@ local function parseConfig(text)
         or parseBoolean(text, "AutoSellFishingBait") == nil
         or validatedFishingBaitSellItems == nil
         or validatedFishingBaitSellItems ~= fishingBaitSellItems
+        or parseBoolean(text, "KeepSaleItemsWhenNoMerchant") == nil
         or parseBoolean(text, "BreedingFarmCakeFirst") == nil
         or parseBoolean(text, "FoodBoxFirst") == nil
         or parseBoolean(text, "MedicineRackFirst") == nil
@@ -358,6 +362,7 @@ local function normalizeConfig(candidate, log)
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
         "IncludeGuildChest", "AutoSellValuables", "AutoSellAmmo",
         "AutoSellPalSpheres", "AutoSellFishingBait",
+        "KeepSaleItemsWhenNoMerchant",
         "BreedingFarmCakeFirst", "FoodBoxFirst", "MedicineRackFirst",
         "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
@@ -487,6 +492,9 @@ local function configText(config)
         "    -- Sell only selected current fishing bait; an empty list protects all.",
         "    AutoSellFishingBait = " .. tostring(config.AutoSellFishingBait) .. ",",
         string.format("    FishingBaitSellItems = %q,", config.FishingBaitSellItems),
+        "    -- Keep sale candidates when no usable merchant is available.",
+        "    KeepSaleItemsWhenNoMerchant = "
+            .. tostring(config.KeepSaleItemsWhenNoMerchant) .. ",",
         "    -- Put cakes in Breeding Farms before cold and ordinary storage.",
         "    BreedingFarmCakeFirst = "
             .. tostring(config.BreedingFarmCakeFirst) .. ",",

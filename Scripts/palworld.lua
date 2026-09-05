@@ -265,6 +265,8 @@ function Palworld.installWorldReadyTracking(onWorldReady)
         local controller = Palworld.unwrap(context)
         if not isLocalController(controller) then return end
         cachedController = controller
+        inputUi.mainMenu = nil
+        inputUi.mainMenuAddress = nil
         pcall(inputUi.worldReadyCallback, controller)
     end
     local ok, preId, postId = pcall(RegisterHook,
@@ -279,13 +281,13 @@ function Palworld.installWorldReadyTracking(onWorldReady)
     return true, nil
 end
 
-local function inventoryMenuIsActive()
+local function mainMenuState()
     local menu = inputUi.mainMenu
     if not Palworld.isValid(menu)
         or Palworld.objectAddress(menu) ~= inputUi.mainMenuAddress then
         inputUi.mainMenu = nil
         inputUi.mainMenuAddress = nil
-        return false
+        return false, false
     end
 
     local active
@@ -294,21 +296,20 @@ local function inventoryMenuIsActive()
         active = menu:IsActivated()
         content = Palworld.unwrap(menu.CurrentContentWidget)
     end)
-    if not ok or active ~= true or not Palworld.isValid(content) then
-        return false
-    end
+    if not ok or active ~= true then return false, false end
+    if not Palworld.isValid(content) then return true, false end
 
     local inventoryClass = inputUi.inventoryDisplayClass
     if not Palworld.isValid(inventoryClass) then
         inventoryClass = Palworld.staticObject(INVENTORY_DISPLAY_CLASS_PATH)
         inputUi.inventoryDisplayClass = inventoryClass
     end
-    if inventoryClass == nil then return false end
+    if inventoryClass == nil then return true, false end
 
     local typed, isInventory = pcall(function()
         return content:IsA(inventoryClass)
     end)
-    return typed and isInventory == true
+    return true, typed and isInventory == true
 end
 
 local function rememberMainMenu(value)
@@ -344,7 +345,7 @@ function Palworld.installInputUiTracking()
     if not ok then return false, errorMessage end
     inputUi.trackingReady = true
     -- NotifyOnNewObject 只观察后续构造；晚加载或热重载时补录现有菜单。
-    -- 查找只属于安装路径，不进入 F5 热路径。
+    -- F5 仅在缓存缺失或失效时执行同一个有界补录。
     backfillMainMenu()
     return true, nil
 end
@@ -352,10 +353,13 @@ end
 function Palworld.blockingUiOwnsInput(controller)
     local ok, cursorVisible = pcall(function() return controller.bShowMouseCursor end)
     if not ok then return nil, "input ownership state is unreadable" end
-    if cursorVisible == true then
-        local inventoryOpen = inventoryMenuIsActive()
-        return not inventoryOpen, nil, inventoryOpen
+    if not Palworld.isValid(inputUi.mainMenu)
+        or Palworld.objectAddress(inputUi.mainMenu) ~= inputUi.mainMenuAddress then
+        backfillMainMenu()
     end
+    local menuActive, inventoryOpen = mainMenuState()
+    if menuActive then return not inventoryOpen, nil, inventoryOpen end
+    if cursorVisible == true then return true, nil, false end
     return false, nil, false
 end
 
@@ -425,6 +429,66 @@ local function venderDataClass()
     return cachedVenderDataClass
 end
 
+function Palworld.registeredItemShopContext(job, expected)
+    if type(job) ~= "table" or not Palworld.isValid(job.controller) then
+        return nil, -1, "local controller is unavailable"
+    end
+    local utility = Palworld.utility()
+    if not Palworld.isValid(utility) then
+        return nil, -1, "PalUtility CDO is unavailable"
+    end
+    local manager
+    local shops
+    local readable = pcall(function()
+        manager = utility:GetShopManager(job.controller)
+        if Palworld.isValid(manager) then
+            shops = Palworld.unwrap(manager.CreatedItemShopMap_ForServer)
+        end
+    end)
+    if not readable or not Palworld.isValid(manager) or shops == nil then
+        return nil, -1, "registered item shop map is unavailable"
+    end
+    local managerAddress = Palworld.objectAddress(manager)
+    if managerAddress == nil
+        or (expected ~= nil and managerAddress ~= expected.managerAddress) then
+        return nil, -1, "registered item shop manager changed"
+    end
+    local count = 0
+    local matched
+    local iterated = pcall(function()
+        shops:ForEach(function(rawKey, rawValue)
+            count = count + 1
+            if matched ~= nil then return end
+            local shopId = Palworld.guidParts(Palworld.unwrap(rawKey))
+            local shopKey = Palworld.guidKey(shopId)
+            local shop = Palworld.unwrap(rawValue)
+            local shopAddress = Palworld.objectAddress(shop)
+            if shopKey ~= nil and shopKey ~= Palworld.ZERO_GUID
+                and shopAddress ~= nil
+                and (expected == nil or (shopKey == expected.shopKey
+                    and shopAddress == expected.shopAddress)) then
+                matched = {
+                    source = "registered-shop-map",
+                    managerAddress = managerAddress,
+                    shop = shop,
+                    shopAddress = shopAddress,
+                    shopId = shopId,
+                    shopKey = shopKey,
+                }
+            end
+        end)
+    end)
+    if not iterated then
+        return nil, -1, "registered item shop map is unreadable"
+    end
+    if matched == nil then
+        return nil, count, expected == nil
+            and "registered item shop map contains no readable item shop"
+            or "registered item shop entry changed"
+    end
+    return matched, count, nil
+end
+
 function Palworld.beginCurrentBaseVenderScan(job)
     if type(job) ~= "table" or not Palworld.isValid(job.base) then
         return nil, "current base is unavailable"
@@ -433,66 +497,406 @@ function Palworld.beginCurrentBaseVenderScan(job)
     if componentClass == nil then return nil, "vendor component class is unavailable" end
     local utility = Palworld.utility()
     local baseCampManager
+    local workerContainer
+    local collector
+    local mapObjectManager = job.mapObjectManager
     local managerOk = Palworld.isValid(utility) and pcall(function()
-        baseCampManager = Palworld.unwrap(utility:GetBaseCampManager(job.controller))
+        baseCampManager = utility:GetBaseCampManager(job.controller)
     end)
     if not managerOk or not Palworld.isValid(baseCampManager) then
         return nil, "base manager is unavailable"
     end
-
-    local slots
-    local readOk = pcall(function()
-        slots = Palworld.unwrap(job.base.WorkerDirector:GetCharacterHandleSlots())
+    if not Palworld.isValid(mapObjectManager) then
+        return nil, "map object manager is unavailable"
+    end
+    pcall(function()
+        workerContainer = job.base.WorkerDirector.CharacterContainer
     end)
-    local count = readOk and Palworld.arrayLength(slots) or nil
-    if count == nil then return nil, "current-base worker list is unreadable" end
+    pcall(function()
+        collector = utility:GetPalObjectCollector(job.controller)
+    end)
+
+    local workerCount = 0
+    if Palworld.isValid(workerContainer) then
+        local slots
+        local readOk = pcall(function() slots = workerContainer.SlotArray end)
+        workerCount = readOk and Palworld.arrayLength(slots) or nil
+        if workerCount == nil then
+            return nil, "current-base worker list is unreadable"
+        end
+    end
+
+    local humanCount = 0
+    if Palworld.isValid(collector) then
+        local actors
+        local readOk = pcall(function() actors = collector.PalCharacter_NPC end)
+        humanCount = readOk and Palworld.arrayLength(actors) or nil
+        if humanCount == nil then
+            return nil, "loaded human NPC list is unreadable"
+        end
+    end
+    local baseObjectCount = tonumber(job.repCount)
+    if baseObjectCount == nil or baseObjectCount < 0 then
+        return nil, "current-base object list is unreadable"
+    end
+    baseObjectCount = math.floor(baseObjectCount)
+    if workerCount == 0 and humanCount == 0 and baseObjectCount == 0 then
+        return nil, "no current-base merchant sources are available"
+    end
 
     return {
         manager = baseCampManager,
         managerAddress = Palworld.objectAddress(baseCampManager),
         componentClass = componentClass,
-        slots = slots,
-        count = count,
+        workerContainer = workerContainer,
+        workerContainerAddress = Palworld.objectAddress(workerContainer),
+        workerCount = workerCount,
+        collector = collector,
+        collectorAddress = Palworld.objectAddress(collector),
+        humanCount = humanCount,
+        actorSourceCount = workerCount + humanCount,
+        mapObjectManager = mapObjectManager,
+        mapObjectManagerAddress = Palworld.objectAddress(mapObjectManager),
+        baseObjectCount = baseObjectCount,
+        count = workerCount + humanCount + baseObjectCount,
     }, nil
 end
 
-function Palworld.currentBaseVenderAt(job, scan, index)
+local function venderForActor(actor, scan, source)
+    if not Palworld.isValid(actor) then return nil, nil end
+    local component
+    local readable = pcall(function()
+        component = actor:GetComponentByClass(scan.componentClass)
+    end)
+    if not readable then return nil, "merchant actor is unreadable" end
+    if not Palworld.isValid(component) then return nil, nil end
+    source.component = component
+    source.componentAddress = Palworld.objectAddress(component)
+    source.actor = actor
+    source.actorAddress = Palworld.objectAddress(actor)
+    if source.componentAddress == nil or source.actorAddress == nil then
+        return nil, "merchant actor identity is unavailable"
+    end
+    return source, nil
+end
+
+local function appendMapCharacterActor(out, seen, actor, scan, source)
+    if not Palworld.isValid(actor) then return true, nil end
+    local actorAddress = Palworld.objectAddress(actor)
+    if actorAddress == nil then return false, "displayed character identity is unavailable" end
+    if seen[actorAddress] then return true, nil end
+    seen[actorAddress] = true
+    local vender, venderError = venderForActor(actor, scan, source)
+    if venderError ~= nil then return false, venderError end
+    if vender ~= nil then out[#out + 1] = vender end
+    return true, nil
+end
+
+local function mapCharacterVendersAt(job, scan, index)
+    if not Palworld.isValid(scan.mapObjectManager)
+        or Palworld.objectAddress(scan.mapObjectManager)
+            ~= scan.mapObjectManagerAddress then
+        return nil, "map object manager changed"
+    end
+    local repInfo, readable = Palworld.arrayValue(job.repItems, index)
+    if not readable or repInfo == nil then
+        return nil, "current-base object entry is unreadable"
+    end
+    local instanceId
+    local model
+    local concrete
+    local module
+    local container
+    local slots
+    local rootsOk = pcall(function()
+        instanceId = repInfo.InstanceId
+        model = scan.mapObjectManager:FindModel(instanceId)
+        if Palworld.isValid(model) then concrete = model.ConcreteModel end
+        if Palworld.isValid(concrete) then
+            module = concrete:GetCharacterContainerModule()
+        end
+        if Palworld.isValid(module) then
+            container = module.TargetContainer
+        end
+        if Palworld.isValid(container) then slots = container.SlotArray end
+    end)
+    if not rootsOk or instanceId == nil then
+        return nil, "current-base character-container source is unreadable"
+    end
+    if not Palworld.isValid(model) or not Palworld.isValid(concrete)
+        or not Palworld.isValid(module) or not Palworld.isValid(container) then
+        return {}, nil
+    end
+    local slotCount = Palworld.arrayLength(slots)
+    if slotCount == nil then
+        return nil, "current-base character-container slots are unreadable"
+    end
+    local venders = {}
+    local seen = {}
+    for slotIndex = 1, slotCount do
+        local slot, slotReadable = Palworld.arrayValue(slots, slotIndex)
+        if not slotReadable then
+            return nil, "current-base character-container slot is unreadable"
+        end
+        if Palworld.isValid(slot) then
+            local handle
+            local primaryActor
+            local parameter
+            local handleOk = pcall(function()
+                handle = slot.Handle
+                if Palworld.isValid(handle) then
+                    primaryActor = handle:TryGetIndividualActor()
+                    parameter = handle:TryGetIndividualParameter()
+                end
+            end)
+            if not handleOk then
+                return nil, "current-base displayed character is unreadable"
+            end
+            if Palworld.isValid(handle) then
+                local common = {
+                    source = "map-character-container",
+                    handleAddress = Palworld.objectAddress(handle),
+                    mapObjectManagerAddress = scan.mapObjectManagerAddress,
+                    instanceId = instanceId,
+                    modelAddress = Palworld.objectAddress(model),
+                    concreteAddress = Palworld.objectAddress(concrete),
+                    moduleAddress = Palworld.objectAddress(module),
+                    containerAddress = Palworld.objectAddress(container),
+                }
+                local appended, appendError = appendMapCharacterActor(
+                    venders, seen, primaryActor, scan, {
+                        source = common.source,
+                        handleAddress = common.handleAddress,
+                        mapObjectManagerAddress = common.mapObjectManagerAddress,
+                        instanceId = common.instanceId,
+                        modelAddress = common.modelAddress,
+                        concreteAddress = common.concreteAddress,
+                        moduleAddress = common.moduleAddress,
+                        containerAddress = common.containerAddress,
+                    })
+                if not appended then return nil, appendError end
+
+                if Palworld.isValid(parameter) then
+                    local phantomActors
+                    local phantomOk = pcall(function()
+                        phantomActors = parameter.PhantomActorReplicateArray
+                    end)
+                    local phantomCount = phantomOk
+                        and Palworld.arrayLength(phantomActors) or nil
+                    if phantomCount == nil then
+                        return nil, "displayed phantom character list is unreadable"
+                    end
+                    for phantomIndex = 1, phantomCount do
+                        local info, infoReadable = Palworld.arrayValue(
+                            phantomActors, phantomIndex)
+                        if not infoReadable or info == nil then
+                            return nil, "displayed phantom character is unreadable"
+                        end
+                        local phantomActor
+                        local actorOk = pcall(function()
+                            phantomActor = info.Character
+                        end)
+                        if not actorOk then
+                            return nil, "displayed phantom character is unreadable"
+                        end
+                        appended, appendError = appendMapCharacterActor(
+                            venders, seen, phantomActor, scan, {
+                                source = common.source,
+                                handleAddress = common.handleAddress,
+                                mapObjectManagerAddress = common.mapObjectManagerAddress,
+                                instanceId = common.instanceId,
+                                modelAddress = common.modelAddress,
+                                concreteAddress = common.concreteAddress,
+                                moduleAddress = common.moduleAddress,
+                                containerAddress = common.containerAddress,
+                            })
+                        if not appended then return nil, appendError end
+                    end
+                end
+            end
+        end
+    end
+    return venders, nil
+end
+
+function Palworld.currentBaseVendersAt(job, scan, index)
     if type(scan) ~= "table" or not Palworld.isValid(scan.manager)
         or Palworld.objectAddress(scan.manager) ~= scan.managerAddress
         or not Palworld.isValid(scan.componentClass) then
         return nil, "current-base merchant scan became invalid"
     end
-    local slot, readable = Palworld.arrayValue(scan.slots, index)
-    if not readable or not Palworld.isValid(slot) then
-        return nil, "current-base worker slot is unreadable"
+    if index > scan.actorSourceCount then
+        return mapCharacterVendersAt(
+            job, scan, index - scan.actorSourceCount)
     end
+    local worker = index <= scan.workerCount
     local handle
     local actor
     local component
+    local readable
+    if worker then
+        if not Palworld.isValid(scan.workerContainer)
+            or Palworld.objectAddress(scan.workerContainer)
+                ~= scan.workerContainerAddress then
+            return nil, "current-base worker container changed"
+        end
+        local slots
+        local slot
+        local listOk = pcall(function() slots = scan.workerContainer.SlotArray end)
+        if not listOk then return nil, "current-base worker list is unreadable" end
+        slot, readable = Palworld.arrayValue(slots, index)
+        if not readable or not Palworld.isValid(slot) then
+            return nil, nil
+        end
+        local actorOk = pcall(function()
+            handle = slot.Handle
+            if Palworld.isValid(handle) then
+                actor = handle:TryGetIndividualActor()
+            end
+        end)
+        if not actorOk then return nil, "current-base worker is unreadable" end
+    else
+        if not Palworld.isValid(scan.collector)
+            or Palworld.objectAddress(scan.collector) ~= scan.collectorAddress then
+            return nil, "world character collector changed"
+        end
+        local actors
+        local listOk = pcall(function() actors = scan.collector.PalCharacter_NPC end)
+        if not listOk then return nil, "loaded human NPC list is unreadable" end
+        actor, readable = Palworld.arrayValue(actors, index - scan.workerCount)
+        if not readable then return {}, nil end
+    end
+    if not Palworld.isValid(actor) then return {}, nil end
     local rangedBase
     local ok = pcall(function()
-        handle = Palworld.unwrap(slot:GetHandle())
-        if Palworld.isValid(handle) then
-            actor = Palworld.unwrap(handle:TryGetIndividualActor())
+        if not worker then
+            rangedBase = scan.manager:GetInRangedBaseCamp(
+                actor:GetActorLocation(), 0)
         end
-        if Palworld.isValid(actor) then
-            rangedBase = Palworld.unwrap(scan.manager:GetInRangedBaseCamp(
-                actor:GetActorLocation(), 0))
-            if Palworld.isValid(rangedBase)
-                and Palworld.objectAddress(rangedBase) == job.baseAddress then
-                component = Palworld.unwrap(
-                    actor:GetComponentByClass(scan.componentClass))
-            end
+        if worker or (Palworld.isValid(rangedBase)
+                and Palworld.objectAddress(rangedBase) == job.baseAddress) then
+            component = actor:GetComponentByClass(scan.componentClass)
         end
     end)
-    if not ok then return nil, "current-base worker is unreadable" end
-    if not Palworld.isValid(component) then return nil, nil end
-    return {
+    if not ok then
+        if worker then
+            return nil, "current-base merchant candidate is unreadable"
+        end
+        return {}, nil
+    end
+    if not Palworld.isValid(component) then return {}, nil end
+    return {{
         component = component,
         componentAddress = Palworld.objectAddress(component),
         actor = actor,
         actorAddress = Palworld.objectAddress(actor),
-    }, nil
+        handleAddress = Palworld.objectAddress(handle),
+        workerContainerAddress = scan.workerContainerAddress,
+        collectorAddress = scan.collectorAddress,
+        source = worker and "worker" or "loaded-human",
+    }}, nil
+end
+
+local function handleStillOwnsActor(handle, actorAddress)
+    if not Palworld.isValid(handle) or actorAddress == nil then return false end
+    local primaryActor
+    local parameter
+    local readable = pcall(function()
+        primaryActor = handle:TryGetIndividualActor()
+        parameter = handle:TryGetIndividualParameter()
+    end)
+    if not readable then return false end
+    if Palworld.objectAddress(primaryActor) == actorAddress then return true end
+    if not Palworld.isValid(parameter) then return false end
+    local phantomActors
+    local listOk = pcall(function()
+        phantomActors = parameter.PhantomActorReplicateArray
+    end)
+    local count = listOk and Palworld.arrayLength(phantomActors) or nil
+    if count == nil then return false end
+    for index = 1, count do
+        local info, infoReadable = Palworld.arrayValue(phantomActors, index)
+        if infoReadable and info ~= nil then
+            local actor
+            local actorOk = pcall(function() actor = info.Character end)
+            if actorOk and Palworld.objectAddress(actor) == actorAddress then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function currentBaseWorkerStillMatches(job, vender)
+    if not Palworld.isValid(job.base) or vender.handleAddress == nil then return false end
+    local container
+    local slots
+    local ok = pcall(function()
+        container = job.base.WorkerDirector.CharacterContainer
+        slots = container.SlotArray
+    end)
+    if not ok or not Palworld.isValid(container)
+        or Palworld.objectAddress(container) ~= vender.workerContainerAddress then
+        return false
+    end
+    local count = ok and Palworld.arrayLength(slots) or nil
+    if count == nil then return false end
+    for index = 1, count do
+        local slot, readable = Palworld.arrayValue(slots, index)
+        if readable and Palworld.isValid(slot) then
+            local handle
+            local handleOk = pcall(function() handle = slot.Handle end)
+            if handleOk and Palworld.isValid(handle)
+                and Palworld.objectAddress(handle) == vender.handleAddress then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+local function currentBaseMapCharacterStillMatches(job, vender)
+    if not Palworld.isValid(job.base) or not Palworld.isValid(job.mapObjectManager)
+        or Palworld.objectAddress(job.mapObjectManager)
+            ~= vender.mapObjectManagerAddress then
+        return false
+    end
+    local model
+    local concrete
+    local ownerBase
+    local module
+    local container
+    local slots
+    local ok = pcall(function()
+        model = job.mapObjectManager:FindModel(vender.instanceId)
+        if Palworld.isValid(model) then concrete = model.ConcreteModel end
+        if Palworld.isValid(concrete) then
+            ownerBase = concrete:GetBaseCampModelBelongTo()
+            module = concrete:GetCharacterContainerModule()
+        end
+        if Palworld.isValid(module) then container = module.TargetContainer end
+        if Palworld.isValid(container) then slots = container.SlotArray end
+    end)
+    if not ok or Palworld.objectAddress(model) ~= vender.modelAddress
+        or Palworld.objectAddress(concrete) ~= vender.concreteAddress
+        or Palworld.objectAddress(ownerBase) ~= job.baseAddress
+        or Palworld.objectAddress(module) ~= vender.moduleAddress
+        or Palworld.objectAddress(container) ~= vender.containerAddress then
+        return false
+    end
+    local count = Palworld.arrayLength(slots)
+    if count == nil then return false end
+    for index = 1, count do
+        local slot, readable = Palworld.arrayValue(slots, index)
+        if readable and Palworld.isValid(slot) then
+            local handle
+            local handleOk = pcall(function() handle = slot.Handle end)
+            if handleOk and Palworld.objectAddress(handle) == vender.handleAddress then
+                return handleStillOwnsActor(handle, vender.actorAddress)
+            end
+        end
+    end
+    return false
 end
 
 function Palworld.itemShopContext(vender)
@@ -502,28 +906,15 @@ function Palworld.itemShopContext(vender)
         or Palworld.objectAddress(vender.actor) ~= vender.actorAddress then
         return nil
     end
-    local called, available, outShop = pcall(function()
-        return vender.component:TryGetItemShop()
-    end)
-    local shop = Palworld.unwrap(outShop)
-    if called and not Palworld.isValid(shop)
-        and Palworld.isValid(Palworld.unwrap(available)) then
-        shop = Palworld.unwrap(available)
-        available = true
-    end
-    if not called or available ~= true or not Palworld.isValid(shop) then
-        local valid = false
-        pcall(function() valid = vender.component:IsValidItemShop() == true end)
-        if valid then
-            pcall(function() shop = Palworld.unwrap(vender.component.MyItemShop) end)
-        end
-        if not Palworld.isValid(shop) then return nil end
-    end
+    local valid = false
+    local shop
     local id
-    local idOk = pcall(function() id = Palworld.unwrap(shop:GetId()) end)
-    if not idOk or Palworld.guidParts(id) == nil then
-        pcall(function() id = Palworld.unwrap(shop.MyShopID) end)
-    end
+    local readable = pcall(function()
+        valid = vender.component:IsValidItemShop() == true
+        shop = vender.component.MyItemShop
+        id = vender.component.MyShopID
+    end)
+    if not readable or not valid or not Palworld.isValid(shop) then return nil end
     local parts = Palworld.guidParts(id)
     local key = Palworld.guidKey(parts)
     if key == nil or key == Palworld.ZERO_GUID then return nil end
@@ -549,16 +940,32 @@ function Palworld.revalidateItemShop(job, expected)
         or Palworld.objectAddress(expected.shop) ~= expected.shopAddress then
         return nil
     end
-    local utility = Palworld.utility()
-    local baseCampManager
-    local rangedBase
-    local validBase = Palworld.isValid(utility) and pcall(function()
-        baseCampManager = Palworld.unwrap(utility:GetBaseCampManager(job.controller))
-        rangedBase = Palworld.unwrap(baseCampManager:GetInRangedBaseCamp(
-            expected.vender.actor:GetActorLocation(), 0))
-    end)
-    if not validBase or not Palworld.isValid(rangedBase)
-        or Palworld.objectAddress(rangedBase) ~= job.baseAddress then return nil end
+    if expected.source == "registered-shop-map" then
+        return Palworld.registeredItemShopContext(job, expected)
+    end
+    if type(expected.vender) ~= "table" then return nil end
+    local validBase = false
+    if expected.vender.source == "worker" then
+        validBase = currentBaseWorkerStillMatches(job, expected.vender)
+    elseif expected.vender.source == "map-character-container" then
+        validBase = currentBaseMapCharacterStillMatches(job, expected.vender)
+    else
+        local utility = Palworld.utility()
+        local collector
+        local baseCampManager
+        local rangedBase
+        local checked = Palworld.isValid(utility) and pcall(function()
+            collector = utility:GetPalObjectCollector(job.controller)
+            baseCampManager = utility:GetBaseCampManager(job.controller)
+            rangedBase = baseCampManager:GetInRangedBaseCamp(
+                expected.vender.actor:GetActorLocation(), 0)
+        end)
+        validBase = checked and Palworld.isValid(collector)
+            and Palworld.objectAddress(collector) == expected.vender.collectorAddress
+            and Palworld.isValid(rangedBase)
+            and Palworld.objectAddress(rangedBase) == job.baseAddress
+    end
+    if not validBase then return nil end
     local current = Palworld.itemShopContext(expected.vender)
     if current ~= nil and current.shopKey == expected.shopKey
         and current.shopAddress == expected.shopAddress then

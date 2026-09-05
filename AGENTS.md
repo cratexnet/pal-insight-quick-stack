@@ -5,6 +5,11 @@ Independent UE4SS Lua mod for Palworld 1.0.
 ## Working contract
 
 - Respond in Simplified Chinese by default; use English identifiers in code.
+- When the user asks to release or prepare a release, read and follow
+  `docs/RELEASE-PROCESS.md` before changing a version, drafting final release
+  copy, building, packaging, syncing an uploader, or touching a distribution
+  site. The maintainer must review and explicitly approve the complete final
+  changelog before it is localized, reformatted for a platform, or submitted.
 - Read the relevant section of `SPEC.md` and `tasks/plan.md` before changing
   behavior. Update the spec first when an accepted decision changes.
 - Treat diagnosis and audit as read-only. Implement only after explicit user

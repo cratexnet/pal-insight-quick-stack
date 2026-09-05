@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+## 1.3.1 - 2026-09-05
+
+### Added
+
+- Added a default-on option to keep sale items in the backpack when no merchant
+  is found. Disable it to send those items through normal storage rules instead.
+
+### Changed
+
+- Improved F5 result feedback with status-specific titles, one line per
+  processing category, and clear reporting for unsold items. Automatic mode now
+  opens detailed results when F5 is used from the inventory and shows a text
+  notification elsewhere.
+
+### Fixed
+
+- Fixed automatic selling of configured high-value items, ammunition, Pal
+  Spheres, and fishing bait. F5 now finds an available merchant automatically,
+  reads Noble and Fine Furs passives from party Pals, and applies them to sale
+  prices.
+- Fixed dedicated food routing so the 5 cake types use Breeding Farms and other
+  food uses Pal Food Boxes before cold and ordinary storage.
+- Fixed a crash that could occur when closing Quick Stack settings with Esc or
+  controller Back, including when the panel was opened from Pal Insight.
+
 ## 1.3.0 - 2026-09-05
 
 ### Added

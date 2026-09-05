@@ -34,6 +34,8 @@ return {
     AutoSellFishingBait = false,
     -- Comma-separated fishing-bait IDs. Empty protects every fishing-bait type.
     FishingBaitSellItems = "",
+    -- Keep sale candidates in the backpack when no merchant can be found.
+    KeepSaleItemsWhenNoMerchant = true,
     -- Put cakes in Breeding Farms before cold and ordinary storage.
     BreedingFarmCakeFirst = true,
     -- Put non-cake food in Pal Food Boxes before cold and ordinary storage.

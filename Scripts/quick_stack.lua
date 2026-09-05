@@ -12,7 +12,7 @@ local COMPLETION_POLL_MS = 120
 local COMPLETION_TIMEOUT_SECONDS = 3
 local JOB_TIMEOUT_SECONDS = 20
 local INVENTORY_SLOTS_PER_SLICE = 64
-local BASE_WORKERS_PER_SLICE = 8
+local SALE_VENDERS_PER_SLICE = 8
 local METADATA_ITEMS_PER_SLICE = 64
 local BASE_OBJECTS_PER_SLICE = 256
 local CONTAINERS_PER_SLICE = 16
@@ -104,6 +104,8 @@ local function snapshotJobConfig(config)
         AutoSellFishingBait = config.AutoSellFishingBait == true,
         FishingBaitSellItems = SaleConsumables.fishingBait.sellSet(
             config.FishingBaitSellItems),
+        KeepSaleItemsWhenNoMerchant =
+            config.KeepSaleItemsWhenNoMerchant ~= false,
         BreedingFarmCakeFirst = config.BreedingFarmCakeFirst == true,
         FoodBoxFirst = config.FoodBoxFirst == true,
         MedicineRackFirst = config.MedicineRackFirst == true,
@@ -150,6 +152,10 @@ local function notificationDetails(job)
         saleRequestSubmitted = job.saleRequestSubmitted == true,
         saleConfirmationPending = job.saleConfirmationPending == true,
         salePendingTotal = job.salePendingTotal or 0,
+        saleSkippedReason = job.saleSkippedReason,
+        saleSkippedDisposition = job.saleSkippedDisposition,
+        saleSkipped = job.saleSkippedItems or {},
+        saleSkippedTotal = job.saleSkippedTotal or 0,
         excluded = job.excludedItems or {},
         excludedTotal = job.excludedTotal or 0,
         full = job.fullItems or {},
@@ -379,6 +385,11 @@ local function resolveJobRoots(job)
     job.soldTotal = 0
     job.saleConfirmationPending = false
     job.salePendingTotal = 0
+    job.saleSkippedReason = nil
+    job.saleSkippedDisposition = nil
+    job.saleSkippedItems = {}
+    job.saleSkippedById = {}
+    job.saleSkippedTotal = 0
     job.excludedItems = {}
     job.excludedById = {}
     job.excludedTotal = 0
@@ -476,9 +487,23 @@ local function beginMetadata(job)
     scheduleJobStep(job, NEXT_SLICE_MS, scanMetadataSlice, "metadata")
 end
 
-local function routeUnresolvedSaleCandidates(job, reason)
+local function routeUnresolvedSaleCandidates(job, reason, displayReason)
     if reason ~= nil then debugLog("automatic sale skipped: " .. tostring(reason)) end
-    for _, item in ipairs(job.sellCandidates or {}) do addRoutingItem(job, item) end
+    local keepInBackpack = displayReason == "no-merchant"
+        and job.config.KeepSaleItemsWhenNoMerchant == true
+    local skippedTotal = 0
+    for _, item in ipairs(job.sellCandidates or {}) do
+        skippedTotal = skippedTotal + item.num
+        addItemCount(job.saleSkippedItems, job.saleSkippedById,
+            item.id, item.staticId, item.num)
+        if not keepInBackpack then addRoutingItem(job, item) end
+    end
+    if skippedTotal > 0 then
+        job.saleSkippedReason = displayReason or "unavailable"
+        job.saleSkippedDisposition = keepInBackpack
+            and "backpack" or "storage"
+        job.saleSkippedTotal = (job.saleSkippedTotal or 0) + skippedTotal
+    end
     job.sellCandidates = {}
     beginMetadata(job)
 end
@@ -492,7 +517,7 @@ local function submitSale(job, shop)
     end
     shop = P.revalidateItemShop(job, shop)
     if shop == nil then
-        routeUnresolvedSaleCandidates(job, "current-base item shop changed")
+        routeUnresolvedSaleCandidates(job, "item shop context changed")
         return
     end
     local exclusions, exclusionError = P.resolveExclusions(job.playerState)
@@ -519,7 +544,7 @@ local function submitSale(job, shop)
             return
         end
         rpcItems[#rpcItems + 1] = {
-            SlotID = item.slotId,
+            SlotId = item.slotId,
             Num = item.num,
         }
     end
@@ -597,10 +622,13 @@ local function pollItemShop(job)
     end
     local venders = job.saleVenders or {}
     local first = job.saleShopVenderIndex or 1
-    local stop = math.min(#venders, first + BASE_WORKERS_PER_SLICE - 1)
+    local stop = math.min(#venders, first + SALE_VENDERS_PER_SLICE - 1)
     for index = first, stop do
         local shop = P.itemShopContext(venders[index])
-        if shop ~= nil then submitSale(job, shop); return end
+        if shop ~= nil then
+            submitSale(job, shop)
+            return
+        end
     end
     if stop < #venders then
         job.saleShopVenderIndex = stop + 1
@@ -613,7 +641,8 @@ local function pollItemShop(job)
         scheduleJobStep(job, SALE_SHOP_POLL_MS, pollItemShop, "sale")
         return
     end
-    routeUnresolvedSaleCandidates(job, "no registered item shop in the current base")
+    routeUnresolvedSaleCandidates(job,
+        "no registered item shop in the current base", "no-merchant")
 end
 
 local function setupNextSaleVender(job)
@@ -624,7 +653,8 @@ local function setupNextSaleVender(job)
     local vender = job.saleVenders[job.saleVenderIndex]
     if vender == nil then
         if job.saleVenderSetupCount == 0 then
-            routeUnresolvedSaleCandidates(job, "current-base merchant setup failed")
+            routeUnresolvedSaleCandidates(job,
+                "current-base merchant setup failed", "no-merchant")
             return
         end
         job.saleShopPolls = 0
@@ -650,22 +680,29 @@ local function scanSaleVenders(job)
         finishJob(job, false, "local player or base changed")
         return
     end
+    local sliceSize = job.saleVenderScanIndex
+            > job.saleVenderScan.actorSourceCount
+        and BASE_OBJECTS_PER_SLICE or SALE_VENDERS_PER_SLICE
     local stop = math.min(job.saleVenderScan.count,
-        job.saleVenderScanIndex + BASE_WORKERS_PER_SLICE - 1)
+        job.saleVenderScanIndex + sliceSize - 1)
     for index = job.saleVenderScanIndex, stop do
-        local vender, venderError = P.currentBaseVenderAt(
+        local venders, venderError = P.currentBaseVendersAt(
             job, job.saleVenderScan, index)
         if venderError ~= nil then
             routeUnresolvedSaleCandidates(job, venderError)
             return
         end
-        if vender ~= nil then
-            job.saleVenders[#job.saleVenders + 1] = vender
-            local shop = P.itemShopContext(vender)
-            if shop ~= nil then
-                job.saleVenderScan = nil
-                submitSale(job, shop)
-                return
+        for _, vender in ipairs(venders or {}) do
+            local key = vender.actorAddress
+            if key ~= nil and not job.saleVenderKeys[key] then
+                job.saleVenderKeys[key] = true
+                job.saleVenders[#job.saleVenders + 1] = vender
+                local shop = P.itemShopContext(vender)
+                if shop ~= nil then
+                    job.saleVenderScan = nil
+                    submitSale(job, shop)
+                    return
+                end
             end
         end
     end
@@ -677,7 +714,7 @@ local function scanSaleVenders(job)
     job.saleVenderScan = nil
     if #job.saleVenders == 0 then
         routeUnresolvedSaleCandidates(job,
-            "no loaded merchant works in the current base")
+            "no loaded merchant works in the current base", "no-merchant")
         return
     end
     setupSaleVenders(job)
@@ -688,6 +725,15 @@ local function beginSale(job)
         beginMetadata(job)
         return
     end
+    local registeredShop, _, registeredError =
+        P.registeredItemShopContext(job)
+    if registeredShop ~= nil then
+        submitSale(job, registeredShop)
+        return
+    end
+    debugLog("registered item shop route unavailable: "
+        .. tostring(registeredError))
+
     local scan, scanError = P.beginCurrentBaseVenderScan(job)
     if scan == nil then
         routeUnresolvedSaleCandidates(job, scanError)
@@ -696,6 +742,7 @@ local function beginSale(job)
     job.saleVenderScan = scan
     job.saleVenderScanIndex = 1
     job.saleVenders = {}
+    job.saleVenderKeys = {}
     scheduleJobStep(job, NEXT_SLICE_MS, scanSaleVenders, "sale")
 end
 
@@ -1437,8 +1484,10 @@ local function newRouteState(job, item, amount, visited)
     local metadata = job.metadata[item.id]
     local isCake = CAKE_ITEM_IDS[item.id] == true
     local usesBreedingFarm = isCake and job.config.BreedingFarmCakeFirst
+    local isFood = metadata.category == "Food"
+        or metadata.category == "Meal"
     local usesFoodBox = not isCake and job.config.FoodBoxFirst
-        and metadata.typeA == "Food"
+        and isFood
     local protectsCake = isCake
         and (job.config.BreedingFarmCakeFirst or job.config.FoodBoxFirst)
     local usesColdStorage = usesBreedingFarm or usesFoodBox or protectsCake
@@ -2233,7 +2282,6 @@ function QuickStack.begin()
     local blocked, inputError, inventoryOpen = P.blockingUiOwnsInput(controller)
     if blocked == nil then log("quick stack unavailable: " .. tostring(inputError)); return end
     if blocked then debugLog("blocking UI owns input; press ignored"); return end
-
     local identity, identityError = P.identityFor(controller)
     if identity == nil then
         debugLog("quick stack ignored: " .. tostring(identityError))
@@ -2244,6 +2292,7 @@ function QuickStack.begin()
     identity.generation = state.generation
     identity.startedAt = os.time()
     identity.config = snapshotJobConfig(state.config)
+    identity.inventoryOpenAtStart = inventoryOpen == true
     identity.detailedResultRequested = identity.config.ResultDisplay == "ResultWindow"
         or (identity.config.ResultDisplay == "Default" and inventoryOpen == true)
     if state.config.PerformanceCapture == true then

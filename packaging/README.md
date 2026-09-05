@@ -2,7 +2,28 @@
 
 Quick Stack has one runtime source and three installed layouts.
 
+This file documents package layouts and gates. The mandatory end-to-end release
+order, changelog review gate, platform checks, and Steam uploader procedure are
+defined in [`docs/RELEASE-PROCESS.md`](../docs/RELEASE-PROCESS.md).
+
 ## Nexus and CurseForge
+
+The approved Nexus page sources are kept in
+`packaging/nexus/description.md` and
+`packaging/nexus/sticky-post.bbcode.txt`. Before each release, read the raw
+BBCode from both live Nexus editors and use it as the formatting baseline, as
+required by `docs/RELEASE-PROCESS.md`.
+
+The approved CurseForge Description HTML source is kept in
+`packaging/curseforge/description.md`. Before each release, read the complete
+HTML from the live editor's **Source Code** view, preserve its tags, inline
+styles, attributes, entities, images, and links, and use that HTML—not the
+Markdown editor value or public rendered page—as the baseline. When presenting
+it for review, provide the complete HTML in a plain-text code fence; do not use
+a rendered Writing Block or ordinary Markdown.
+This project is not open source: CurseForge's separate **Source** tab must stay
+set to `The source code is not publicly available` unless the maintainer
+explicitly changes that policy.
 
 Nexus and CurseForge each receive two separately named portable ZIPs. The
 standard archive is extracted into the Steam Palworld folder that contains

@@ -1,0 +1,144 @@
+[h1]Pal Insight: Quick Stack – Rucksackgegenstände per Tastendruck einlagern[/h1]
+
+[b]Kehre zur Basis zurück, drücke eine Taste und setze dein Abenteuer fort.[/b]
+
+Drücke in deiner aktuellen Basis [b]F5[/b]. Quick Stack verkauft konfigurierte Gegenstände und verschiebt danach passende Rucksackgegenstände in geeignete Lager dieser Basis.
+
+[img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
+
+[h2]Neu in 1.3.0[/h2]
+
+[list]
+[*][b]Arzneiregale:[/b] 3 Medizinarten können zuerst in Arzneiregale. Sind keine Plätze frei, folgen normale Lager. Standardmäßig aus.
+[*][b]Nahrungsrouten:[/b] 5 Kuchen bevorzugen Zuchtfarmen, andere Nahrung Futtertröge; danach folgen Kühlanlagen und normale Lager. Kuchen kommen nie in Futtertröge. Standardmäßig an.
+[*][b]Tabs:[/b] Allgemein, Automatischer Verkauf und Besondere Gegenstände unterstützen Maus, Tastatur, Controller und Pfeile. Kleine Brutkästen und Weihwassermenge sind Unteroptionen ihrer Route.
+[/list]
+
+1.2.0 ergänzte Verkauf, Behaltelisten und Versionsverlauf; 1.1.0 optionale Gildentruhen und kleine Brutkästen.
+
+[h2]Alle Funktionen[/h2]
+
+[b]Automatischer Verkauf[/b]
+
+[list]
+[*]Wertgegenstände, Munition, Pal-Sphären und Angelköder einzeln aktivieren
+[*]Behaltelisten mit Symbolen per Maus, Tastatur oder Controller bedienen
+[*]Mit [b]Tab > R[/b] ausgeschlossene Gegenstände niemals verkaufen
+[/list]
+
+Prüfe die Behaltelisten. Wertgegenstände erlauben anfangs alle 9 Arten; andere Kategorien behalten zunächst alles.
+
+[b]Schnelles Verstauen[/b]
+
+[list]
+[*]Verarbeitet nur den normalen Rucksack und die aktuelle Basis
+[*]Lässt Ausrüstung, Nahrungsslots, Schlüsselgegenstände und nicht unterstützte Bereiche unverändert
+[*]Beachtet standardmäßig die Ausschlüsse über [b]Tab > R[/b]
+[*]Kann Ausschlüsse verstauen, ohne Palworlds Liste zu ändern
+[*]Kann neue Arten in kompatiblen freien Lagerplätzen zulassen
+[*]Kann eine zugängliche Gildentruhe der aktuellen Basis verwenden
+[*]Prüft immer Kapazität, Berechtigungen und Gegenstandsfilter
+[/list]
+
+[b]Eigene Lagerrouten[/b]
+
+[list]
+[*]3 Medizinarten: Arzneiregale, dann normale Lager
+[*]5 Kuchen zuerst in Zuchtfarmen, danach in Kühlanlagen und normale Lager
+[*]Andere Nahrung: Futtertröge, Kühlanlagen, normale Lager; Kuchen nie in Futtertröge
+[*]Pal-Eier: nur Brutkästen, danach normale Lager oder manuell platzieren
+[*]Kleine Brutkästen nach vollen großen; belegte und nicht abgeholte überspringen
+[*]Relikte: nur Recycler, danach normale Lager oder manuell platzieren
+[*]In jedem Recycler 1–100 Weihwasser behalten; Standardwert 10
+[/list]
+
+Arzneiregale sind standardmäßig aus, Nahrungsrouten an. [b]Tab > R[/b] schützt mitzuführende Nahrung und Gerichte.
+
+[b]Ergebnisse[/b]
+
+[list]
+[*]Automatisch, Nur Text oder Ergebnisfenster auswählen
+[*]Verkaufte, verstaute, ausgeschlossene und nicht verstaute Gegenstände prüfen
+[*]Native Symbole und lokalisierte Namen in detaillierten Ergebnissen verwenden
+[*]Auf Text zurückfallen, wenn das Detailfenster nicht geöffnet werden kann
+[/list]
+
+Erst eine bestätigte Mengenabnahme zählt als Verkauf oder Verstauen.
+
+[h2]Einstellungen und Pal Insight[/h2]
+
+[list]
+[*][b]F5[/b] – Verkauf und Verstauen ausführen
+[*][b]F6[/b] – Quick-Stack-Einstellungen im eigenständigen Betrieb öffnen
+[/list]
+
+Die Tabs [b]Allgemein[/b], [b]Automatischer Verkauf[/b] und [b]Besondere Gegenstände[/b] unterstützen Maus, Tastatur, Controller und Pfeile. Kleine Brutkästen und Weihwassermenge sind Unteroptionen ihrer Routen.
+
+Tastenkürzel, Ergebnisse, Verkauf, Behaltelisten und alle Lagerrouten lassen sich im Spiel einstellen.
+
+Einstellungen überstehen Workshop-Updates und übernehmen bestehende 0.1.x-Daten.
+
+Mit [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 oder neuer[/b][/url] öffnest du dieselben Einstellungen unter:
+
+[b]F6 > Erweiterungen > Pal Insight: Quick Stack[/b]
+
+Quick Stack verwaltet Verkauf, Verschiebungen und Einstellungen. Ohne Pal Insight bleibt F6 verfügbar.
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
+
+[h2]Sprache, Sicherheit und Leistung[/h2]
+
+[list]
+[*]Unterstützt alle 17 aktuellen Palworld-Oberflächensprachen
+[*]Verwendet Palworlds native Symbole und lokalisierte Namen
+[*]Durchsucht nur die aktuelle Basis
+[*]Teilt Arbeit in begrenzte Spielthread-Schritte
+[*]Sendet Zielanfragen einzeln
+[*]Prüft Spieler, Basis, Quelle, Ziel, Filter, Rechte und Kapazität erneut
+[*]Stoppt bei Zustandsänderungen oder fehlender Bestätigung
+[*]Läuft vollständig auf dem Client
+[/list]
+
+Vermeide andere Rucksackaktionen, solange die Fortschrittsmeldung sichtbar ist.
+
+[h2]Installation[/h2]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587][b]Erforderlich: UE4SS Experimental (Palworld)[/b][/url]
+
+[olist]
+[*]Abonniere UE4SS Experimental und Pal Insight: Quick Stack.
+[*]Aktiviere beide unter [b]Palworld > Optionen > Mod-Verwaltung[/b].
+[*]Speichere, erlaube den Neustart des Spiels, betrete eine Basis und drücke F5.
+[/olist]
+
+[b]Verwende nur einen Installationskanal für Quick Stack.[/b] Kombiniere Workshop-, Nexus-, CurseForge- und Game-Pass-Versionen nicht.
+
+[h2]Kompatibilität[/h2]
+
+[list]
+[*]Steam-Einzelspieler: Getestet
+[*]Pal-Insight-2.0.0-Integration: Unterstützt
+[*]Dedizierter Server: Ein Tester meldete erfolgreiche rein clientseitige Nutzung; Spielversion und Plattform wurden nicht erfasst
+[*]Co-op: Nicht verifiziert
+[*]Game Pass/WinGDK: Paket statisch geprüft, noch nicht im Spiel verifiziert
+[/list]
+
+[h2]Fehlerbehebung und Support[/h2]
+
+[b]F5 reagiert nicht:[/b] Prüfe Basis, UE4SS, Quick Stack, Tastenkürzel und ob nur eine Mod-Kopie installiert ist.
+
+[b]Nicht verkauft oder verstaut:[/b] Prüfe Verkauf, Behalteliste, [b]Tab > R[/b], alle Routen, Filter, Rechte und Kapazität.
+
+Fehlerberichte benötigen Plattform, Versionen, Einstellungen, Schritte, Soll-/Ist-Ergebnis, UE4SS-Protokoll und Absturzdateien.
+
+[h2]Palworld-Zuchtplaner[/h2]
+
+Mit dem [url=https://cratex.app/games/palworld/breeding][b]Palworld-Zuchtplaner von CrateX.app[/b][/url] kannst du einen Spielstand importieren, Routen mit deinen vorhandenen Pals vergleichen oder allgemeine Zuchtkombinationen suchen. Spielstanddaten werden lokal im Browser verarbeitet und bleiben auf deinem Gerät.
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787096480-407403883.jpg[/img][/url]
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787598334-1162571780.png[/img][/url]
+
+[url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]Vollständiger Änderungsverlauf[/b][/url]
+
+Die vollständigen Credits findest du im Spiel unter [b]F6 > About > Special Thanks[/b].

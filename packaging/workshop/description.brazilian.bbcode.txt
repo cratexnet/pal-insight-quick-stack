@@ -1,0 +1,128 @@
+[h1]Pal Insight: Quick Stack - Guarde os itens da mochila com uma tecla[/h1]
+
+[b]Volte à base, pressione uma tecla e retome sua aventura.[/b]
+
+Na base atual, pressione [b]F5[/b]. O Quick Stack vende os itens configurados e depois move os itens compatíveis da mochila para os depósitos adequados dessa base.
+
+[img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
+
+[h2]Novidades da versão 1.3.0[/h2]
+
+[list]
+[*][b]Armários de remédios:[/b] prioridade opcional para os 3 medicamentos atuais. Sem espaço utilizável, os itens seguem para armazenamento comum. Desativada por padrão.
+[*][b]Rotas de comida:[/b] os 5 bolos vão primeiro para Fazendas de Criação e os demais alimentos para Caixas de ração; depois, para armazenamento refrigerado e comum. Bolos nunca entram em Caixas de ração. Ativadas por padrão.
+[*][b]Configurações em abas:[/b] Geral, Venda automática e Itens especiais aceitam mouse, teclado, controle e setas laterais. Incubadoras pequenas e a quantidade de Água Sagrada aparecem como subopções de suas rotas.
+[/list]
+
+[h2]Recursos[/h2]
+
+[b]Venda automática[/b]
+
+[list]
+[*]Ative separadamente itens valiosos, munição, Esferas de Pal e iscas
+[*]Escolha por ícones o que manter usando mouse, teclado ou controle
+[*]Itens excluídos na mochila com [b]Tab > R[/b] nunca são vendidos
+[/list]
+
+[b]Armazenamento rápido[/b]
+
+[list]
+[*]Processa somente a mochila normal e a base atual
+[*]Não altera equipamento, espaços de comida, itens importantes ou áreas incompatíveis
+[*]Respeita por padrão as exclusões [b]Tab > R[/b]
+[*]Pode armazenar itens excluídos sem alterar a lista do Palworld
+[*]Pode colocar novos tipos em espaços livres compatíveis
+[*]Pode usar um Baú de Guilda acessível na base atual
+[*]Sempre verifica capacidade, permissões e filtros de itens
+[/list]
+
+[b]Rotas de armazenamento dedicadas[/b]
+
+[list]
+[*]3 medicamentos: Armários de remédios e depois armazenamento comum
+[*]5 bolos: Fazendas de Criação, armazenamento refrigerado e depois comum
+[*]Outros alimentos: Caixas de ração, armazenamento refrigerado e comum; bolos nunca entram em Caixas de ração
+[*]Ovos de Pal: somente incubadoras, depois armazenamento comum, ou mantidos para colocação manual
+[*]Incubadoras pequenas opcionais depois das grandes; incubadoras ocupadas são ignoradas
+[*]Relíquias: somente recicladores, depois armazenamento comum, ou mantidas para colocação manual
+[*]Mantenha de 1 a 100 Águas Sagradas em cada reciclador; padrão: 10
+[/list]
+
+[b]Resultados[/b]
+
+[list]
+[*]Escolha Automático, Somente texto ou Janela de resultados
+[*]Veja itens vendidos, armazenados, excluídos e não armazenados
+[*]Os detalhes usam ícones nativos e nomes localizados do Palworld
+[*]Retorna ao texto se a janela detalhada não puder ser aberta
+[/list]
+
+[h2]Configurações e Pal Insight[/h2]
+
+[list]
+[*][b]F5[/b] – executar venda e armazenamento
+[*][b]F6[/b] – abrir as configurações do Quick Stack no modo independente
+[/list]
+
+As configurações ficam fora da pasta do mod, sobrevivem às atualizações da Oficina e importam os dados 0.1.x existentes.
+
+Com o [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 ou mais recente[/b][/url], abra as mesmas configurações em:
+
+[b]F6 > Extensões > Pal Insight: Quick Stack[/b]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
+
+[h2]Idiomas, segurança e desempenho[/h2]
+
+[list]
+[*]Compatível com os 17 idiomas atuais da interface do Palworld
+[*]Usa ícones nativos e nomes localizados do Palworld
+[*]Pesquisa somente a base atual
+[*]Divide o trabalho em etapas limitadas na thread do jogo
+[*]Envia uma solicitação de destino por vez
+[*]Verifica novamente jogador, base, origem, destino, filtros, permissões e capacidade
+[*]Para se o estado necessário mudar ou não puder ser confirmado
+[*]Funciona somente no cliente
+[/list]
+
+[h2]Instalação[/h2]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587][b]Necessário: UE4SS Experimental (Palworld)[/b][/url]
+
+[olist]
+[*]Inscreva-se no UE4SS Experimental e no Pal Insight: Quick Stack.
+[*]Ative ambos em [b]Palworld > Opções > Gerenciamento de mods[/b].
+[*]Salve, permita a reinicialização, entre em uma base e pressione F5.
+[/olist]
+
+[b]Use apenas um canal de instalação do Quick Stack.[/b] Não misture versões da Oficina, Nexus, CurseForge e Game Pass.
+
+[h2]Compatibilidade[/h2]
+
+[list]
+[*]Steam para um jogador: testado
+[*]Integração com Pal Insight 2.0.0: compatível
+[*]Servidor dedicado: um usuário relatou funcionamento somente no cliente; versão do jogo e plataforma não registradas
+[*]Cooperativo: não verificado
+[*]Game Pass/WinGDK: pacote verificado estaticamente, ainda sem teste no jogo
+[/list]
+
+[h2]Solução de problemas e suporte[/h2]
+
+[b]F5 não responde:[/b] confirme que você está em uma base, que UE4SS e Quick Stack estão ativos, que o atalho está correto e que só há uma cópia instalada.
+
+[b]Um item não foi vendido ou armazenado:[/b] verifique venda, listas de itens mantidos, [b]Tab > R[/b], rotas, filtros, permissões e capacidade.
+
+Inclua plataforma, versões, configurações, etapas, resultado esperado e real, log completo do UE4SS e arquivos de falha.
+
+[h2]Calculadora de reprodução do Palworld[/h2]
+
+A [url=https://cratex.app/games/palworld/breeding][b]Calculadora de reprodução do Palworld da CrateX.app[/b][/url] importa um jogo salvo para comparar rotas com seus Pals ou procurar combinações gerais. Os dados permanecem no navegador e no dispositivo.
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787096480-407403883.jpg[/img][/url]
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787598334-1162571780.png[/img][/url]
+
+[url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]Histórico completo[/b][/url]
+
+Créditos completos em [b]F6 > Sobre > Agradecimentos[/b].

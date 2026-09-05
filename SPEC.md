@@ -106,10 +106,29 @@ settings as an optional convenience and discovery path.
 - The Inventory `Tab` -> `R` exclusion list has higher priority than automatic
   sale, regardless of `IncludeExcludedItems`. An excluded whitelisted item is
   neither sold nor removed from the existing excluded-result accounting.
-- Sale uses only a current, server-registered item shop ID obtained through a
-  proved game-owned route. Missing, zero, stale, or unverifiable shop context
-  skips the sale phase without blocking the existing Quick Stack routes. The mod
-  must not invent a shop ID, create a synthetic shop, or delete items directly.
+- Sale uses only a current, server-registered item shop ID obtained through
+  game-owned persistent properties. The primary route selects an existing entry
+  from `UPalShopManager.CreatedItemShopMap_ForServer` and re-enumerates the same
+  map immediately before submission to verify the manager, shop ID, and shop
+  object identity. The server sell handler requires this registered membership;
+  it does not require an open shop UI, a nearby merchant actor, or a merchant in
+  the current base. If the registered map is unavailable or contains no readable
+  item shop, the bounded current-base merchant route remains as a fallback.
+  Current-base worker candidates come from the base Worker Director's character
+  container regardless of their assigned work structure. Loaded non-worker human
+  candidates come from the current world's `PalObjectCollector` and must also
+  resolve physically inside the same base; an unreadable individual NPC is
+  skipped without aborting the remaining bounded sources. Characters assigned to
+  a current-base map object's character-container module, including Viewing Cage
+  occupants, are discovered from the same bounded base object list used by Quick
+  Stack. Both the handle's ordinary actor and its replicated phantom actors are
+  eligible merchant candidates. This fallback route is revalidated against the
+  same map object, concrete model, character container, slot handle, and actor
+  immediately before sale. The scan never retains function out-parameter arrays
+  across frames and does not enumerate building types. Missing, zero, stale, or
+  unverifiable shop context skips the sale phase without blocking the existing
+  Quick Stack routes. The mod must not invent a shop ID, create a synthetic shop,
+  or delete items directly.
 - Every sale candidate is revalidated against the same local common container,
   slot index, item ID, stack count, player, world, and job generation immediately
   before submission. Sell requests are paced to at most one per frame and run
@@ -168,6 +187,15 @@ settings as an optional convenience and discovery path.
   fishing bait share one vendor lookup and one sale request, and the complete
   sale phase finishes or safely degrades before metadata discovery or any
   storage request begins.
+- `KeepSaleItemsWhenNoMerchant` defaults to `true`. If merchant discovery
+  finishes without a usable registered shop, every affected sale candidate stays
+  in the backpack for that F5 job. When the setting is disabled, those candidates
+  rejoin normal storage routing instead. Other pre-submission sale failures keep
+  the existing normal-storage fallback.
+- If automatic sale degrades before submission, the detailed result includes one
+  warning-colored `Not sold` section containing every affected item and quantity.
+  Its helper and compact feedback state whether the items stayed in the backpack
+  or followed normal storage rules; compact feedback remains count-only.
 
 ### Routing order
 
@@ -184,9 +212,10 @@ inventory item:
    (`Cake`, `Cake02`, `Cake03`, `Cake04`, and `Cake05`) use compatible current-
    base Breeding Farm containers first. Any remainder uses a recognized cold-
    storage facility and then ordinary storage; it never uses a Pal Food Box.
-   When `FoodBoxFirst = true`, other current legal `EPalItemTypeA::Food` items
-   use compatible normal or refrigerated Pal Food Boxes first, then recognized
-   cold storage, and finally ordinary storage. The cold-storage allowlist is
+   When `FoodBoxFirst = true`, other current legal items classified by the game
+   as `Food` or `Meal` use compatible normal or refrigerated Pal Food Boxes
+   first, then recognized cold storage, and finally ordinary storage. The
+   cold-storage allowlist is
    limited to the current map-object IDs `CoolerBox`, `Refrigerator`,
    `CoolerElectric`, `CoolerMedieval`, and `CoolerAncient`. Both settings are
    default-on, and disabling both preserves the existing ordinary route.
@@ -317,6 +346,14 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
   Text stays on one line while it fits; beyond the safe maximum it wraps and
   naturally increases the frame height while remaining horizontally and
   vertically centered.
+- Every compact status separates a short semantic title from its content. The
+  working state uses `Processing`; final results use exactly four title states:
+  `Completed`, `Partially completed`, `Needs attention`, and `Failed`. Confirmed
+  sale and storage results, pending confirmation, and actionable warnings each
+  occupy their own content line rather than being flattened into one sentence.
+  The detailed result card uses the same final-state classifier so a sale-only
+  result is never mislabeled as a storage result. Text labels accompany color;
+  color alone never communicates status.
 - Starting a valid job shows a persistent quick-stacking message that asks the
   player not to manipulate inventory until the job finishes.
 - `Quick stack complete` is shown only after the submitted source-slot changes
@@ -335,6 +372,12 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
   to: `Automatic: show the result window when triggered from the inventory;
   otherwise show text.` This describes the existing trigger-time behavior and
   does not change it.
+- `Default` determines the active Inventory/Equipment page from
+  `WBP_InGameMainMenu_C.CurrentContentWidget` independently of mouse-cursor
+  visibility. When the lifecycle cache is absent or stale at trigger time, one
+  bounded `FindFirstOf` backfill is allowed before this decision. Other active
+  `Tab` bundle pages still own input and block F5 regardless of whether the
+  shortcut came from keyboard or controller.
 - With a compatible bridge, a confirmed result with at least one successfully
   stored or unstored item uses a centered F6-style detailed card when selected
   by the trigger-time `ResultDisplay` policy. The card owns its cursor, modal
@@ -354,10 +397,10 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
   becoming a separate badge. Horizontal cells use a 12-unit gutter while rows
   retain a 4-unit gap, so items are tighter within a cell than between cells.
 - If a compatible ordinary destination exists but its usable capacity is
-  exhausted, the detailed card makes that result primary. A partial result is
-  titled `Some items could not be stored`; a capacity-only result is titled
-  `Items could not be stored`. The possible-cause explanation belongs to the
-  fixed result Header as a secondary line, outside the scrolling item lists.
+  exhausted, the detailed card makes that result primary. A partial result uses
+  the shared `Partially completed` title; a capacity-only result uses `Failed`.
+  The possible-cause explanation belongs to the fixed result Header as a
+  secondary line, outside the scrolling item lists.
   The warning-colored `Not stored` section appears before successful and
   excluded sections and contains only its summary and affected item rows. It is
   shown even when zero items were successfully stored. This user-facing copy
@@ -445,6 +488,7 @@ return {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    KeepSaleItemsWhenNoMerchant = true,
     BreedingFarmCakeFirst = true,
     FoodBoxFirst = true,
     MedicineRackFirst = false,
@@ -576,6 +620,16 @@ reported as an external conflict.
   the extracted current-build localized item-name catalog without constructing
   native item-row widgets, clearly states that checked means kept, and persists
   changes through the same validated settings path as the other controls.
+- Automatic Sale begins with one non-interactive, full-width sale-bonus notice
+  stating that automatic selling reads the current party Pals' localized
+  `Noble` and `Fine Furs` passives and applies them to sale prices. The notice
+  uses the existing warning-accent text color, does not create a
+  keyboard/controller focus stop, and appears directly above the independent,
+  default-on `KeepSaleItemsWhenNoMerchant` toggle.
+  That toggle remains before the four sale categories. Its helper explains that
+  F5 finds merchants automatically and that disabling the toggle lets unsold
+  candidates continue through normal storage routing when no merchant is
+  available.
 - Special Item Storage includes a default-off `MedicineRackFirst` toggle.
   Its helper explains that medical supplies use Medicine Racks first and still
   fall back to ordinary storage when no usable rack is available or all racks
@@ -597,7 +651,9 @@ reported as an external conflict.
   A light press moves exactly once, while a held input continues moving.
 - Escape or controller Back closes only the hosted Quick Stack panel and
   restores Pal Insight plus focus to the originating row. `F6` closes the whole
-  settings stack.
+  settings stack. A close originating from an input hook is deferred until that
+  callback has returned; the callback must not hide the widget or release the
+  host while UE4SS still owns the event's reflected parameters or return value.
 - Quick Stack is the sole Escape/Back action owner while its settings surface is
   open. Pal Insight keeps the underlying settings stack suspended and consumes
   its own retained routes without issuing a second close request.

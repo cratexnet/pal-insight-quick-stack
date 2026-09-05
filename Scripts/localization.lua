@@ -408,26 +408,80 @@ local STRINGS = {
 }
 
 local SALE_RESULT_STRINGS = {
-    en = { soldSection = "Sold", soldCompact = "Sold %d items", saleSubmittedCompact = "Sale request sent; %d items remain in your inventory" },
-    ["zh-hans"] = { soldSection = "已出售", soldCompact = "已出售 %d 件物品", saleSubmittedCompact = "出售请求已发送；%d 件物品暂留背包" },
-    ["zh-hant"] = { soldSection = "已出售", soldCompact = "已出售 %d 件物品", saleSubmittedCompact = "出售請求已傳送；%d 件物品暫留背包" },
-    ja = { soldSection = "売却済み", soldCompact = "%d 個のアイテムを売却", saleSubmittedCompact = "売却リクエスト送信済み。%d 個のアイテムはバッグに残っています" },
-    ko = { soldSection = "판매됨", soldCompact = "%d개 아이템 판매", saleSubmittedCompact = "판매 요청을 보냈습니다. 아이템 %d개는 가방에 남아 있습니다" },
-    de = { soldSection = "Verkauft", soldCompact = "%d Gegenstände verkauft", saleSubmittedCompact = "Verkaufsanfrage gesendet; %d Gegenstände bleiben im Inventar" },
-    fr = { soldSection = "Vendu", soldCompact = "%d objets vendus", saleSubmittedCompact = "Demande de vente envoyée ; %d objets restent dans l’inventaire" },
-    it = { soldSection = "Venduti", soldCompact = "%d oggetti venduti", saleSubmittedCompact = "Richiesta di vendita inviata; %d oggetti restano nell’inventario" },
-    es = { soldSection = "Vendidos", soldCompact = "%d objetos vendidos", saleSubmittedCompact = "Solicitud de venta enviada; %d objetos siguen en el inventario" },
-    ["pt-br"] = { soldSection = "Vendidos", soldCompact = "%d itens vendidos", saleSubmittedCompact = "Solicitação de venda enviada; %d itens permanecem no inventário" },
-    ru = { soldSection = "Продано", soldCompact = "Продано предметов: %d", saleSubmittedCompact = "Запрос на продажу отправлен; %d предметов остались в инвентаре" },
-    tr = { soldSection = "Satıldı", soldCompact = "%d öğe satıldı", saleSubmittedCompact = "Satış isteği gönderildi; %d öğe envanterde kaldı" },
-    pl = { soldSection = "Sprzedano", soldCompact = "Sprzedano %d przedmiotów", saleSubmittedCompact = "Wysłano żądanie sprzedaży; %d przedmiotów pozostaje w ekwipunku" },
-    id = { soldSection = "Terjual", soldCompact = "%d item terjual", saleSubmittedCompact = "Permintaan penjualan dikirim; %d item tetap di inventaris" },
-    ["es-419"] = { soldSection = "Vendidos", soldCompact = "%d objetos vendidos", saleSubmittedCompact = "Solicitud de venta enviada; %d objetos siguen en el inventario" },
-    th = { soldSection = "ขายแล้ว", soldCompact = "ขายแล้ว %d ชิ้น", saleSubmittedCompact = "ส่งคำขอขายแล้ว ไอเท็ม %d ชิ้นยังอยู่ในกระเป๋า" },
-    vi = { soldSection = "Đã bán", soldCompact = "Đã bán %d vật phẩm", saleSubmittedCompact = "Đã gửi yêu cầu bán; %d vật phẩm vẫn còn trong túi" },
+    en = { soldSection = "Sold", saleSkippedSection = "Not sold", soldCompact = "Sold %d items", saleSubmittedCompact = "Sale request sent; %d items remain in your inventory", saleSkippedNoMerchant = "No available merchant; %d sale items followed normal storage rules", saleSkippedUnavailable = "Automatic sale unavailable; %d sale items followed normal storage rules" },
+    ["zh-hans"] = { soldSection = "已出售", saleSkippedSection = "未出售", soldCompact = "已出售 %d 件物品", saleSubmittedCompact = "出售请求已发送；%d 件物品暂留背包", saleSkippedNoMerchant = "未找到可用商人；%d 件待售物品已改按普通归箱规则处理", saleSkippedUnavailable = "自动出售不可用；%d 件待售物品已改按普通归箱规则处理" },
+    ["zh-hant"] = { soldSection = "已出售", saleSkippedSection = "未出售", soldCompact = "已出售 %d 件物品", saleSubmittedCompact = "出售請求已傳送；%d 件物品暫留背包", saleSkippedNoMerchant = "找不到可用商人；%d 件待售物品已改按一般歸箱規則處理", saleSkippedUnavailable = "自動出售無法使用；%d 件待售物品已改按一般歸箱規則處理" },
+    ja = { soldSection = "売却済み", saleSkippedSection = "未売却", soldCompact = "%d 個のアイテムを売却", saleSubmittedCompact = "売却リクエスト送信済み。%d 個のアイテムはバッグに残っています", saleSkippedNoMerchant = "利用可能な商人がいないため、売却対象 %d 個を通常の収納ルールで処理しました", saleSkippedUnavailable = "自動売却を利用できないため、売却対象 %d 個を通常の収納ルールで処理しました" },
+    ko = { soldSection = "판매됨", saleSkippedSection = "판매되지 않음", soldCompact = "%d개 아이템 판매", saleSubmittedCompact = "판매 요청을 보냈습니다. 아이템 %d개는 가방에 남아 있습니다", saleSkippedNoMerchant = "이용 가능한 상인이 없어 판매 대상 %d개를 일반 보관 규칙으로 처리했습니다", saleSkippedUnavailable = "자동 판매를 사용할 수 없어 판매 대상 %d개를 일반 보관 규칙으로 처리했습니다" },
+    de = { soldSection = "Verkauft", saleSkippedSection = "Nicht verkauft", soldCompact = "%d Gegenstände verkauft", saleSubmittedCompact = "Verkaufsanfrage gesendet; %d Gegenstände bleiben im Inventar", saleSkippedNoMerchant = "Kein Händler verfügbar; %d Verkaufsobjekte folgten den normalen Lagerregeln", saleSkippedUnavailable = "Automatischer Verkauf nicht verfügbar; %d Verkaufsobjekte folgten den normalen Lagerregeln" },
+    fr = { soldSection = "Vendu", saleSkippedSection = "Non vendus", soldCompact = "%d objets vendus", saleSubmittedCompact = "Demande de vente envoyée ; %d objets restent dans l’inventaire", saleSkippedNoMerchant = "Aucun marchand disponible ; %d objets à vendre ont suivi les règles de rangement normales", saleSkippedUnavailable = "Vente automatique indisponible ; %d objets à vendre ont suivi les règles de rangement normales" },
+    it = { soldSection = "Venduti", saleSkippedSection = "Non venduti", soldCompact = "%d oggetti venduti", saleSubmittedCompact = "Richiesta di vendita inviata; %d oggetti restano nell’inventario", saleSkippedNoMerchant = "Nessun mercante disponibile; %d oggetti da vendere hanno seguito le normali regole di deposito", saleSkippedUnavailable = "Vendita automatica non disponibile; %d oggetti da vendere hanno seguito le normali regole di deposito" },
+    es = { soldSection = "Vendidos", saleSkippedSection = "No vendidos", soldCompact = "%d objetos vendidos", saleSubmittedCompact = "Solicitud de venta enviada; %d objetos siguen en el inventario", saleSkippedNoMerchant = "No hay ningún mercader disponible; %d objetos para vender siguieron las reglas de almacenamiento normales", saleSkippedUnavailable = "Venta automática no disponible; %d objetos para vender siguieron las reglas de almacenamiento normales" },
+    ["pt-br"] = { soldSection = "Vendidos", saleSkippedSection = "Não vendidos", soldCompact = "%d itens vendidos", saleSubmittedCompact = "Solicitação de venda enviada; %d itens permanecem no inventário", saleSkippedNoMerchant = "Nenhum comerciante disponível; %d itens para venda seguiram as regras normais de armazenamento", saleSkippedUnavailable = "Venda automática indisponível; %d itens para venda seguiram as regras normais de armazenamento" },
+    ru = { soldSection = "Продано", saleSkippedSection = "Не продано", soldCompact = "Продано предметов: %d", saleSubmittedCompact = "Запрос на продажу отправлен; %d предметов остались в инвентаре", saleSkippedNoMerchant = "Нет доступного торговца; предметы на продажу (%d) обработаны по обычным правилам хранения", saleSkippedUnavailable = "Автопродажа недоступна; предметы на продажу (%d) обработаны по обычным правилам хранения" },
+    tr = { soldSection = "Satıldı", saleSkippedSection = "Satılmadı", soldCompact = "%d öğe satıldı", saleSubmittedCompact = "Satış isteği gönderildi; %d öğe envanterde kaldı", saleSkippedNoMerchant = "Kullanılabilir tüccar yok; satılacak %d öğe normal depolama kurallarına göre işlendi", saleSkippedUnavailable = "Otomatik satış kullanılamıyor; satılacak %d öğe normal depolama kurallarına göre işlendi" },
+    pl = { soldSection = "Sprzedano", saleSkippedSection = "Nie sprzedano", soldCompact = "Sprzedano %d przedmiotów", saleSubmittedCompact = "Wysłano żądanie sprzedaży; %d przedmiotów pozostaje w ekwipunku", saleSkippedNoMerchant = "Brak dostępnego handlarza; %d przedmiotów na sprzedaż obsłużono według zwykłych reguł przechowywania", saleSkippedUnavailable = "Automatyczna sprzedaż niedostępna; %d przedmiotów na sprzedaż obsłużono według zwykłych reguł przechowywania" },
+    id = { soldSection = "Terjual", saleSkippedSection = "Tidak terjual", soldCompact = "%d item terjual", saleSubmittedCompact = "Permintaan penjualan dikirim; %d item tetap di inventaris", saleSkippedNoMerchant = "Tidak ada pedagang yang tersedia; %d item jual diproses dengan aturan penyimpanan biasa", saleSkippedUnavailable = "Penjualan otomatis tidak tersedia; %d item jual diproses dengan aturan penyimpanan biasa" },
+    ["es-419"] = { soldSection = "Vendidos", saleSkippedSection = "No vendidos", soldCompact = "%d objetos vendidos", saleSubmittedCompact = "Solicitud de venta enviada; %d objetos siguen en el inventario", saleSkippedNoMerchant = "No hay ningún comerciante disponible; %d objetos para vender siguieron las reglas de almacenamiento normales", saleSkippedUnavailable = "Venta automática no disponible; %d objetos para vender siguieron las reglas de almacenamiento normales" },
+    th = { soldSection = "ขายแล้ว", saleSkippedSection = "ยังไม่ได้ขาย", soldCompact = "ขายแล้ว %d ชิ้น", saleSubmittedCompact = "ส่งคำขอขายแล้ว ไอเท็ม %d ชิ้นยังอยู่ในกระเป๋า", saleSkippedNoMerchant = "ไม่พบพ่อค้าที่ใช้งานได้ ไอเท็มที่จะขาย %d ชิ้นจึงใช้กฎการจัดเก็บปกติ", saleSkippedUnavailable = "การขายอัตโนมัติไม่พร้อมใช้งาน ไอเท็มที่จะขาย %d ชิ้นจึงใช้กฎการจัดเก็บปกติ" },
+    vi = { soldSection = "Đã bán", saleSkippedSection = "Chưa bán", soldCompact = "Đã bán %d vật phẩm", saleSubmittedCompact = "Đã gửi yêu cầu bán; %d vật phẩm vẫn còn trong túi", saleSkippedNoMerchant = "Không có thương nhân khả dụng; %d vật phẩm cần bán được xử lý theo quy tắc cất đồ thông thường", saleSkippedUnavailable = "Không thể tự động bán; %d vật phẩm cần bán được xử lý theo quy tắc cất đồ thông thường" },
+}
+
+local RESULT_STATUS_STRINGS = {
+    en = { processingTitle = "Processing", successTitle = "Completed", partialSuccessTitle = "Partially completed", attentionTitle = "Needs attention", failureTitle = "Failed" },
+    ["zh-hans"] = { processingTitle = "处理中", successTitle = "处理完成", partialSuccessTitle = "部分完成", attentionTitle = "需要注意", failureTitle = "处理失败" },
+    ["zh-hant"] = { processingTitle = "處理中", successTitle = "處理完成", partialSuccessTitle = "部分完成", attentionTitle = "需要注意", failureTitle = "處理失敗" },
+    ja = { processingTitle = "処理中", successTitle = "完了", partialSuccessTitle = "一部完了", attentionTitle = "要確認", failureTitle = "失敗" },
+    ko = { processingTitle = "처리 중", successTitle = "완료", partialSuccessTitle = "일부 완료", attentionTitle = "확인 필요", failureTitle = "실패" },
+    de = { processingTitle = "Wird verarbeitet", successTitle = "Abgeschlossen", partialSuccessTitle = "Teilweise abgeschlossen", attentionTitle = "Hinweis beachten", failureTitle = "Fehlgeschlagen" },
+    fr = { processingTitle = "Traitement en cours", successTitle = "Terminé", partialSuccessTitle = "Partiellement terminé", attentionTitle = "Attention requise", failureTitle = "Échec" },
+    it = { processingTitle = "Elaborazione", successTitle = "Completato", partialSuccessTitle = "Completato in parte", attentionTitle = "Attenzione richiesta", failureTitle = "Operazione non riuscita" },
+    es = { processingTitle = "Procesando", successTitle = "Completado", partialSuccessTitle = "Completado parcialmente", attentionTitle = "Requiere atención", failureTitle = "Error" },
+    ["pt-br"] = { processingTitle = "Processando", successTitle = "Concluído", partialSuccessTitle = "Parcialmente concluído", attentionTitle = "Requer atenção", failureTitle = "Falha" },
+    ru = { processingTitle = "Обработка", successTitle = "Завершено", partialSuccessTitle = "Выполнено частично", attentionTitle = "Требуется внимание", failureTitle = "Ошибка" },
+    tr = { processingTitle = "İşleniyor", successTitle = "Tamamlandı", partialSuccessTitle = "Kısmen tamamlandı", attentionTitle = "Dikkat gerekiyor", failureTitle = "Başarısız" },
+    pl = { processingTitle = "Przetwarzanie", successTitle = "Ukończono", partialSuccessTitle = "Ukończono częściowo", attentionTitle = "Wymaga uwagi", failureTitle = "Niepowodzenie" },
+    id = { processingTitle = "Memproses", successTitle = "Selesai", partialSuccessTitle = "Selesai sebagian", attentionTitle = "Perlu perhatian", failureTitle = "Gagal" },
+    ["es-419"] = { processingTitle = "Procesando", successTitle = "Completado", partialSuccessTitle = "Completado parcialmente", attentionTitle = "Requiere atención", failureTitle = "Error" },
+    th = { processingTitle = "กำลังดำเนินการ", successTitle = "เสร็จสิ้น", partialSuccessTitle = "เสร็จสิ้นบางส่วน", attentionTitle = "ต้องตรวจสอบ", failureTitle = "ล้มเหลว" },
+    vi = { processingTitle = "Đang xử lý", successTitle = "Hoàn tất", partialSuccessTitle = "Hoàn tất một phần", attentionTitle = "Cần chú ý", failureTitle = "Thất bại" },
+}
+
+local SALE_FALLBACK_RESULT_STRINGS = {
+    en = { saleSkippedNoMerchantKept = "No available merchant; %d sale items stayed in your backpack" },
+    ["zh-hans"] = { saleSkippedNoMerchantKept = "未找到可用商人；%d 件待售物品已保留在背包" },
+    ["zh-hant"] = { saleSkippedNoMerchantKept = "找不到可用商人；%d 件待售物品已保留在背包" },
+    ja = { saleSkippedNoMerchantKept = "利用可能な商人がいないため、売却対象 %d 個はバッグに残りました" },
+    ko = { saleSkippedNoMerchantKept = "이용 가능한 상인이 없어 판매 대상 %d개를 가방에 남겼습니다" },
+    de = { saleSkippedNoMerchantKept = "Kein Händler verfügbar; %d Verkaufsobjekte blieben im Inventar" },
+    fr = { saleSkippedNoMerchantKept = "Aucun marchand disponible ; %d objets à vendre sont restés dans l’inventaire" },
+    it = { saleSkippedNoMerchantKept = "Nessun mercante disponibile; %d oggetti da vendere sono rimasti nell’inventario" },
+    es = { saleSkippedNoMerchantKept = "No hay ningún mercader disponible; %d objetos para vender permanecieron en el inventario" },
+    ["pt-br"] = { saleSkippedNoMerchantKept = "Nenhum comerciante disponível; %d itens para venda permaneceram no inventário" },
+    ru = { saleSkippedNoMerchantKept = "Нет доступного торговца; предметы на продажу (%d) остались в инвентаре" },
+    tr = { saleSkippedNoMerchantKept = "Kullanılabilir tüccar yok; satılacak %d öğe envanterde kaldı" },
+    pl = { saleSkippedNoMerchantKept = "Brak dostępnego handlarza; %d przedmiotów na sprzedaż pozostało w ekwipunku" },
+    id = { saleSkippedNoMerchantKept = "Tidak ada pedagang yang tersedia; %d item jual tetap berada di inventaris" },
+    ["es-419"] = { saleSkippedNoMerchantKept = "No hay ningún mercader disponible; %d objetos para vender permanecieron en el inventario" },
+    th = { saleSkippedNoMerchantKept = "ไม่พบพ่อค้าที่ใช้งานได้ ไอเท็มที่จะขาย %d ชิ้นจึงยังอยู่ในกระเป๋า" },
+    vi = { saleSkippedNoMerchantKept = "Không có thương nhân khả dụng; %d vật phẩm cần bán vẫn ở trong túi" },
 }
 
 for locale, values in pairs(SALE_RESULT_STRINGS) do
+    local row = STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
+for locale, values in pairs(RESULT_STATUS_STRINGS) do
+    local row = STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
+for locale, values in pairs(SALE_FALLBACK_RESULT_STRINGS) do
     local row = STRINGS[locale]
     if type(row) == "table" then
         for key, value in pairs(values) do row[key] = value end
@@ -1188,6 +1242,46 @@ local CONSUMABLE_SALE_SETTINGS_STRINGS = {
     vi = { autoSellPalSpheres = "Bán Cầu Pal đã chọn", keptPalSpheres = "Cầu Pal cần giữ", palSpherePickerTitle = "Chọn Cầu Pal cần giữ", palSpherePickerHelper = "Cầu Pal được đánh dấu sẽ ở lại trong túi và không bị bán.", palSphereKeptSummary = "Giữ %d / %d", autoSellFishingBait = "Bán mồi câu đã chọn", keptFishingBait = "Mồi câu cần giữ", fishingBaitPickerTitle = "Chọn mồi câu cần giữ", fishingBaitPickerHelper = "Mồi câu được đánh dấu sẽ ở lại trong túi và không bị bán.", fishingBaitKeptSummary = "Giữ %d / %d" },
 }
 
+local SALE_FALLBACK_SETTINGS_STRINGS = {
+    en = { keepSaleItemsWhenNoMerchant = "Keep sale items if no merchant is found", keepSaleItemsWhenNoMerchantHelper = "F5 finds an available merchant automatically. Turn this off to send unsold items through normal storage rules when none is found." },
+    ["zh-hans"] = { keepSaleItemsWhenNoMerchant = "未找到商人时保留待售物品", keepSaleItemsWhenNoMerchantHelper = "F5 会自动查找可用商人。关闭后，未找到商人时待售物品会按普通归箱规则处理。" },
+    ["zh-hant"] = { keepSaleItemsWhenNoMerchant = "找不到商人時保留待售物品", keepSaleItemsWhenNoMerchantHelper = "F5 會自動尋找可用商人。關閉後，找不到商人時，待售物品會依一般歸箱規則處理。" },
+    ja = { keepSaleItemsWhenNoMerchant = "商人が見つからない場合は売却対象を残す", keepSaleItemsWhenNoMerchantHelper = "F5 は利用可能な商人を自動で探します。オフにすると、商人が見つからない場合は売却対象が通常の収納ルールで処理されます。" },
+    ko = { keepSaleItemsWhenNoMerchant = "상인을 찾지 못하면 판매 아이템 보관", keepSaleItemsWhenNoMerchantHelper = "F5가 이용 가능한 상인을 자동으로 찾습니다. 끄면 상인을 찾지 못했을 때 판매 아이템이 일반 보관 규칙에 따라 처리됩니다." },
+    de = { keepSaleItemsWhenNoMerchant = "Verkaufsobjekte behalten, wenn kein Händler gefunden wird", keepSaleItemsWhenNoMerchantHelper = "F5 sucht automatisch einen verfügbaren Händler. Deaktivieren, damit unverkaufte Gegenstände den normalen Lagerregeln folgen, wenn keiner gefunden wird." },
+    fr = { keepSaleItemsWhenNoMerchant = "Garder les objets à vendre si aucun marchand n’est trouvé", keepSaleItemsWhenNoMerchantHelper = "F5 recherche automatiquement un marchand disponible. Désactivez cette option pour appliquer les règles de rangement normales aux objets non vendus si aucun marchand n’est trouvé." },
+    it = { keepSaleItemsWhenNoMerchant = "Conserva gli oggetti da vendere se non trovi un mercante", keepSaleItemsWhenNoMerchantHelper = "F5 cerca automaticamente un mercante disponibile. Disattiva l’opzione per applicare le normali regole di deposito agli oggetti non venduti se non ne viene trovato uno." },
+    es = { keepSaleItemsWhenNoMerchant = "Conservar objetos para vender si no se encuentra un mercader", keepSaleItemsWhenNoMerchantHelper = "F5 busca automáticamente un mercader disponible. Desactiva esta opción para aplicar las reglas de almacenamiento normales a los objetos no vendidos si no encuentra ninguno." },
+    ["pt-br"] = { keepSaleItemsWhenNoMerchant = "Manter itens à venda se nenhum comerciante for encontrado", keepSaleItemsWhenNoMerchantHelper = "F5 procura automaticamente um comerciante disponível. Desative para aplicar as regras normais de armazenamento aos itens não vendidos se nenhum for encontrado." },
+    ru = { keepSaleItemsWhenNoMerchant = "Оставлять предметы на продажу, если торговец не найден", keepSaleItemsWhenNoMerchantHelper = "F5 автоматически ищет доступного торговца. Отключите эту настройку, чтобы при его отсутствии непроданные предметы обрабатывались по обычным правилам хранения." },
+    tr = { keepSaleItemsWhenNoMerchant = "Tüccar bulunamazsa satılacak öğeleri sakla", keepSaleItemsWhenNoMerchantHelper = "F5 kullanılabilir bir tüccarı otomatik olarak bulur. Tüccar bulunamazsa satılmayan öğelerin normal depolama kurallarına uyması için bunu kapatın." },
+    pl = { keepSaleItemsWhenNoMerchant = "Zachowaj przedmioty na sprzedaż, gdy nie znaleziono handlarza", keepSaleItemsWhenNoMerchantHelper = "F5 automatycznie wyszukuje dostępnego handlarza. Wyłącz tę opcję, aby w razie jego braku niesprzedane przedmioty podlegały zwykłym regułom przechowywania." },
+    id = { keepSaleItemsWhenNoMerchant = "Simpan item jual jika pedagang tidak ditemukan", keepSaleItemsWhenNoMerchantHelper = "F5 mencari pedagang yang tersedia secara otomatis. Matikan agar item yang tidak terjual mengikuti aturan penyimpanan biasa jika pedagang tidak ditemukan." },
+    ["es-419"] = { keepSaleItemsWhenNoMerchant = "Conservar objetos para vender si no se encuentra un mercader", keepSaleItemsWhenNoMerchantHelper = "F5 busca automáticamente un mercader disponible. Desactiva esta opción para aplicar las reglas de almacenamiento normales a los objetos no vendidos si no encuentra ninguno." },
+    th = { keepSaleItemsWhenNoMerchant = "เก็บไอเท็มที่จะขายไว้หากไม่พบพ่อค้า", keepSaleItemsWhenNoMerchantHelper = "F5 จะค้นหาพ่อค้าที่ใช้งานได้โดยอัตโนมัติ ปิดตัวเลือกนี้เพื่อให้ไอเท็มที่ขายไม่ได้ใช้กฎการจัดเก็บปกติเมื่อไม่พบพ่อค้า" },
+    vi = { keepSaleItemsWhenNoMerchant = "Giữ vật phẩm cần bán nếu không tìm thấy thương nhân", keepSaleItemsWhenNoMerchantHelper = "F5 tự động tìm thương nhân khả dụng. Tắt tùy chọn này để vật phẩm chưa bán được xử lý theo quy tắc cất đồ thông thường khi không tìm thấy thương nhân." },
+}
+
+local SALE_BONUS_SETTINGS_STRINGS = {
+    en = { saleBonusNotice = "Automatic selling reads party Pals' Noble and Fine Furs passives and applies them to sale prices." },
+    ["zh-hans"] = { saleBonusNotice = "自动出售会读取当前队伍帕鲁的「高贵」与「贵族」词条并计入售价" },
+    ["zh-hant"] = { saleBonusNotice = "自動出售會讀取目前隊伍帕魯的「高貴」與「貴族」詞條並計入售價" },
+    ja = { saleBonusNotice = "自動売却は手持ちパルの「高貴」と「良い毛並み」を売却価格に反映します。" },
+    ko = { saleBonusNotice = "자동 판매는 보유 팰의 「고귀」와 「좋은 혈통」 패시브를 판매 가격에 반영합니다." },
+    de = { saleBonusNotice = "Der automatische Verkauf berücksichtigt „Kostbar“ und „Edles Fell“ der Pals im Team beim Verkaufspreis." },
+    fr = { saleBonusNotice = "La vente automatique applique « Noble » et « Belle Fourrure » des Pals de l’équipe au prix de vente." },
+    it = { saleBonusNotice = "La vendita automatica applica « Nobile » e « Ottimo pedigree » dei Pal in squadra al prezzo di vendita." },
+    es = { saleBonusNotice = "La venta automática aplica « Nobleza » y « Linaje superior » de los Pals del equipo al precio de venta." },
+    ["pt-br"] = { saleBonusNotice = "A venda automática aplica « Nobre » e « Linhagem Distinta » dos Pals da equipe ao preço de venda." },
+    ru = { saleBonusNotice = "Автопродажа учитывает навыки «Благородный» и «Ценная шкура» Палов в отряде при расчёте цены." },
+    tr = { saleBonusNotice = "Otomatik satış, gruptaki Pallerin “Asil” ve “İyi Soy” pasiflerini satış fiyatına uygular." },
+    pl = { saleBonusNotice = "Automatyczna sprzedaż uwzględnia cechy „Szlachcic” i „Wspaniały rodowód” Pali w drużynie w cenie sprzedaży." },
+    id = { saleBonusNotice = "Penjualan otomatis menerapkan pasif “Bangsawan” dan “Keturunan yang Bagus” milik Pal dalam tim pada harga jual." },
+    ["es-419"] = { saleBonusNotice = "La venta automática aplica « Nobleza » y « Linaje superior » de los Pals del equipo al precio de venta." },
+    th = { saleBonusNotice = "การขายอัตโนมัติจะนำพาสซีฟ “ผู้สูงศักดิ์” และ “สายเลือดอันสูงส่ง” ของพัลในทีมไปคำนวณราคาขาย" },
+    vi = { saleBonusNotice = "Tự động bán áp dụng nội tại “Cao Quý” và “Dòng Dõi Cao Quý” của Pal trong đội vào giá bán." },
+}
+
 local MEDICINE_RACK_SETTINGS_STRINGS = {
     en = { medicineRackFirst = "Medical supplies to Medicine Racks first", medicineRackFirstHelper = "If no usable Medicine Rack is available or all are full, medical supplies still go to regular storage." },
     ["zh-hans"] = { medicineRackFirst = "医疗药品优先放入药品架", medicineRackFirstHelper = "没有可用的药品架或药品架已满时，医疗药品仍会放入普通储物箱。" },
@@ -1243,6 +1337,20 @@ for locale, values in pairs(VALUABLE_SETTINGS_STRINGS) do
 end
 
 for locale, values in pairs(CONSUMABLE_SALE_SETTINGS_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
+for locale, values in pairs(SALE_FALLBACK_SETTINGS_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
+for locale, values in pairs(SALE_BONUS_SETTINGS_STRINGS) do
     local row = SETTINGS_STRINGS[locale]
     if type(row) == "table" then
         for key, value in pairs(values) do row[key] = value end

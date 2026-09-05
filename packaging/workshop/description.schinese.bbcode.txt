@@ -1,0 +1,144 @@
+[h1]Pal Insight: Quick Stack - 背包物品一键收纳[/h1]
+
+[b]回到据点，按下一个键，继续冒险。[/b]
+
+在当前据点内按 [b]F5[/b]。Quick Stack 会先出售你配置的物品，再把普通背包中符合条件的物品收纳到该据点的合适容器。
+
+[img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
+
+[h2]1.3.0 新功能[/h2]
+
+[list]
+[*][b]药品柜优先：[/b]可选择让当前 3 种医疗药品优先进入药品柜。没有可用药品柜或药品柜已满时，仍会进入普通储物箱。此选项默认关闭。
+[*][b]食物专用路线：[/b]5 种蛋糕优先进入配种牧场，其他食物优先进入饲料箱；随后均依次进入冷藏设施和普通储物箱。蛋糕绝不会进入饲料箱。此功能默认开启。
+[*][b]分页设置：[/b]设置分为常规、自动出售和特殊物品 3 个分页，支持鼠标、键盘、手柄及两侧箭头操作。“使用小型孵化器”和“圣水数量”显示为对应规则的子选项。
+[/list]
+
+1.2.0 加入了自动出售、带图标的保留列表、先出售后收纳的执行顺序和本地化版本历史。1.1.0 加入了可选的公会箱与小型孵化器支持。
+
+[h2]全部功能[/h2]
+
+[b]自动出售[/b]
+
+[list]
+[*]高价品、弹药、帕鲁球和钓饵可分别开启
+[*]使用鼠标、键盘或手柄操作带图标的保留列表
+[*]通过背包 [b]Tab > R[/b] 排除的物品始终不会出售
+[/list]
+
+开启前请检查保留列表。高价品初始允许出售全部 9 种支持物品；其他类别初始保留全部支持物品。
+
+[b]一键收纳[/b]
+
+[list]
+[*]仅处理普通背包和角色当前所在据点
+[*]不触碰装备、食物栏、重要物品及不支持的背包区域
+[*]默认遵循 [b]Tab > R[/b] 排除项
+[*]可收纳已排除物品，但不会修改 Palworld 的排除清单
+[*]可允许新物品类型使用普通仓库中的兼容空位
+[*]可选择使用当前公会据点中有权限访问的公会箱
+[*]始终检查容量、权限和物品筛选
+[/list]
+
+[b]专用收纳路线[/b]
+
+[list]
+[*]可让 3 种医疗药品优先进入药品柜，再进入普通储物箱
+[*]5 种蛋糕依次使用配种牧场、冷藏设施和普通储物箱
+[*]其他食物依次使用饲料箱、冷藏设施和普通储物箱；蛋糕绝不进入饲料箱
+[*]帕鲁蛋可仅使用孵化器、孵化器满后使用普通储物箱，或留在背包手动放置
+[*]可在大型孵化器已满后使用小型孵化器；已有蛋或有待领取帕鲁的孵化器会被跳过
+[*]古代文明遗物可仅使用古代遗物转换器、转换器满后使用普通储物箱，或留在背包手动放置
+[*]每台转换器可保留 1–100 个世界树圣水；默认 10 个
+[/list]
+
+药品柜优先默认关闭，食物专用路线默认开启。[b]Tab > R[/b] 排除项始终受保护；需要随身携带的食物或料理可用此方式排除。
+
+[b]结果[/b]
+
+[list]
+[*]可选择自动、仅文字或结果窗口
+[*]查看已出售、已收纳、已排除和未能收纳的物品
+[*]详细结果使用原生图标和本地化名称
+[*]无法打开详细窗口时自动退回文字提示
+[/list]
+
+只有背包确认数量减少后，物品才会被报告为已出售或已收纳。
+
+[h2]设置与 Pal Insight[/h2]
+
+[list]
+[*][b]F5[/b] — 执行自动出售和收纳
+[*][b]F6[/b] — Quick Stack 独立运行时打开设置
+[/list]
+
+设置分为 [b]常规[/b]、[b]自动出售[/b]和[b]特殊物品[/b] 3 个分页。可使用鼠标、键盘、手柄或分页两侧的箭头切换。“使用小型孵化器”和“圣水数量”会显示为对应收纳规则的子选项。
+
+所有快捷键、结果显示、出售、保留列表和收纳路线均可在游戏内设置。
+
+设置保存在模组目录之外，创意工坊更新不会覆盖，并会自动导入已有的 0.1.x 设置。
+
+启用 [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 或更高版本[/b][/url] 后，可从这里打开同一套设置：
+
+[b]F6 > 扩展 > Pal Insight: Quick Stack[/b]
+
+Quick Stack 仍独立负责出售、物品移动和设置保存。Pal Insight 未启用时，独立 F6 设置面板仍可使用。
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
+
+[h2]语言、安全与性能[/h2]
+
+[list]
+[*]支持 Palworld 当前全部 17 种界面语言
+[*]使用 Palworld 原生物品图标和本地化名称
+[*]只搜索角色当前所在据点
+[*]把工作拆分为有上限的游戏线程任务
+[*]每次只发送一个目标请求
+[*]重新检查玩家、据点、来源物品、目标、筛选、权限和容量
+[*]必要状态变化或无法确认时停止
+[*]完全在客户端运行
+[/list]
+
+显示进度提示时，请避免进行其他背包操作。
+
+[h2]安装[/h2]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587][b]必需：UE4SS Experimental (Palworld)[/b][/url]
+
+[olist]
+[*]订阅 UE4SS Experimental 和 Pal Insight: Quick Stack。
+[*]在 [b]Palworld > 选项 > 模组管理[/b] 中启用两者。
+[*]保存并允许游戏重启，然后进入据点按 F5。
+[/olist]
+
+[b]只使用一种 Quick Stack 安装渠道。[/b]请勿同时安装创意工坊、Nexus、CurseForge 或 Game Pass 版本。
+
+[h2]兼容性[/h2]
+
+[list]
+[*]Steam 单人模式：已测试
+[*]Pal Insight 2.0.0 集成：支持
+[*]专用服务器：一名玩家确认仅客户端安装即可使用，但未记录游戏构建和发行平台
+[*]Co-op：未验证
+[*]Game Pass/WinGDK：软件包已完成静态验证，尚未完成实机验收
+[/list]
+
+[h2]疑难排解与支持[/h2]
+
+[b]F5 没有反应：[/b]确认角色位于据点内、UE4SS 和 Quick Stack 已启用、快捷键正确，并且只安装了一份 Quick Stack。
+
+[b]物品没有出售或收纳：[/b]检查出售开关、保留列表、[b]Tab > R[/b]、药品柜、食物、帕鲁蛋、遗物和普通储物箱路线，以及筛选、权限和容量。
+
+反馈问题时，请提供平台、相关版本和设置、复现步骤、预期与实际结果、完整 UE4SS 日志及崩溃文件。
+
+[h2]Palworld 配种计算器[/h2]
+
+使用 CrateX.app 的 [url=https://cratex.app/games/palworld/breeding][b]Palworld 配种计算器[/b][/url]导入存档、根据已有帕鲁比较配种路线，或搜索通用配种组合。存档数据仅在你的浏览器和设备本地处理。
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787096480-407403883.jpg[/img][/url]
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787598334-1162571780.png[/img][/url]
+
+[url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]完整更新日志[/b][/url]
+
+完整鸣谢名单请在游戏内打开 [b]F6 > 关于 > 特别感谢[/b]。

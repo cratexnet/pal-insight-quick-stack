@@ -1,0 +1,134 @@
+[h1]Pal Insight: Quick Stack - 가방 아이템 원키 정리[/h1]
+
+[b]거점으로 돌아와 키 하나를 누르고 다시 모험을 떠나세요.[/b]
+
+현재 거점 안에서 [b]F5[/b]를 누르면 설정한 아이템을 판매한 뒤 일반 가방의 대상 아이템을 그 거점의 적합한 보관 시설로 옮깁니다.
+
+[img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
+
+[h2]1.3.0의 새로운 기능[/h2]
+
+[list]
+[*][b]약품 선반 우선:[/b] 현재 의약품 3종을 약품 선반에 우선 보관할 수 있습니다. 사용할 수 있는 선반이 없거나 모두 가득 차면 일반 보관함으로 계속합니다. 기본값은 꺼짐입니다.
+[*][b]식품 전용 경로:[/b] 케이크 5종은 배합 목장, 나머지 식품은 먹이 상자를 우선하며 이후 냉장 시설과 일반 보관함 순으로 계속합니다. 케이크는 먹이 상자에 들어가지 않습니다. 기본값은 켜짐입니다.
+[*][b]탭 설정:[/b] 설정을 일반, 자동 판매, 특수 아이템 3개 탭으로 재구성했습니다. 마우스, 키보드, 컨트롤러와 양쪽 화살표를 지원하며 소형 부화기와 성수 수량은 해당 경로의 하위 옵션으로 표시됩니다.
+[/list]
+
+[h2]전체 기능[/h2]
+
+[b]자동 판매[/b]
+
+[list]
+[*]고가 매입품, 탄약, 팰 스피어, 낚시 미끼를 개별 활성화
+[*]아이콘 보관 목록을 마우스, 키보드, 컨트롤러로 조작
+[*]가방에서 [b]Tab > R[/b]로 제외한 아이템은 판매하지 않음
+[/list]
+
+[b]빠른 보관[/b]
+
+[list]
+[*]일반 가방과 현재 거점만 처리
+[*]장비, 식품 슬롯, 중요 아이템, 미지원 영역은 건드리지 않음
+[*]기본적으로 [b]Tab > R[/b] 제외 항목을 보호
+[*]Palworld 제외 목록을 바꾸지 않고 제외 아이템 보관을 선택 가능
+[*]일반 보관함의 호환 빈 슬롯에 새 아이템 종류를 선택적으로 보관
+[*]현재 길드 거점에서 접근 가능한 길드 상자를 선택적으로 사용
+[*]용량, 권한, 아이템 필터를 항상 확인
+[/list]
+
+[b]전용 보관 경로[/b]
+
+[list]
+[*]의약품 3종을 약품 선반, 일반 보관함 순으로 보관 가능
+[*]케이크 5종을 배합 목장, 냉장 시설, 일반 보관함 순으로 보관
+[*]나머지 식품을 먹이 상자, 냉장 시설, 일반 보관함 순으로 보관하며 케이크는 먹이 상자에 넣지 않음
+[*]팰 알을 부화기에만 보관하거나 일반 보관함으로 이어서 보관하거나 수동 배치를 위해 가방에 유지
+[*]대형 부화기가 가득 찬 뒤 소형 부화기를 선택적으로 사용하며 알이나 미수령 팰이 있는 부화기는 제외
+[*]고대 문명 유물을 재활용기에만 보관하거나 일반 보관함으로 이어서 보관하거나 수동 배치를 위해 유지
+[*]각 재활용기에 세계수 성수를 1–100개 유지하며 기본값은 10
+[/list]
+
+[b]결과[/b]
+
+[list]
+[*]자동, 텍스트만, 결과 창 중 선택
+[*]판매됨, 보관됨, 제외됨, 보관되지 않음 아이템 확인
+[*]상세 결과에 기본 아이콘과 현지화된 이름 사용
+[*]상세 창을 열 수 없으면 텍스트로 전환
+[/list]
+
+가방 수량 감소가 확인된 뒤에만 판매 또는 보관 완료로 표시합니다.
+
+[h2]설정 및 Pal Insight[/h2]
+
+[list]
+[*][b]F5[/b] — 판매 및 보관 실행
+[*][b]F6[/b] — 독립 실행 시 Quick Stack 설정 열기
+[/list]
+
+설정은 모드 폴더 밖에 저장되어 창작마당 업데이트 후에도 유지되며 기존 0.1.x 설정을 자동으로 가져옵니다.
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 이상[/b][/url]을 사용하면 같은 설정을 다음 위치에서 열 수 있습니다.
+
+[b]F6 > 확장 기능 > Pal Insight: Quick Stack[/b]
+
+판매, 이동, 설정은 계속 Quick Stack이 담당합니다. Pal Insight가 꺼져 있어도 독립 F6 설정을 사용할 수 있습니다.
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
+
+[h2]언어, 안전 및 성능[/h2]
+
+[list]
+[*]현재 Palworld 인터페이스 언어 17개 지원
+[*]Palworld 기본 아이템 아이콘과 현지화된 이름 사용
+[*]현재 거점만 검색
+[*]작업을 제한된 게임 스레드 단계로 분할
+[*]대상 요청을 한 번에 하나씩 전송
+[*]플레이어, 거점, 원본 아이템, 대상, 필터, 권한, 용량 재확인
+[*]필수 상태가 바뀌거나 확인할 수 없으면 중지
+[*]클라이언트에서만 실행
+[/list]
+
+진행 메시지가 표시되는 동안 다른 가방 조작을 피하세요.
+
+[h2]설치[/h2]
+
+[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3625223587][b]필수: UE4SS Experimental (Palworld)[/b][/url]
+
+[olist]
+[*]UE4SS Experimental과 Pal Insight: Quick Stack을 구독합니다.
+[*][b]Palworld > 옵션 > 모드 관리[/b]에서 둘 다 활성화합니다.
+[*]저장하고 게임 재시작을 허용한 뒤 거점에 들어가 F5를 누릅니다.
+[/olist]
+
+[b]Quick Stack은 하나의 배포 경로만 사용하세요.[/b] 창작마당, Nexus, CurseForge, Game Pass 버전을 함께 설치하지 마세요.
+
+[h2]호환성[/h2]
+
+[list]
+[*]Steam 싱글 플레이: 테스트 완료
+[*]Pal Insight 2.0.0 연동: 지원
+[*]전용 서버: 한 명이 클라이언트 전용 설치 성공을 보고했지만 게임 빌드와 플랫폼은 기록되지 않음
+[*]Co-op: 확인되지 않음
+[*]Game Pass/WinGDK: 패키지 정적 검증 완료, 게임 내 검증은 미완료
+[/list]
+
+[h2]문제 해결 및 지원[/h2]
+
+[b]F5가 작동하지 않음:[/b] 거점 안에 있는지, UE4SS와 Quick Stack이 활성화되었는지, 단축키가 올바른지, Quick Stack이 하나만 설치되었는지 확인하세요.
+
+[b]아이템이 판매 또는 보관되지 않음:[/b] 판매 설정, 보관 목록, [b]Tab > R[/b], 약품 선반, 식품, 알, 유물, 일반 보관 경로, 필터, 권한, 용량을 확인하세요.
+
+문제 보고에는 플랫폼, 버전, 설정, 재현 단계, 예상 및 실제 결과, 전체 UE4SS 로그와 충돌 파일을 포함하세요.
+
+[h2]Palworld 교배 계산기[/h2]
+
+CrateX.app의 [url=https://cratex.app/games/palworld/breeding][b]Palworld 교배 계산기[/b][/url]에서 세이브를 불러와 보유 팰을 이용한 교배 경로를 비교하거나 일반 교배 조합을 검색할 수 있습니다. 세이브 데이터는 브라우저와 기기 안에서만 처리됩니다.
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787096480-407403883.jpg[/img][/url]
+
+[url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787598334-1162571780.png[/img][/url]
+
+[url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]전체 업데이트 기록[/b][/url]
+
+전체 크레딧은 게임에서 [b]F6 > About > Special Thanks[/b]를 여세요.

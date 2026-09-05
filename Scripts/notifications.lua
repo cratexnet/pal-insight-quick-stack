@@ -322,7 +322,8 @@ local function compactMetrics(controller)
     }
 end
 
-local function mountCompactFrame(widget, tree, content, controller, color)
+local function mountCompactFrame(widget, tree, content, textWidgets,
+        controller, color)
     local root = construct(tree, "/Script/UMG.CanvasPanel")
     local sizeBox = construct(tree, "/Script/UMG.SizeBox")
     local outline = construct(tree, "/Script/UMG.Border")
@@ -340,8 +341,10 @@ local function mountCompactFrame(widget, tree, content, controller, color)
         outline:SetPadding({ Left = 2, Top = 2, Right = 2, Bottom = 2 })
         surface:SetBrushColor(COLORS.surface)
         surface:SetPadding({ Left = 14, Top = 10, Right = 14, Bottom = 10 })
-        content:SetAutoWrapText(false)
-        content.WrapTextAt = metrics.textWidth
+        for _, text in ipairs(textWidgets or {}) do
+            text:SetAutoWrapText(false)
+            text.WrapTextAt = metrics.textWidth
+        end
 
         local contentSlot = surface:AddChild(content)
         local surfaceSlot = outline:AddChild(surface)
@@ -796,19 +799,26 @@ local function createResultFooter(tree, strings)
     return footerBox, button
 end
 
-local function showCompact(controller, message, color)
+local function showCompact(controller, title, message, color)
     if not clear() then return nil end
     local widget, tree, _, _, createError = createOwnerWidget(controller)
     if widget == nil then warnOnce(createError); return nil end
+    local layout = construct(tree, "/Script/UMG.VerticalBox")
+    local titleText = makeText(tree, title, 14, color or COLORS.primary,
+        TEXT_JUSTIFY_CENTER, true)
     local valueText = makeText(tree, message, 13, COLORS.text,
         TEXT_JUSTIFY_CENTER)
-    if valueText == nil then
+    local gap = createSpacer(tree, 1.0, 4.0)
+    if layout == nil or titleText == nil or valueText == nil or gap == nil then
         pcall(function() widget:RemoveFromParent() end)
         warnOnce("status text cannot be created")
         return nil
     end
+    addVertical(layout, titleText)
+    addVertical(layout, gap)
+    addVertical(layout, valueText)
     local framed, frameError = mountCompactFrame(
-        widget, tree, valueText, controller, color)
+        widget, tree, layout, { titleText, valueText }, controller, color)
     if not framed then
         pcall(function() widget:RemoveFromParent() end)
         warnOnce(frameError)
@@ -819,18 +829,41 @@ local function showCompact(controller, message, color)
     return state.token
 end
 
+local function saleSkippedMessage(details, strings)
+    local total = details.saleSkippedTotal or 0
+    if total <= 0 then return nil end
+    local noMerchant = details.saleSkippedReason == "no-merchant"
+    local kept = details.saleSkippedDisposition == "backpack"
+    local key = noMerchant and kept and "saleSkippedNoMerchantKept"
+        or noMerchant and "saleSkippedNoMerchant"
+        or "saleSkippedUnavailable"
+    return Localization.format(strings, key, total)
+end
+
 local function detailedSectionSpecs(details, strings)
     local moved = type(details.moved) == "table" and details.moved or {}
     local sold = type(details.sold) == "table" and details.sold or {}
+    local saleSkipped = type(details.saleSkipped) == "table"
+        and details.saleSkipped or {}
     local excluded = type(details.excluded) == "table"
         and details.excluded or {}
     local full = type(details.full) == "table" and details.full or {}
     local movedTotal = details.movedTotal or 0
     local soldTotal = details.soldTotal or 0
+    local saleSkippedTotal = details.saleSkippedTotal or 0
     local excludedTotal = details.excludedTotal or 0
     local fullTotal = details.fullTotal or 0
     local specs = {}
 
+    if saleSkippedTotal > 0 and #saleSkipped > 0 then
+        specs[#specs + 1] = {
+            label = strings.saleSkippedSection,
+            color = COLORS.warning,
+            summary = Localization.format(strings, "countSummary",
+                #saleSkipped, saleSkippedTotal),
+            items = saleSkipped,
+        }
+    end
     if fullTotal > 0 and #full > 0 then
         specs[#specs + 1] = {
             label = strings.fullSection,
@@ -870,21 +903,31 @@ local function detailedSectionSpecs(details, strings)
     return specs
 end
 
-local function detailedTitle(outcome, details, strings)
+local function resultTitle(outcome, details, strings)
     local movedTotal = details.movedTotal or 0
     local soldTotal = details.soldTotal or 0
     local fullTotal = details.fullTotal or 0
-    local titleColor = COLORS.text
-    if fullTotal > 0 and movedTotal + soldTotal > 0 then
-        return strings.partialTitle, COLORS.warning
+    local confirmedTotal = movedTotal + soldTotal
+    if outcome == "stopped" then
+        return strings.failureTitle, COLORS.danger
+    end
+    if details.saleConfirmationPending or outcome == "submitted"
+        or outcome == "noop" then
+        return strings.attentionTitle, COLORS.warning
     end
     if fullTotal > 0 then
-        return strings.failedTitle, COLORS.warning
+        if confirmedTotal > 0 then
+            return strings.partialSuccessTitle, COLORS.warning
+        end
+        return strings.failureTitle, COLORS.danger
     end
-    if outcome == "submitted" then
-        return strings.submittedTitle, titleColor
+    if (details.saleSkippedTotal or 0) > 0 then
+        if confirmedTotal > 0 then
+            return strings.partialSuccessTitle, COLORS.warning
+        end
+        return strings.attentionTitle, COLORS.warning
     end
-    return strings.completeTitle, titleColor
+    return strings.successTitle, COLORS.primary
 end
 
 local function detailedFallbackMessage(outcome, details, strings)
@@ -893,6 +936,12 @@ local function detailedFallbackMessage(outcome, details, strings)
         messages[#messages + 1] = Localization.format(
             strings, "soldCompact", details.soldTotal)
     end
+    if details.saleConfirmationPending then
+        messages[#messages + 1] = Localization.format(
+            strings, "saleSubmittedCompact", details.salePendingTotal or 0)
+    end
+    local saleSkipped = saleSkippedMessage(details, strings)
+    if saleSkipped ~= nil then messages[#messages + 1] = saleSkipped end
     if (details.movedTotal or 0) > 0 and (details.fullTotal or 0) > 0 then
         messages[#messages + 1] = Localization.format(strings, "partialCompact",
             details.movedTotal, details.fullTotal)
@@ -902,10 +951,6 @@ local function detailedFallbackMessage(outcome, details, strings)
     elseif (details.fullTotal or 0) > 0 then
         messages[#messages + 1] = Localization.format(
             strings, "fullCompact", details.fullTotal)
-    end
-    if details.saleConfirmationPending then
-        messages[#messages + 1] = Localization.format(
-            strings, "saleSubmittedCompact", details.salePendingTotal or 0)
     end
     if #messages > 0 then return table.concat(messages, "\n") end
     if outcome == "submitted" then return strings.submittedCompact end
@@ -970,10 +1015,13 @@ local function showDetailedBuildFallback(build, reason, expected)
     if expected ~= true then
         warnOnce(reason or "detailed result cannot be created")
     end
+    local title, statusColor = resultTitle(
+        build.outcome, build.details, build.strings)
     local token = showCompact(
         build.controller,
+        title,
         detailedFallbackMessage(build.outcome, build.details, build.strings),
-        (build.details.fullTotal or 0) > 0 and COLORS.warning or COLORS.primary)
+        statusColor)
     if token ~= nil then scheduleClear(token, COMPACT_DURATION_MS) end
 end
 
@@ -1001,10 +1049,13 @@ local function setupDetailedBuild(build)
         error("detailed result controls are unavailable")
     end
 
-    local titleValue, titleColor = detailedTitle(
+    local titleValue, titleColor = resultTitle(
         build.outcome, build.details, build.strings)
-    local headerHelper = (build.details.fullTotal or 0) > 0
-        and build.strings.fullHelper or nil
+    local saleSkipped = saleSkippedMessage(build.details, build.strings)
+    local headerHelper = saleSkipped
+    if headerHelper == nil and (build.details.fullTotal or 0) > 0 then
+        headerHelper = build.strings.fullHelper
+    end
     local header, headerHeight = createResultHeader(
         tree, titleValue, titleColor, headerHelper, build.metrics.width)
     local footer, closeButton = createResultFooter(tree, build.strings)
@@ -1235,7 +1286,7 @@ end
 function Notifications.started(controller)
     local strings = Localization.current()
     local token = showCompact(
-        controller, strings.started, COLORS.primary)
+        controller, strings.processingTitle, strings.started, COLORS.primary)
     return token
 end
 
@@ -1245,33 +1296,41 @@ function Notifications.finished(controller, _startToken, outcome,
     details = type(details) == "table" and details or {
         moved = {}, movedTotal = 0,
         sold = {}, soldTotal = 0,
+        saleSkippedReason = nil, saleSkippedDisposition = nil,
+        saleSkipped = {}, saleSkippedTotal = 0,
         excluded = {}, excludedTotal = 0,
         full = {}, fullTotal = 0,
     }
     local hasDetailedResult = outcome ~= "stopped" and (
         (details.movedTotal or 0) > 0
         or (details.soldTotal or 0) > 0
-        or (details.fullTotal or 0) > 0)
+        or (details.fullTotal or 0) > 0
+        or (details.saleSkippedTotal or 0) > 0)
     local showDetails = detailedResultRequested == true and hasDetailedResult
         and not details.saleConfirmationPending
         and ResultDialogBridge.available()
     local token
     local detailed = false
+    local title, statusColor = resultTitle(outcome, details, strings)
     if showDetails then
         detailed = startDetailedBuild(controller, outcome, details, strings)
         if not detailed then
             token = showCompact(controller,
+                title,
                 detailedFallbackMessage(outcome, details, strings),
-                (details.fullTotal or 0) > 0 and COLORS.warning or COLORS.primary)
+                statusColor)
         end
     elseif hasDetailedResult then
         token = showCompact(controller,
+            title,
             detailedFallbackMessage(outcome, details, strings),
-            (details.fullTotal or 0) > 0 and COLORS.warning or COLORS.primary)
+            statusColor)
     else
         local message
-        local color = COLORS.primary
-        if outcome == "complete" then
+        local saleSkipped = saleSkippedMessage(details, strings)
+        if saleSkipped ~= nil then
+            message = saleSkipped
+        elseif outcome == "complete" then
             message = Localization.format(strings, "completeContainers",
                 itemCount or 0, requestCount or 0)
         elseif outcome == "submitted" then
@@ -1283,12 +1342,10 @@ function Notifications.finished(controller, _startToken, outcome,
             end
         elseif outcome == "noop" then
             message = strings.noop
-            color = COLORS.warning
         else
             message = strings.stopped
-            color = COLORS.danger
         end
-        token = showCompact(controller, message, color)
+        token = showCompact(controller, title, message, statusColor)
     end
     if token ~= nil then
         scheduleClear(token, COMPACT_DURATION_MS)

@@ -58,7 +58,7 @@ local QuickStack = require("quick_stack")
 local Palworld = require("palworld")
 
 local TAG = "[PalInsightQuickStack] "
-local VERSION = "1.3.0"
+local VERSION = "1.3.1"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
 local SETTINGS_HOST_PROTOCOL_VERSION = 3
@@ -78,6 +78,8 @@ local SHARED_BOOLEAN_SETTINGS = {
     { shared = "AutoSellAmmo", config = "AutoSellAmmo" },
     { shared = "AutoSellPalSpheres", config = "AutoSellPalSpheres" },
     { shared = "AutoSellFishingBait", config = "AutoSellFishingBait" },
+    { shared = "KeepSaleItemsWhenNoMerchant",
+        config = "KeepSaleItemsWhenNoMerchant" },
     { shared = "BreedingFarmCakeFirst", config = "BreedingFarmCakeFirst" },
     { shared = "FoodBoxFirst", config = "FoodBoxFirst" },
     { shared = "MedicineRackFirst", config = "MedicineRackFirst" },

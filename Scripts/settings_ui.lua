@@ -131,6 +131,7 @@ local SETTING_KEYS = {
     "AutoSellValuables", "ValuableSellItems", "AutoSellAmmo", "AmmoSellItems",
     "AutoSellPalSpheres", "PalSphereSellItems",
     "AutoSellFishingBait", "FishingBaitSellItems",
+    "KeepSaleItemsWhenNoMerchant",
     "BreedingFarmCakeFirst", "FoodBoxFirst", "MedicineRackFirst",
     "IncludeSmallIncubators", "PalEggRouting",
     "RelicRouting", "WorldTreeHolyWaterMinimum", "PerformanceCapture", "Debug",
@@ -153,6 +154,7 @@ local DEFAULTS = {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    KeepSaleItemsWhenNoMerchant = true,
     BreedingFarmCakeFirst = true,
     FoodBoxFirst = true,
     MedicineRackFirst = false,
@@ -400,6 +402,8 @@ local state = {
     numberEditorOps = {},
     lastPrepareDiagnostics = nil,
     trailingReleaseUntil = {},
+    deferredInputClose = nil,
+    deferredInputCloseCallback = nil,
 }
 
 local closeChoiceModal
@@ -1586,6 +1590,7 @@ local function validateCandidate(candidate)
         or type(candidate.AutoSellAmmo) ~= "boolean"
         or type(candidate.AutoSellPalSpheres) ~= "boolean"
         or type(candidate.AutoSellFishingBait) ~= "boolean"
+        or type(candidate.KeepSaleItemsWhenNoMerchant) ~= "boolean"
         or type(candidate.BreedingFarmCakeFirst) ~= "boolean"
         or type(candidate.FoodBoxFirst) ~= "boolean"
         or type(candidate.MedicineRackFirst) ~= "boolean"
@@ -1609,6 +1614,8 @@ local function validateCandidate(candidate)
     normalized.PalSphereSellItems = palSphereSellItems
     normalized.AutoSellFishingBait = candidate.AutoSellFishingBait
     normalized.FishingBaitSellItems = fishingBaitSellItems
+    normalized.KeepSaleItemsWhenNoMerchant =
+        candidate.KeepSaleItemsWhenNoMerchant
     normalized.BreedingFarmCakeFirst = candidate.BreedingFarmCakeFirst
     normalized.FoodBoxFirst = candidate.FoodBoxFirst
     normalized.MedicineRackFirst = candidate.MedicineRackFirst
@@ -1694,6 +1701,9 @@ currentStrings = function()
         fishingBaitPickerTitle = "Fishing bait to keep",
         fishingBaitPickerHelper = "Checked fishing bait stays in your backpack and is not sold.",
         fishingBaitKeptSummary = "Keep %d / %d",
+        saleBonusNotice = "Automatic selling reads party Pals' Noble and Fine Furs passives and applies them to sale prices.",
+        keepSaleItemsWhenNoMerchant = "Keep sale items if no merchant is found",
+        keepSaleItemsWhenNoMerchantHelper = "F5 finds an available merchant automatically. Turn this off to send unsold items through normal storage rules when none is found.",
         breedingFarmCakeFirst = "Cakes to Breeding Farms first",
         breedingFarmCakeFirstHelper = "All 5 cakes use cold storage, then regular storage if no usable Breeding Farm has room. Cakes never go to Pal Food Boxes.",
         foodBoxFirst = "Food to Pal Food Boxes first",
@@ -3114,7 +3124,7 @@ local function handlePressed(keyName, device, source, shiftDown)
     end
     if keyName == "Escape" then
         state.trailingReleaseUntil.Escape = os.clock() + 0.50
-        return SettingsUI.close("escape")
+        return Deferred.deferInputClose("escape")
     end
     if keyName == "Q" or keyName == "Gamepad_LeftShoulder" then
         return state.switchSettingsPage(-1, device)
@@ -3238,7 +3248,7 @@ local function handleReleased(keyName)
             if state.activeChoice ~= nil then return closeChoiceModal(true) end
             if selectorCapturing() then return true end
             state.trailingReleaseUntil[keyName] = os.clock() + 0.50
-            return SettingsUI.close("gamepad-back")
+            return Deferred.deferInputClose("gamepad-back")
         end
     end
     return true
@@ -3466,6 +3476,52 @@ local function adjustNumberEditor(control, direction)
         return true
     end
     return false
+end
+
+Deferred.deferInputClose = function(reason)
+    if not state.open then return true end
+    local generation = state.generation
+    local windowSession = state.windowSession
+    local pending = state.deferredInputClose
+    if type(pending) == "table"
+        and pending.generation == generation
+        and pending.windowSession == windowSession then return true end
+    state.deferredInputClose = {
+        generation = generation,
+        windowSession = windowSession,
+        reason = tostring(reason or "input"),
+    }
+    state.deferredInputCloseCallback = state.deferredInputCloseCallback
+        or function()
+            local request = state.deferredInputClose
+            state.deferredInputClose = nil
+            if type(request) ~= "table" or not state.open
+                or state.generation ~= request.generation
+                or state.windowSession ~= request.windowSession then return end
+            if request.reason == "gamepad-back" then
+                SettingsUI.close("gamepad-back")
+            else
+                SettingsUI.close(request.reason)
+            end
+        end
+    local scheduled = false
+    if type(ExecuteInGameThreadWithDelay) == "function" then
+        local ok, handle = pcall(ExecuteInGameThreadWithDelay, 0,
+            state.deferredInputCloseCallback)
+        scheduled = ok and handle ~= false
+    end
+    if not scheduled and type(ExecuteInGameThread) == "function" then
+        local ok, result = pcall(ExecuteInGameThread,
+            state.deferredInputCloseCallback)
+        scheduled = ok and result ~= false
+    end
+    if not scheduled then
+        state.deferredInputClose = nil
+        log("settings input close could not be deferred")
+    end
+    -- Even if dispatch is unavailable, consume the owned input instead of
+    -- closing inside the UMG callback and risking an invalid reflected reply.
+    return true
 end
 
 local function previewKeyEvent(keyEventParam)
@@ -4684,6 +4740,19 @@ Deferred.addHelperText = function(tree, body, value)
         helper:SetVisibility(VIS_HIT_TEST_INVISIBLE)
         local slot = body:AddChild(helper)
         setPadding(slot, 36, 2, 16, 8)
+        align(slot, ALIGN_FILL, ALIGN_FILL)
+    end)
+    return ok == true
+end
+
+Deferred.addNoticeText = function(tree, body, value)
+    local notice = makeText(tree, value, 15, COLORS.actionWarning, TEXT_LEFT)
+    if notice == nil then return false end
+    setTextWrap(notice, math.max(1.0, state.contentWidth - 28.0))
+    local ok = pcall(function()
+        notice:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        local slot = body:AddChild(notice)
+        setPadding(slot, 12, 4, 16, 10)
         align(slot, ALIGN_FILL, ALIGN_FILL)
     end)
     return ok == true
@@ -7797,6 +7866,13 @@ local function buildSettingsWindow(controller, mode)
         state.buildingPageId = "automaticSale"
         if not addSection(tree, automaticSaleBody,
                 strings.sectionAutoSell, 0)
+            or not Deferred.addNoticeText(tree, automaticSaleBody,
+                strings.saleBonusNotice)
+            or not addToggleRow(tree, automaticSaleBody,
+                "KeepSaleItemsWhenNoMerchant",
+                strings.keepSaleItemsWhenNoMerchant, false)
+            or not Deferred.addHelperText(tree, automaticSaleBody,
+                strings.keepSaleItemsWhenNoMerchantHelper)
             or not addToggleRow(tree, automaticSaleBody, "AutoSellValuables",
                 strings.autoSellValuables, false)
             or not Deferred.addValuablePickerRow(tree, automaticSaleBody,
@@ -8199,6 +8275,7 @@ function SettingsUI.open(mode, options)
     state.pendingAboutPointerClose = nil
     cancelNavigationRepeat()
     state.synchronousNavigationUntil = {}
+    state.deferredInputClose = nil
     state.shortcutCaptureCancelKey = nil
     state.shortcutCaptureCancelUntil = 0.0
     state.trailingReleaseUntil = {}
@@ -8319,6 +8396,7 @@ completeClose = function(closedMode, reason, widget, controller, escapeClose)
     state.pointerAction = nil
     state.pendingAboutPointerClose = nil
     state.synchronousNavigationUntil = {}
+    state.deferredInputClose = nil
     state.pollLastTickAt = 0.0
     state.shortcutCaptureCancelKey = nil
     state.shortcutCaptureCancelUntil = 0.0
