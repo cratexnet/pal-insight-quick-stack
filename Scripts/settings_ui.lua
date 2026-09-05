@@ -131,7 +131,8 @@ local SETTING_KEYS = {
     "AutoSellValuables", "ValuableSellItems", "AutoSellAmmo", "AmmoSellItems",
     "AutoSellPalSpheres", "PalSphereSellItems",
     "AutoSellFishingBait", "FishingBaitSellItems",
-    "MedicineRackFirst", "IncludeSmallIncubators", "PalEggRouting",
+    "BreedingFarmCakeFirst", "FoodBoxFirst", "MedicineRackFirst",
+    "IncludeSmallIncubators", "PalEggRouting",
     "RelicRouting", "WorldTreeHolyWaterMinimum", "PerformanceCapture", "Debug",
 }
 
@@ -152,6 +153,8 @@ local DEFAULTS = {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    BreedingFarmCakeFirst = true,
+    FoodBoxFirst = true,
     MedicineRackFirst = false,
     IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
@@ -213,6 +216,7 @@ local state = {
     shortcutConflict = nil,
     readHostedControllerSnapshot = nil,
     ackHostedControllerSnapshot = nil,
+    publishHostedCloseBlocked = nil,
     log = nil,
     onApplied = nil,
     onClosed = nil,
@@ -286,13 +290,13 @@ local state = {
     releaseNotesContent = nil,
     releaseNotesContentWidth = 360.0,
     steamVoteControl = nil,
+    steamVoteBox = nil,
     steamVoteNoneWidget = nil,
-    steamVoteDownWidget = nil,
     steamVoteNoneSurface = nil,
-    steamVoteDownSurface = nil,
     steamVoteUpSurface = nil,
     steamVoteDisplayStatus = nil,
     steamVotePendingUp = false,
+    pendingDownvoteAcknowledgement = false,
     steamVoteTextures = {},
     steamVotePalTexture = nil,
     steamVotePalVisuals = {},
@@ -346,11 +350,19 @@ local state = {
     contentWidth = 640.0,
     scroll = nil,
     nestedOverlay = nil,
+    nestedCardBox = nil,
+    nestedOutline = nil,
+    nestedPanel = nil,
     nestedTitle = nil,
     nestedMessage = nil,
     nestedContent = nil,
     nestedScroll = nil,
     nestedOptionWidth = nil,
+    nestedDefaultWidth = nil,
+    nestedDefaultMaxHeight = nil,
+    nestedOptionCapacity = nil,
+    downvoteDialogWidth = nil,
+    downvoteDialogMaxHeight = nil,
     modalOptions = {},
     activeChoice = nil,
     choiceReturnFocusIndex = nil,
@@ -389,6 +401,9 @@ local state = {
     lastPrepareDiagnostics = nil,
     trailingReleaseUntil = {},
 }
+
+local closeChoiceModal
+local Deferred = {}
 
 local staticObjects = {}
 local currentStrings
@@ -880,10 +895,10 @@ local function steamVotePalTexture()
     return P.isValid(texture) and texture or nil
 end
 
-local function makeSteamVoteContent(tree, thumbAsset, palAngle)
+local function makeSteamVoteContent(tree, thumbAsset, includePal)
     local row = construct(tree, "/Script/UMG.HorizontalBox")
     if row == nil then return nil end
-    if palAngle ~= nil then
+    if includePal == true then
         local avatarBox = construct(tree, "/Script/UMG.SizeBox")
         local avatar = construct(tree, "/Script/UMG.Image")
         local texture = steamVotePalTexture()
@@ -891,15 +906,8 @@ local function makeSteamVoteContent(tree, thumbAsset, palAngle)
             avatarBox:SetWidthOverride(26.0)
             avatarBox:SetHeightOverride(26.0)
             avatar:SetRenderTransformPivot({ X = 0.5, Y = 0.5 })
-            avatar:SetRenderTransformAngle(palAngle)
-            avatar:SetRenderScale({
-                X = tonumber(palAngle) == 180.0 and 1.0 or -1.0,
-                Y = 1.0,
-            })
-            avatar:SetRenderTranslation({
-                X = 0.0,
-                Y = tonumber(palAngle) == 180.0 and 1.0 or -1.0,
-            })
+            avatar:SetRenderScale({ X = -1.0, Y = 1.0 })
+            avatar:SetRenderTranslation({ X = 0.0, Y = -1.0 })
             if P.isValid(texture) then
                 avatar:SetBrushFromTexture(texture, false)
             else
@@ -910,7 +918,7 @@ local function makeSteamVoteContent(tree, thumbAsset, palAngle)
             setPadding(avatarSlot, 0, 0, 4, 0)
             align(avatarSlot, ALIGN_CENTER, ALIGN_CENTER)
             state.steamVotePalVisuals[#state.steamVotePalVisuals + 1] = {
-                box = avatarBox, image = avatar, angle = palAngle,
+                box = avatarBox, image = avatar,
             }
         end
     end
@@ -941,7 +949,6 @@ local function refreshSteamVotePalVisuals()
             pcall(function()
                 record.image:SetBrushFromTexture(texture, false)
                 record.image:SetRenderTransformPivot({ X = 0.5, Y = 0.5 })
-                record.image:SetRenderTransformAngle(record.angle or 0.0)
                 record.box:SetVisibility(VIS_VISIBLE)
             end)
             ready = true
@@ -982,9 +989,6 @@ local function setSteamVoteLocked(locked)
         if P.isValid(state.steamVoteNoneWidget) then
             state.steamVoteNoneWidget:SetIsEnabled(locked ~= true)
         end
-        if P.isValid(state.steamVoteDownWidget) then
-            state.steamVoteDownWidget:SetIsEnabled(locked ~= true)
-        end
     end)
 end
 
@@ -996,26 +1000,35 @@ local function applySteamVoteVisual(status, force)
         or status == statuses.settingUp)
     if status == statuses.querying or status == statuses.settingUp then
         status = state.steamVoteDisplayStatus or statuses.noVote
-    elseif status ~= statuses.down and status ~= statuses.up then
+    elseif status ~= statuses.up and status ~= statuses.down then
         status = statuses.noVote
     end
     if not force and state.steamVoteDisplayStatus == status then return false end
     state.steamVoteDisplayStatus = status
     pcall(function()
+        if P.isValid(state.steamVoteBox) then
+            state.steamVoteBox:SetVisibility(
+                status == statuses.down and VIS_COLLAPSED or VIS_VISIBLE)
+        end
         state.steamVoteNoneSurface:SetVisibility(
             status == statuses.noVote and VIS_VISIBLE or VIS_COLLAPSED)
-        state.steamVoteDownSurface:SetVisibility(
-            status == statuses.down and VIS_VISIBLE or VIS_COLLAPSED)
         state.steamVoteUpSurface:SetVisibility(
             status == statuses.up and VIS_VISIBLE or VIS_COLLAPSED)
+        if P.isValid(state.steamVoteNoneWidget) then
+            local strings = currentStrings()
+            state.steamVoteNoneWidget:SetToolTipText(FText(strings.voteLike))
+        end
     end)
     control.widget = status == statuses.noVote and state.steamVoteNoneWidget
-        or status == statuses.down and state.steamVoteDownWidget
         or state.steamVoteUpSurface
+    control.hiddenFromFocus = status == statuses.down
     control.passive = status == statuses.up
     local strings = currentStrings()
-    control.tooltip = status == statuses.down and strings.voteReconsider
-        or status == statuses.up and strings.voteThanks or strings.voteLike
+    control.tooltip = status == statuses.up and strings.voteThanks
+        or status == statuses.noVote and strings.voteLike or ""
+    if state.open == true and type(state.rebuildSettingsFocusEntries) == "function" then
+        state.rebuildSettingsFocusEntries()
+    end
     return true
 end
 
@@ -1030,7 +1043,15 @@ local function pollSteamVote()
     elseif status == statuses.up then
         state.steamVotePendingUp = false
     end
-    return applySteamVoteVisual(status, false)
+    local applied = applySteamVoteVisual(status, false)
+    if not SteamVote.polling() and type(state.activeChoice) == "table"
+        and state.activeChoice.kind == "steamVoteChecking" then
+        closeChoiceModal(false)
+        if SteamVote.resolvedStatus() == statuses.down then
+            Deferred.openDownvoteAcknowledgement()
+        end
+    end
+    return applied
 end
 
 local function activateSteamVote()
@@ -1055,37 +1076,31 @@ local function activateSteamVote()
 end
 
 local function makeSteamVoteControl(tree, strings)
-    if not SteamVote.initialize() then return nil end
+    if not SteamVote.present() then return nil end
     local box = construct(tree, "/Script/UMG.SizeBox")
     local overlay = construct(tree, "/Script/UMG.Overlay")
     local none = makeSteamVoteAction(tree,
-        makeSteamVoteContent(tree, "thumb-up-outline.png", nil), strings.voteLike)
-    local down = makeSteamVoteAction(tree,
-        makeSteamVoteContent(tree, "thumb-down-filled.png", 180.0),
-        strings.voteReconsider)
+        makeSteamVoteContent(tree, "thumb-up-outline.png", false), strings.voteLike)
     local upSurface = construct(tree, "/Script/UMG.Border")
-    local upContent = makeSteamVoteContent(tree, "thumb-up-filled.png", 0.0)
-    if box == nil or overlay == nil or none == nil or down == nil
+    local upContent = makeSteamVoteContent(tree, "thumb-up-filled.png", true)
+    if box == nil or overlay == nil or none == nil
         or upSurface == nil or upContent == nil then return nil end
     upSurface:SetBrushColor(COLORS.control)
     upSurface:SetPadding({ Left = 4, Top = 3, Right = 4, Bottom = 3 })
     upSurface:SetToolTipText(FText(strings.voteThanks or ""))
     align(upSurface:AddChild(upContent), ALIGN_CENTER, ALIGN_CENTER)
     align(overlay:AddChildToOverlay(none.surface), ALIGN_FILL, ALIGN_FILL)
-    align(overlay:AddChildToOverlay(down.surface), ALIGN_FILL, ALIGN_FILL)
     align(overlay:AddChildToOverlay(upSurface), ALIGN_FILL, ALIGN_FILL)
     box:SetWidthOverride(64.0)
     box:SetHeightOverride(SIZE.button)
     align(box:AddChild(overlay), ALIGN_FILL, ALIGN_FILL)
+    state.steamVoteBox = box
     state.steamVoteNoneWidget = none.widget
-    state.steamVoteDownWidget = down.widget
     state.steamVoteNoneSurface = none.surface
-    state.steamVoteDownSurface = down.surface
     state.steamVoteUpSurface = upSurface
     state.steamVoteControl = { kind = "steamVote", widget = none.widget,
         tooltip = strings.voteLike or "" }
     none.control = state.steamVoteControl
-    down.control = state.steamVoteControl
     applySteamVoteVisual(SteamVote.status(), true)
     return box
 end
@@ -1571,6 +1586,8 @@ local function validateCandidate(candidate)
         or type(candidate.AutoSellAmmo) ~= "boolean"
         or type(candidate.AutoSellPalSpheres) ~= "boolean"
         or type(candidate.AutoSellFishingBait) ~= "boolean"
+        or type(candidate.BreedingFarmCakeFirst) ~= "boolean"
+        or type(candidate.FoodBoxFirst) ~= "boolean"
         or type(candidate.MedicineRackFirst) ~= "boolean"
         or type(candidate.IncludeSmallIncubators) ~= "boolean" then
         return nil, "Quick Stack toggle values must be boolean"
@@ -1592,6 +1609,8 @@ local function validateCandidate(candidate)
     normalized.PalSphereSellItems = palSphereSellItems
     normalized.AutoSellFishingBait = candidate.AutoSellFishingBait
     normalized.FishingBaitSellItems = fishingBaitSellItems
+    normalized.BreedingFarmCakeFirst = candidate.BreedingFarmCakeFirst
+    normalized.FoodBoxFirst = candidate.FoodBoxFirst
     normalized.MedicineRackFirst = candidate.MedicineRackFirst
     normalized.IncludeSmallIncubators = candidate.IncludeSmallIncubators
     normalized.PalEggRouting = eggRouting
@@ -1675,6 +1694,10 @@ currentStrings = function()
         fishingBaitPickerTitle = "Fishing bait to keep",
         fishingBaitPickerHelper = "Checked fishing bait stays in your backpack and is not sold.",
         fishingBaitKeptSummary = "Keep %d / %d",
+        breedingFarmCakeFirst = "Cakes to Breeding Farms first",
+        breedingFarmCakeFirstHelper = "All 5 cakes use cold storage, then regular storage if no usable Breeding Farm has room. Cakes never go to Pal Food Boxes.",
+        foodBoxFirst = "Food to Pal Food Boxes first",
+        foodBoxFirstHelper = "Other food uses cold storage, then regular storage if no usable Pal Food Box has room. Use Tab → R in the inventory to keep a food type in your backpack.",
         medicineRackFirst = "Medical supplies to Medicine Racks first",
         medicineRackFirstHelper = "If no usable Medicine Rack is available or all are full, medical supplies still go to regular storage.",
         includeSmallIncubators = "Use small incubators (large first)",
@@ -1709,6 +1732,10 @@ currentStrings = function()
         voteLike = "Like Quick Stack",
         voteReconsider = "Changed your mind? Click to like",
         voteThanks = "Thank you for your support!",
+        downvoteTitle = "Thank you for continuing to use Quick Stack",
+        downvoteMessage = "Quick Stack represents a great deal of my spare time and care. If it has not met your expectations, I would sincerely appreciate specific feedback that can help me improve it. Thank you for giving it your time.",
+        downvoteConfirm = "Confirm",
+        voteChecking = "Checking Steam Workshop status…",
     }
 end
 
@@ -2275,9 +2302,7 @@ local function controllerWorldAddress(controller)
     return ok and P.objectAddress(world) or nil
 end
 
-local closeChoiceModal
 local openChoiceModal
-local Deferred = {}
 local ensureChoiceModal
 local closeAboutModal
 local moveAboutFocus
@@ -2704,6 +2729,11 @@ local function commitNestedModalSelection(source)
         if confirmed then return resetFromDefaults() end
         return true
     end
+    if control.kind == "downvoteAcknowledgement" then
+        if index ~= 1 then return true end
+        return closeChoiceModal(false)
+    end
+    if control.kind == "steamVoteChecking" then return true end
     if SettingsUI.isItemPicker(control) then
         local catalog = control.catalog
         if index > #catalog.items then return closeChoiceModal(true) end
@@ -2789,7 +2819,10 @@ local function activateControl(control, source, returnFocusIndex)
         return activateSteamVote()
     elseif control.kind == "releaseNotes" then
         return Deferred.openReleaseNotesModal(returnFocusIndex
-            or control.focusIndex or state.focusIndex)
+            or control.focusIndex or state.focusIndex,
+            source == "mouse" and "mouse"
+                or tostring(source or ""):find("^gamepad") ~= nil
+                    and "gamepad" or "keyboard")
     elseif control.kind == "about" then
         return Deferred.openAboutModal()
     elseif control.kind == "reset" then
@@ -3029,7 +3062,11 @@ local function handlePressed(keyName, device, source, shiftDown)
     end
     if claimSynchronousNavigation(keyName, source) then return true end
     if state.activeChoice ~= nil then
-        if keyName == "Escape" then return closeChoiceModal(true) end
+        if keyName == "Escape" then
+            if state.activeChoice.kind == "downvoteAcknowledgement"
+                or state.activeChoice.kind == "steamVoteChecking" then return true end
+            return closeChoiceModal(true)
+        end
         if keyName == "Gamepad_FaceButton_Bottom" then
             state.gamepadAcceptDown = true
             return true
@@ -3052,7 +3089,8 @@ local function handlePressed(keyName, device, source, shiftDown)
             if moved then startNavigationRepeat(keyName, device) end
             return moved
         end
-        if state.activeChoice.kind == "resetConfirmation"
+        if (state.activeChoice.kind == "resetConfirmation"
+                or state.activeChoice.kind == "downvoteAcknowledgement")
             and (keyName == "A" or keyName == "Left"
                 or keyName == "Gamepad_DPad_Left"
                 or keyName == "Gamepad_LeftStick_Left") then
@@ -3060,7 +3098,8 @@ local function handlePressed(keyName, device, source, shiftDown)
             if moved then startNavigationRepeat(keyName, device) end
             return moved
         end
-        if state.activeChoice.kind == "resetConfirmation"
+        if (state.activeChoice.kind == "resetConfirmation"
+                or state.activeChoice.kind == "downvoteAcknowledgement")
             and (keyName == "D" or keyName == "Right"
                 or keyName == "Gamepad_DPad_Right"
                 or keyName == "Gamepad_LeftStick_Right") then
@@ -3193,6 +3232,9 @@ local function handleReleased(keyName)
         local armed = state.gamepadBackDown == true
         state.gamepadBackDown = false
         if armed then
+            if type(state.activeChoice) == "table"
+                and (state.activeChoice.kind == "downvoteAcknowledgement"
+                    or state.activeChoice.kind == "steamVoteChecking") then return true end
             if state.activeChoice ~= nil then return closeChoiceModal(true) end
             if selectorCapturing() then return true end
             state.trailingReleaseUntil[keyName] = os.clock() + 0.50
@@ -4122,6 +4164,13 @@ local function pollControls()
     if not state.open then return end
     if drainPendingAboutPointerClose() then return end
     pollSteamVote()
+    if state.pendingDownvoteAcknowledgement == true
+        and state.activeChoice == nil then
+        if Deferred.openDownvoteAcknowledgement() then
+            state.pendingDownvoteAcknowledgement = false
+            return
+        end
+    end
     if type(state.steamVoteControl) == "table"
         and state.steamVoteControl.passive == true
         and state.steamVoteControl.focusIndex == state.focusIndex then
@@ -4519,7 +4568,9 @@ end
 state.rebuildSettingsFocusEntries = function()
     local entries = {}
     for _, control in ipairs(state.allFocusEntries or {}) do
-        if control.pageId == nil or control.pageId == state.activeSettingsPage then
+        if control.hiddenFromFocus ~= true
+            and (control.pageId == nil
+                or control.pageId == state.activeSettingsPage) then
             entries[#entries + 1] = control
             control.focusIndex = #entries
         else
@@ -4808,10 +4859,16 @@ end
 
 closeChoiceModal = function(restoreFocus)
     local control = state.activeChoice
+    local blockedClose = type(control) == "table"
+        and (control.kind == "downvoteAcknowledgement"
+            or control.kind == "steamVoteChecking")
     local returnFocusIndex = state.choiceReturnFocusIndex
     state.activeChoice = nil
     state.choiceReturnFocusIndex = nil
     state.pointerAction = nil
+    if blockedClose and type(state.publishHostedCloseBlocked) == "function" then
+        state.publishHostedCloseBlocked(false)
+    end
     state.ammoPopulateToken = state.ammoPopulateToken + 1
     if P.isValid(state.nestedOverlay) then
         pcall(function() state.nestedOverlay:SetVisibility(VIS_COLLAPSED) end)
@@ -4819,12 +4876,151 @@ closeChoiceModal = function(restoreFocus)
     for _, option in ipairs(state.modalOptions or {}) do
         option.selected = false
     end
+    if P.isValid(state.nestedCardBox) then
+        pcall(function()
+            state.nestedCardBox:SetWidthOverride(state.nestedDefaultWidth)
+            state.nestedCardBox:SetMaxDesiredHeight(
+                state.nestedDefaultMaxHeight)
+        end)
+    end
+    if P.isValid(state.nestedOutline) then
+        pcall(function()
+            state.nestedOutline:SetBrushColor(COLORS.outline)
+            state.nestedOutline:SetPadding({
+                Left = 1, Top = 1, Right = 1, Bottom = 1,
+            })
+        end)
+    end
+    if P.isValid(state.nestedPanel) then
+        pcall(function()
+            state.nestedPanel:SetPadding({
+                Left = 16, Top = 16, Right = 16, Bottom = 16,
+            })
+        end)
+    end
+    if P.isValid(state.nestedTitle) then
+        setTextStyle(state.nestedTitle, 18, COLORS.text, TEXT_LEFT)
+    end
+    if P.isValid(state.nestedMessage) then
+        setTextStyle(state.nestedMessage, 12, COLORS.muted, TEXT_LEFT)
+        setTextWrap(state.nestedMessage,
+            math.max(1.0, (tonumber(state.nestedOptionWidth) or 288.0) - 8.0))
+    end
+    for _, option in ipairs(state.modalOptions or {}) do
+        if P.isValid(option.box) then
+            pcall(function()
+                option.box:SetWidthOverride(state.nestedOptionWidth)
+                option.box:SetHeightOverride(SIZE.modalOption)
+            end)
+        end
+        if P.isValid(option.text) then
+            setTextStyle(option.text, 14, COLORS.text, TEXT_CENTER)
+        end
+    end
     if restoreFocus == true and type(control) == "table"
         and P.isValid(control.widget) then
         focusEntry(returnFocusIndex or control.focusIndex or state.focusIndex,
             state.lastInputDevice, true)
     end
     return control ~= nil
+end
+
+Deferred.showSteamVoteModal = function(kind, title, message, label)
+    if not Deferred.ensureChoiceModalCapacity(1) then return false end
+    local large = kind == "downvoteAcknowledgement"
+    local control = {
+        kind = kind,
+        label = title,
+        labels = label ~= nil and { label } or {},
+        index = 0,
+    }
+    state.activeChoice = control
+    state.choiceReturnFocusIndex = nil
+    state.pointerAction = nil
+    state.modalIndex = 0
+    if type(state.publishHostedCloseBlocked) == "function" then
+        state.publishHostedCloseBlocked(true)
+    end
+    if P.isValid(state.nestedCardBox) then
+        pcall(function()
+            state.nestedCardBox:SetWidthOverride(large
+                and state.downvoteDialogWidth or state.nestedDefaultWidth)
+            state.nestedCardBox:SetMaxDesiredHeight(large
+                and state.downvoteDialogMaxHeight
+                or state.nestedDefaultMaxHeight)
+        end)
+    end
+    if P.isValid(state.nestedOutline) then
+        pcall(function()
+            state.nestedOutline:SetBrushColor(
+                large and COLORS.borderFocus or COLORS.outline)
+            local border = large and 3 or 1
+            state.nestedOutline:SetPadding({ Left = border, Top = border,
+                Right = border, Bottom = border })
+        end)
+    end
+    if P.isValid(state.nestedPanel) then
+        pcall(function()
+            local padding = large and 28 or 16
+            state.nestedPanel:SetPadding({ Left = padding, Top = padding,
+                Right = padding, Bottom = padding })
+        end)
+    end
+    if P.isValid(state.nestedTitle) then
+        setTextStyle(state.nestedTitle, large and 28 or 18,
+            large and COLORS.borderFocus or COLORS.text, TEXT_LEFT)
+        pcall(function() state.nestedTitle:SetText(FText(title or "")) end)
+    end
+    if P.isValid(state.nestedMessage) then
+        local width = large and math.max(400.0,
+            (tonumber(state.downvoteDialogWidth) or 760.0) - 64.0)
+            or math.max(1.0, (tonumber(state.nestedOptionWidth) or 288.0) - 8.0)
+        setTextStyle(state.nestedMessage, large and 19 or 12,
+            COLORS.muted, TEXT_LEFT)
+        setTextWrap(state.nestedMessage, width)
+        pcall(function()
+            state.nestedMessage:SetText(FText(message or ""))
+            state.nestedMessage:SetVisibility(message ~= nil and message ~= ""
+                and VIS_HIT_TEST_INVISIBLE or VIS_COLLAPSED)
+        end)
+    end
+    for index, option in ipairs(state.modalOptions or {}) do
+        local visible = label ~= nil and index == 1
+        option.warning = false
+        option.selected = false
+        option.visualSignature = nil
+        pcall(function()
+            option.box:SetWidthOverride(large and math.max(400.0,
+                (tonumber(state.downvoteDialogWidth) or 760.0) - 56.0)
+                or state.nestedOptionWidth)
+            option.box:SetHeightOverride(large and 58 or SIZE.modalOption)
+            option.box:SetVisibility(visible and VIS_VISIBLE or VIS_COLLAPSED)
+            option.text:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+            option.ammoContent:SetVisibility(VIS_COLLAPSED)
+            if visible then option.text:SetText(FText(label)) end
+        end)
+        if P.isValid(option.text) then
+            setTextStyle(option.text, large and 20 or 14,
+                COLORS.text, TEXT_CENTER)
+        end
+    end
+    pcall(function() state.nestedOverlay:SetVisibility(VIS_VISIBLE) end)
+    focusNavigationRoot()
+    refreshTriggerSurfaces()
+    return true
+end
+
+Deferred.openDownvoteAcknowledgement = function()
+    local strings = currentStrings()
+    return Deferred.showSteamVoteModal("downvoteAcknowledgement",
+        strings.downvoteTitle, strings.downvoteMessage,
+        strings.downvoteConfirm or "Confirm")
+end
+
+Deferred.openSteamVoteChecking = function()
+    local strings = currentStrings()
+    return Deferred.showSteamVoteModal("steamVoteChecking",
+        strings.voteChecking or "Checking Steam Workshop status…", nil, nil)
 end
 
 openChoiceModal = function(control, returnFocusIndex)
@@ -5020,16 +5216,19 @@ Deferred.openResetConfirmation = function(sourceIndex)
     return true
 end
 
-Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
+Deferred.buildChoiceModal = function(
+        tree, root, viewportWidth, viewportHeight, optionCapacity)
     local overlay = construct(tree, "/Script/UMG.CanvasPanel")
     local dim = construct(tree, "/Script/UMG.Border")
     local cardBox = construct(tree, "/Script/UMG.SizeBox")
+    local outline = construct(tree, "/Script/UMG.Border")
     local panel = construct(tree, "/Script/UMG.Border")
     local scroll = construct(tree, "/Script/UMG.ScrollBox")
     local content = construct(tree, "/Script/UMG.VerticalBox")
     local title = makeText(tree, "", 18, COLORS.text, TEXT_LEFT)
     local message = makeText(tree, "", 12, COLORS.muted, TEXT_LEFT)
-    if overlay == nil or dim == nil or cardBox == nil or panel == nil
+    if overlay == nil or dim == nil or cardBox == nil or outline == nil
+        or panel == nil
         or scroll == nil or content == nil or title == nil
         or message == nil then return false end
     local vw = tonumber(viewportWidth) or 1280.0
@@ -5057,6 +5256,8 @@ Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
         dimSlot:SetZOrder(0)
         cardBox:SetWidthOverride(width)
         cardBox:SetMaxDesiredHeight(maxHeight)
+        outline:SetBrushColor(COLORS.outline)
+        outline:SetPadding({ Left = 1, Top = 1, Right = 1, Bottom = 1 })
         panel:SetBrushColor(COLORS.window)
         panel:SetPadding({ Left = 16, Top = 16, Right = 16, Bottom = 16 })
         scroll:SetAlwaysShowScrollbar(false)
@@ -5070,7 +5271,8 @@ Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
         })
         align(scroll:AddChild(content), ALIGN_FILL, ALIGN_LEFT)
         align(panel:AddChild(scroll), ALIGN_FILL, ALIGN_FILL)
-        local panelSlot = cardBox:AddChild(panel)
+        align(outline:AddChild(panel), ALIGN_FILL, ALIGN_FILL)
+        local panelSlot = cardBox:AddChild(outline)
         align(panelSlot, ALIGN_FILL, ALIGN_FILL)
         local cardSlot = overlay:AddChild(cardBox)
         cardSlot:SetAnchors({
@@ -5088,7 +5290,9 @@ Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
         local messageSlot = content:AddChild(message)
         setPadding(messageSlot, 4, 0, 4, 12)
         state.modalOptions = {}
-        for index = 1, #Ammo.items + 1 do
+        optionCapacity = math.max(1, math.min(#Ammo.items + 1,
+            tonumber(optionCapacity) or #Ammo.items + 1))
+        for index = 1, optionCapacity do
             local option = makeTrigger(tree, "", optionWidth, false, nil,
                 SIZE.modalOption, true)
             if option == nil then error("choice option is unavailable") end
@@ -5147,20 +5351,42 @@ Deferred.buildChoiceModal = function(tree, root, viewportWidth, viewportHeight)
     end)
     if not ok then return false end
     state.nestedOverlay = overlay
+    state.nestedCardBox = cardBox
+    state.nestedOutline = outline
+    state.nestedPanel = panel
     state.nestedTitle = title
     state.nestedMessage = message
     state.nestedContent = content
     state.nestedScroll = scroll
     state.nestedOptionWidth = optionWidth
+    state.nestedDefaultWidth = width
+    state.nestedDefaultMaxHeight = maxHeight
+    state.downvoteDialogWidth = math.max(480.0,
+        math.min(760.0, vw - 64.0))
+    state.downvoteDialogMaxHeight = math.min(720.0,
+        math.max(420.0, vh - 64.0))
+    state.nestedOptionCapacity = optionCapacity
     return true
 end
 
 ensureChoiceModal = function()
-    if P.isValid(state.nestedOverlay) then return true end
+    return Deferred.ensureChoiceModalCapacity(#Ammo.items + 1)
+end
+
+Deferred.ensureChoiceModalCapacity = function(requiredCapacity)
+    requiredCapacity = math.max(1,
+        tonumber(requiredCapacity) or #Ammo.items + 1)
+    if P.isValid(state.nestedOverlay)
+        and (tonumber(state.nestedOptionCapacity) or 0) >= requiredCapacity then
+        return true
+    end
     if not P.isValid(state.widgetTree) or not P.isValid(state.root) then return false end
+    if P.isValid(state.nestedOverlay) then
+        pcall(function() state.nestedOverlay:SetVisibility(VIS_COLLAPSED) end)
+    end
     local viewportWidth, viewportHeight = logicalViewportSize(state.controller)
     local built = Deferred.buildChoiceModal(state.widgetTree, state.root,
-        viewportWidth, viewportHeight)
+        viewportWidth, viewportHeight, requiredCapacity)
     if built and InputOwner.cookedInputActive()
         and not InputOwner.bindActionButtons(state.directActionButtons) then
         log("choice native action delegates unavailable; using mouse fallback")
@@ -5181,7 +5407,9 @@ state.updateReleaseNotesVisuals = function()
                     or COLORS.control,
                 COLORS.controlHover,
                 COLORS.controlPressed,
-                COLORS.controlDisabled)
+                COLORS.controlDisabled,
+                nil,
+                { Left = 8, Top = 0, Right = 8, Bottom = 0 })
         end
         if P.isValid(record.labelWidget) then
             pcall(function()
@@ -5422,7 +5650,8 @@ Deferred.buildReleaseNotesModal = function(tree, root, strings,
     align(dividerBox:AddChild(divider), ALIGN_FILL, ALIGN_FILL)
     local dividerSlot = body:AddChild(dividerBox)
     setPadding(dividerSlot, 0, 0, SIZE.aboutSectionGap, 0)
-    contentSurface:SetBrushColor(COLORS.control)
+    contentSurface:SetBrushColor(mixLinearColor(
+        COLORS.content, COLORS.section, 0.35))
     contentSurface:SetPadding({ Left = 16, Top = 14, Right = 16, Bottom = 14 })
     scroll:SetAlwaysShowScrollbar(false)
     scroll.AlwaysShowScrollbarTrack = false
@@ -5491,10 +5720,11 @@ Deferred.ensureReleaseNotesModal = function()
     return built
 end
 
-Deferred.openReleaseNotesModal = function(sourceIndex)
+Deferred.openReleaseNotesModal = function(sourceIndex, device)
     if not Deferred.ensureReleaseNotesModal()
         or not P.isValid(state.releaseNotesOverlay) then return false end
     cancelNavigationRepeat()
+    FooterGuide.markInputDevice(device or "keyboard")
     state.pointerAction = nil
     state.pendingAboutPointerClose = nil
     state.releaseNotesOpen = true
@@ -5512,7 +5742,6 @@ Deferred.openReleaseNotesModal = function(sourceIndex)
     state.releaseNotesSelectedIndex = currentIndex
     if not Deferred.selectReleaseNotesVersion(currentIndex) then return false end
     pcall(function() state.releaseNotesOverlay:SetVisibility(VIS_VISIBLE) end)
-    FooterGuide.markInputDevice(state.lastInputDevice)
     state.updateReleaseNotesVisuals()
     focusNavigationRoot()
     return true
@@ -7038,13 +7267,13 @@ local function clearWindowReferences()
     state.aboutPreviewOpen = false
     state.aboutPreviewSourceIndex = nil
     state.steamVoteControl = nil
+    state.steamVoteBox = nil
     state.steamVoteNoneWidget = nil
-    state.steamVoteDownWidget = nil
     state.steamVoteNoneSurface = nil
-    state.steamVoteDownSurface = nil
     state.steamVoteUpSurface = nil
     state.steamVoteDisplayStatus = nil
     state.steamVotePendingUp = false
+    state.pendingDownvoteAcknowledgement = false
     state.steamVotePalVisuals = {}
     state.steamVotePalVisualReady = false
     state.steamVotePalRetryAt = 0
@@ -7065,11 +7294,19 @@ local function clearWindowReferences()
     state.releaseNotesContent = nil
     state.scroll = nil
     state.nestedOverlay = nil
+    state.nestedCardBox = nil
+    state.nestedOutline = nil
+    state.nestedPanel = nil
     state.nestedTitle = nil
     state.nestedMessage = nil
     state.nestedContent = nil
     state.nestedScroll = nil
     state.nestedOptionWidth = nil
+    state.nestedDefaultWidth = nil
+    state.nestedDefaultMaxHeight = nil
+    state.nestedOptionCapacity = nil
+    state.downvoteDialogWidth = nil
+    state.downvoteDialogMaxHeight = nil
     state.ammoPopulateToken = state.ammoPopulateToken + 1
     state.modalOptions = {}
     state.activeChoice = nil
@@ -7160,7 +7397,6 @@ local function prepareWindowForOpen(mode)
     state.pollFailureSignature = nil
     setStatus("", false)
     if state.steamVoteControl ~= nil and SteamVote.ready() then
-        SteamVote.refresh()
         applySteamVoteVisual(SteamVote.status(), true)
     end
     if P.isValid(state.modeText) then
@@ -7262,11 +7498,19 @@ local function buildSettingsWindow(controller, mode)
     state.buildingPageId = nil
     state.triggerSurfaces = {}
     state.nestedOverlay = nil
+    state.nestedCardBox = nil
+    state.nestedOutline = nil
+    state.nestedPanel = nil
     state.nestedTitle = nil
     state.nestedMessage = nil
     state.nestedContent = nil
     state.nestedScroll = nil
     state.nestedOptionWidth = nil
+    state.nestedDefaultWidth = nil
+    state.nestedDefaultMaxHeight = nil
+    state.nestedOptionCapacity = nil
+    state.downvoteDialogWidth = nil
+    state.downvoteDialogMaxHeight = nil
     state.modalOptions = {}
     state.activeChoice = nil
     state.choiceReturnFocusIndex = nil
@@ -7574,6 +7818,14 @@ local function buildSettingsWindow(controller, mode)
 
         state.buildingPageId = "specialItems"
         if not addSection(tree, specialItemsBody, strings.sectionSpecial, 0)
+            or not addToggleRow(tree, specialItemsBody,
+                "BreedingFarmCakeFirst", strings.breedingFarmCakeFirst, true)
+            or not Deferred.addHelperText(tree, specialItemsBody,
+                strings.breedingFarmCakeFirstHelper)
+            or not addToggleRow(tree, specialItemsBody, "FoodBoxFirst",
+                strings.foodBoxFirst, true)
+            or not Deferred.addHelperText(tree, specialItemsBody,
+                strings.foodBoxFirstHelper)
             or not addToggleRow(tree, specialItemsBody, "MedicineRackFirst",
                 strings.medicineRackFirst, true)
             or not Deferred.addHelperText(tree, specialItemsBody,
@@ -7711,6 +7963,10 @@ local function buildSettingsWindow(controller, mode)
         local footerSlot = layout:AddChild(footerSize)
         align(footerSlot, ALIGN_FILL, ALIGN_FILL)
         setPadding(footerSlot, 0, 8, 0, 0)
+        if not Deferred.buildChoiceModal(
+                tree, root, viewportWidth, viewportHeight, 1) then
+            error("settings acknowledgement modal cannot be initialized")
+        end
         widget:SetVisibility(VIS_COLLAPSED)
         widget:AddToViewport(120)
         refreshTriggerSurfaces()
@@ -7779,6 +8035,7 @@ function SettingsUI.configure(options)
     state.shortcutConflict = options.shortcutConflict
     state.readHostedControllerSnapshot = options.readHostedControllerSnapshot
     state.ackHostedControllerSnapshot = options.ackHostedControllerSnapshot
+    state.publishHostedCloseBlocked = options.publishHostedCloseBlocked
     state.log = options.log
     state.onApplied = options.onApplied
     state.onClosed = options.onClosed
@@ -7845,6 +8102,16 @@ function SettingsUI.prepare()
     return inputHooksReady, bridgeReady, windowReady
 end
 
+function SettingsUI.preflightSteamVote()
+    local gameplayContext = P.currentGameplayContext()
+    local controller = type(gameplayContext) == "table"
+        and gameplayContext.controller or nil
+    if not P.isValid(controller) then return false end
+    if not SteamVote.initialize() then return true end
+    SteamVote.poll()
+    return not SteamVote.polling()
+end
+
 function SettingsUI.open(mode, options)
     options = type(options) == "table" and options or {}
     local openStarted = os.clock()
@@ -7880,6 +8147,11 @@ function SettingsUI.open(mode, options)
     if not P.isValid(controller) then
         return false, "local gameplay context is unavailable"
     end
+    local resolvedSteamVote = SteamVote.resolvedStatus()
+    local steamVoteReady = SteamVote.initialize()
+    local steamVoteStatus = steamVoteReady and SteamVote.poll() or nil
+    local steamVotePending = steamVoteReady and SteamVote.polling()
+    local stableSteamVote = steamVoteStatus or resolvedSteamVote
     if not installPreviewKeyHook() or not installKeyUpHook()
         or not installSelectorSelectedKeyHook() then
         return false, "focus-scoped settings input is unavailable"
@@ -7974,7 +8246,22 @@ function SettingsUI.open(mode, options)
     for _, keyName in ipairs(state.controllerKeys) do
         state.controllerDown[keyName] = inputKeyDown(controller, keyName) == true
     end
-    focusEntry(1, initialInputDevice, true)
+    local downvoteAcknowledgementOpen = false
+    local steamVoteCheckingOpen = false
+    state.pendingDownvoteAcknowledgement = false
+    if steamVoteReady and type(state.steamVoteControl) == "table" then
+        applySteamVoteVisual(stableSteamVote or SteamVote.status(), true)
+        if stableSteamVote == SteamVote.statuses.down then
+            downvoteAcknowledgementOpen =
+                Deferred.openDownvoteAcknowledgement() == true
+            state.pendingDownvoteAcknowledgement = not downvoteAcknowledgementOpen
+        elseif steamVotePending then
+            steamVoteCheckingOpen = Deferred.openSteamVoteChecking() == true
+        end
+    end
+    if not downvoteAcknowledgementOpen and not steamVoteCheckingOpen then
+        focusEntry(1, initialInputDevice, true)
+    end
     state.lifecycle = "open"
     pcall(function() state.widget:SetRenderOpacity(1.0) end)
     refreshInputFocusVisuals()
@@ -8012,6 +8299,9 @@ completeClose = function(closedMode, reason, widget, controller, escapeClose)
     state.open = false
     state.lifecycle = "closed"
     state.mode = nil
+    if type(state.publishHostedCloseBlocked) == "function" then
+        state.publishHostedCloseBlocked(false)
+    end
     state.generation = state.generation + 1
     state.closeRecoveryDeadline = 0.0
     state.closeRecoveryRetryAt = 0.0
@@ -8052,6 +8342,14 @@ completeClose = function(closedMode, reason, widget, controller, escapeClose)
 end
 
 function SettingsUI.close(reason)
+    if SettingsUI.closeBlocked() then
+        local internalClose = reason == "native-controller-failure"
+            or reason == "recovery-retry" or reason == "context-changed"
+            or reason == "host-takeover" or reason == "runtime-superseded"
+            or reason == "host-unavailable"
+            or reason == "host-open-ack-failed"
+        if not internalClose then return false end
+    end
     if not state.open then return true end
     if state.lifecycle == "closing" then return false end
     local escapeClose = reason == "escape"
@@ -8100,9 +8398,16 @@ end
 
 function SettingsUI.toggle(mode)
     if state.open then
+        if SettingsUI.closeBlocked() then return true end
         return SettingsUI.close("shortcut")
     end
     return SettingsUI.open(mode or "standalone")
+end
+
+function SettingsUI.closeBlocked()
+    return type(state.activeChoice) == "table"
+        and (state.activeChoice.kind == "downvoteAcknowledgement"
+            or state.activeChoice.kind == "steamVoteChecking")
 end
 
 function SettingsUI.mode()

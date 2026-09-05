@@ -855,6 +855,26 @@ local SETTINGS_DIALOG_STRINGS = {
     vi = { cancel = "Hủy", confirmReset = "Khôi phục tất cả", resetConfirmMessage = "Khôi phục toàn bộ cài đặt Quick Stack, gồm cả phím tắt, về mặc định?" },
 }
 
+local SETTINGS_DOWNVOTE_DIALOG_STRINGS = {
+    en = { downvoteTitle = "Thank you for continuing to use Quick Stack", downvoteMessage = "Quick Stack represents a great deal of my spare time and care. Many features have taken repeated research, testing, and compatibility work. I'm sorry it hasn't met your expectations yet, and I'd sincerely like to understand why. If you've encountered an error, a frustrating experience, or have an idea for improvement, please let me know; specific feedback helps me continue making it better. Thank you for giving it your time, and for every candid and constructive comment.", downvoteConfirm = "Confirm", voteChecking = "Checking Steam Workshop status…" },
+    ["zh-hans"] = { downvoteTitle = "感谢你愿意继续使用 Quick Stack", downvoteMessage = "Quick Stack 凝聚了我许多业余时间和心血。为了让它在不同版本和使用场景中稳定工作，许多功能都经过反复研究、测试与适配。很遗憾它目前还没有让你满意，我也真诚希望了解原因。如果你遇到错误、体验不顺，或有任何改进建议，欢迎告诉我；具体的反馈会帮助我继续把它做得更好。感谢你花时间尝试，也感谢每一份坦率而善意的意见。", downvoteConfirm = "确定", voteChecking = "正在确认 Steam Workshop 状态……" },
+    ["zh-hant"] = { downvoteTitle = "感謝你願意繼續使用 Quick Stack", downvoteMessage = "Quick Stack 凝聚了我許多業餘時間和心血。為了讓它在不同版本和使用情境中穩定運作，許多功能都經過反覆研究、測試與適配。很遺憾它目前還沒有讓你滿意，我也真誠希望瞭解原因。如果你遇到錯誤、體驗不順，或有任何改進建議，歡迎告訴我；具體的回饋會幫助我繼續把它做得更好。感謝你花時間嘗試，也感謝每一份坦率而善意的意見。", downvoteConfirm = "確定", voteChecking = "正在確認 Steam Workshop 狀態……" },
+    ja = { downvoteTitle = "Quick Stackをお試しいただきありがとうございます", downvoteMessage = "Quick Stackがご期待に添えず申し訳ありません。それでもご利用いただきありがとうございます。よろしければ、改善できる点をお聞かせください。", downvoteConfirm = "確認", voteChecking = "Steam Workshopの状態を確認しています…" },
+    ko = { downvoteTitle = "Quick Stack을 사용해 주셔서 감사합니다", downvoteMessage = "Quick Stack이 기대에 미치지 못해 죄송합니다. 그래도 계속 사용해 주셔서 감사합니다. 괜찮으시다면 개선할 점을 알려 주세요.", downvoteConfirm = "확인", voteChecking = "Steam Workshop 상태를 확인하는 중…" },
+    de = { downvoteTitle = "Danke, dass du Quick Stack ausprobierst", downvoteMessage = "Es tut mir leid, dass Quick Stack deine Erwartungen bisher nicht erfüllt. Danke, dass du es trotzdem weiter nutzt. Wenn du Zeit hast, freue ich mich über Hinweise, was besser werden kann.", downvoteConfirm = "Bestätigen", voteChecking = "Steam-Workshop-Status wird geprüft…" },
+    fr = { downvoteTitle = "Merci d’avoir essayé Quick Stack", downvoteMessage = "Je suis désolé que Quick Stack n’ait pas répondu à vos attentes. Merci de continuer à l’utiliser. Si vous avez un moment, vos suggestions d’amélioration seront sincèrement appréciées.", downvoteConfirm = "Confirmer", voteChecking = "Vérification de l’état Steam Workshop…" },
+    it = { downvoteTitle = "Grazie per aver provato Quick Stack", downvoteMessage = "Mi dispiace che Quick Stack non abbia soddisfatto le tue aspettative. Grazie per continuare a usarlo. Se hai un momento, mi farebbe piacere sapere cosa potrei migliorare.", downvoteConfirm = "Conferma", voteChecking = "Verifica dello stato di Steam Workshop…" },
+    es = { downvoteTitle = "Gracias por probar Quick Stack", downvoteMessage = "Siento que Quick Stack no haya cumplido tus expectativas. Gracias por seguir usándolo. Si tienes un momento, agradecería sinceramente saber qué podría mejorar.", downvoteConfirm = "Confirmar", voteChecking = "Comprobando el estado de Steam Workshop…" },
+    ["pt-br"] = { downvoteTitle = "Obrigado por experimentar o Quick Stack", downvoteMessage = "Sinto muito que o Quick Stack não tenha atendido às suas expectativas. Obrigado por continuar usando. Se puder, gostaria sinceramente de saber o que pode ser melhorado.", downvoteConfirm = "Confirmar", voteChecking = "Verificando o status da Oficina Steam…" },
+    ru = { downvoteTitle = "Спасибо, что попробовали Quick Stack", downvoteMessage = "Мне жаль, что Quick Stack не оправдал ваших ожиданий. Спасибо, что продолжаете им пользоваться. Если сможете, расскажите, пожалуйста, что можно улучшить.", downvoteConfirm = "Подтвердить", voteChecking = "Проверка статуса Steam Workshop…" },
+    tr = { downvoteTitle = "Quick Stack’i denediğiniz için teşekkürler", downvoteMessage = "Quick Stack beklentilerinizi karşılamadıysa üzgünüm. Kullanmaya devam ettiğiniz için teşekkürler. Vaktiniz varsa neleri geliştirebileceğimi duymak isterim.", downvoteConfirm = "Onayla", voteChecking = "Steam Workshop durumu kontrol ediliyor…" },
+    pl = { downvoteTitle = "Dziękuję za wypróbowanie Quick Stack", downvoteMessage = "Przykro mi, że Quick Stack nie spełnił Twoich oczekiwań. Dziękuję, że nadal z niego korzystasz. Jeśli możesz, chętnie dowiem się, co warto poprawić.", downvoteConfirm = "Potwierdź", voteChecking = "Sprawdzanie stanu Steam Workshop…" },
+    id = { downvoteTitle = "Terima kasih telah mencoba Quick Stack", downvoteMessage = "Maaf Quick Stack belum memenuhi harapan Anda. Terima kasih karena tetap menggunakannya. Jika berkenan, saya sangat menghargai masukan tentang hal yang dapat diperbaiki.", downvoteConfirm = "Konfirmasi", voteChecking = "Memeriksa status Steam Workshop…" },
+    ["es-419"] = { downvoteTitle = "Gracias por probar Quick Stack", downvoteMessage = "Lamento que Quick Stack no haya cumplido tus expectativas. Gracias por seguir usándolo. Si tienes un momento, agradecería sinceramente saber qué podría mejorar.", downvoteConfirm = "Confirmar", voteChecking = "Comprobando el estado de Steam Workshop…" },
+    th = { downvoteTitle = "ขอบคุณที่ลองใช้ Quick Stack", downvoteMessage = "ขออภัยที่ Quick Stack ยังไม่ตรงตามความคาดหวังของคุณ ขอบคุณที่ยังคงใช้งาน หากสะดวก เรายินดีรับฟังอย่างจริงใจว่ามีส่วนใดที่ควรปรับปรุง", downvoteConfirm = "ยืนยัน", voteChecking = "กำลังตรวจสอบสถานะ Steam Workshop…" },
+    vi = { downvoteTitle = "Cảm ơn bạn đã thử Quick Stack", downvoteMessage = "Rất tiếc Quick Stack chưa đáp ứng mong đợi của bạn. Cảm ơn bạn vẫn tiếp tục sử dụng. Nếu thuận tiện, tôi thật lòng mong được nghe điều gì có thể cải thiện.", downvoteConfirm = "Xác nhận", voteChecking = "Đang kiểm tra trạng thái Steam Workshop…" },
+}
+
 -- Keep the footer's native input guide in the same language as Pal Insight.
 -- These are the corresponding Pal Insight translations, not fresh rewrites.
 local SETTINGS_INPUT_HELP_STRINGS = {
@@ -1188,6 +1208,26 @@ local MEDICINE_RACK_SETTINGS_STRINGS = {
     vi = { medicineRackFirst = "Ưu tiên tủ thuốc cho vật tư y tế", medicineRackFirstHelper = "Nếu không có tủ thuốc dùng được hoặc tất cả đã đầy, vật tư y tế vẫn được cất vào kho thông thường." },
 }
 
+local FOOD_FACILITY_SETTINGS_STRINGS = {
+    en = { breedingFarmCakeFirst = "Cakes to Breeding Farms first", breedingFarmCakeFirstHelper = "All 5 cakes use cold storage, then regular storage if no usable Breeding Farm has room. Cakes never go to Pal Food Boxes.", foodBoxFirst = "Food to Pal Food Boxes first", foodBoxFirstHelper = "Other food uses cold storage, then regular storage if no usable Pal Food Box has room. Use Tab → R in the inventory to keep a food type in your backpack." },
+    ["zh-hans"] = { breedingFarmCakeFirst = "蛋糕优先放入配种牧场", breedingFarmCakeFirstHelper = "5 种蛋糕在配种牧场没有可用位置时，会依次放入冷藏设施和普通储物箱，绝不会放入饲料箱。", foodBoxFirst = "食物优先放入饲料箱", foodBoxFirstHelper = "其他食物在饲料箱没有可用位置时，会依次放入冷藏设施和普通储物箱。要随身保留某种食物，请在背包中按 Tab → R 排除。" },
+    ["zh-hant"] = { breedingFarmCakeFirst = "蛋糕優先放入配種牧場", breedingFarmCakeFirstHelper = "5 種蛋糕在配種牧場沒有可用位置時，會依序放入冷藏設施和一般儲物箱，絕不會放入飼料箱。", foodBoxFirst = "食物優先放入飼料箱", foodBoxFirstHelper = "其他食物在飼料箱沒有可用位置時，會依序放入冷藏設施和一般儲物箱。要隨身保留某種食物，請在背包中按 Tab → R 排除。" },
+    ja = { breedingFarmCakeFirst = "ケーキを配合牧場へ優先収納", breedingFarmCakeFirstHelper = "5種類のケーキは配合牧場に空きがない場合、冷蔵設備、通常の保管庫の順に収納されます。エサ箱には入りません。", foodBoxFirst = "食料をエサ箱へ優先収納", foodBoxFirstHelper = "その他の食料はエサ箱に空きがない場合、冷蔵設備、通常の保管庫の順に収納されます。携帯する食料はインベントリで Tab → R を押して除外してください。" },
+    ko = { breedingFarmCakeFirst = "케이크를 배합 목장에 우선 보관", breedingFarmCakeFirstHelper = "5종의 케이크는 배합 목장에 자리가 없으면 냉장 시설, 일반 보관함 순으로 들어갑니다. 먹이 상자에는 넣지 않습니다.", foodBoxFirst = "음식을 먹이 상자에 우선 보관", foodBoxFirstHelper = "그 밖의 음식은 먹이 상자에 자리가 없으면 냉장 시설, 일반 보관함 순으로 들어갑니다. 휴대할 음식은 인벤토리에서 Tab → R로 제외하세요." },
+    de = { breedingFarmCakeFirst = "Kuchen zuerst in Zuchtfarmen", breedingFarmCakeFirstHelper = "Alle 5 Kuchen kommen bei Platzmangel erst in Kühlanlagen und dann in normale Lager. Sie kommen nie in Futtertröge.", foodBoxFirst = "Nahrung zuerst in Futtertröge", foodBoxFirstHelper = "Andere Nahrung kommt bei Platzmangel erst in Kühlanlagen und dann in normale Lager. Mit Tab → R im Inventar bleibt eine Nahrungsart im Rucksack." },
+    fr = { breedingFarmCakeFirst = "Gâteaux d’abord dans les Fermes d’élevage", breedingFarmCakeFirstHelper = "Les 5 gâteaux vont ensuite au stockage réfrigéré, puis au stockage normal si aucune Ferme d’élevage n’a de place. Ils ne vont jamais dans les mangeoires.", foodBoxFirst = "Nourriture d’abord dans les mangeoires", foodBoxFirstHelper = "Les autres aliments vont ensuite au stockage réfrigéré, puis au stockage normal si aucune mangeoire n’a de place. Utilisez Tab → R dans l’inventaire pour garder un type d’aliment sur vous." },
+    it = { breedingFarmCakeFirst = "Torte prima negli allevamenti", breedingFarmCakeFirstHelper = "Le 5 torte passano ai depositi refrigerati e poi a quelli normali se non c’è spazio negli allevamenti. Non vengono mai messe nelle mangiatoie.", foodBoxFirst = "Cibo prima nelle mangiatoie", foodBoxFirstHelper = "Gli altri cibi passano ai depositi refrigerati e poi a quelli normali se non c’è spazio nelle mangiatoie. Usa Tab → R nell’inventario per tenere con te un tipo di cibo." },
+    es = { breedingFarmCakeFirst = "Pasteles primero en Criaderos", breedingFarmCakeFirstHelper = "Los 5 pasteles pasan al almacenamiento refrigerado y después al normal si no hay espacio en los Criaderos. Nunca van a comederos.", foodBoxFirst = "Comida primero en comederos", foodBoxFirstHelper = "Los demás alimentos pasan al almacenamiento refrigerado y después al normal si no hay espacio en los comederos. Usa Tab → R en el inventario para conservar un tipo de alimento en la mochila." },
+    ["pt-br"] = { breedingFarmCakeFirst = "Bolos primeiro em Fazendas de Criação", breedingFarmCakeFirstHelper = "Os 5 bolos vão para depósitos refrigerados e depois comuns se não houver espaço nas Fazendas de Criação. Eles nunca vão para caixas de ração.", foodBoxFirst = "Comida primeiro em caixas de ração", foodBoxFirstHelper = "Outros alimentos vão para depósitos refrigerados e depois comuns se não houver espaço nas caixas de ração. Use Tab → R no inventário para manter um tipo de alimento na mochila." },
+    ru = { breedingFarmCakeFirst = "Торты сначала на фермы разведения", breedingFarmCakeFirstHelper = "Все 5 тортов при нехватке места идут в холодильники, затем в обычные хранилища. В кормушки они не попадают.", foodBoxFirst = "Еду сначала в кормушки", foodBoxFirstHelper = "Остальная еда при нехватке места идёт в холодильники, затем в обычные хранилища. Нажмите Tab → R в инвентаре, чтобы оставить вид еды в рюкзаке." },
+    tr = { breedingFarmCakeFirst = "Pastaları önce Çiftleştirme Çiftliklerine koy", breedingFarmCakeFirstHelper = "5 pasta, Çiftleştirme Çiftliklerinde yer yoksa soğuk depoya, ardından normal depoya gider. Yem kutularına asla konmaz.", foodBoxFirst = "Yiyecekleri önce yem kutularına koy", foodBoxFirstHelper = "Diğer yiyecekler yer yoksa soğuk depoya, ardından normal depoya gider. Bir yiyecek türünü çantada tutmak için envanterde Tab → R kullanın." },
+    pl = { breedingFarmCakeFirst = "Ciasta najpierw do Zagród Hodowlanych", breedingFarmCakeFirstHelper = "Wszystkie 5 ciast trafia potem do chłodni, a następnie do zwykłego magazynu, jeśli w Zagrodach nie ma miejsca. Nigdy nie trafiają do karmników.", foodBoxFirst = "Jedzenie najpierw do karmników", foodBoxFirstHelper = "Pozostałe jedzenie trafia potem do chłodni, a następnie do zwykłego magazynu, jeśli karmniki są pełne. Użyj Tab → R w ekwipunku, aby zachować dany rodzaj jedzenia w plecaku." },
+    id = { breedingFarmCakeFirst = "Utamakan Peternakan Pembiakan untuk kue", breedingFarmCakeFirstHelper = "Kelima kue masuk ke penyimpanan dingin lalu penyimpanan biasa jika Peternakan Pembiakan tidak memiliki ruang. Kue tidak pernah masuk ke kotak pakan.", foodBoxFirst = "Utamakan kotak pakan untuk makanan", foodBoxFirstHelper = "Makanan lain masuk ke penyimpanan dingin lalu penyimpanan biasa jika kotak pakan tidak memiliki ruang. Gunakan Tab → R di inventaris agar satu jenis makanan tetap di tas." },
+    ["es-419"] = { breedingFarmCakeFirst = "Pasteles primero en Criaderos", breedingFarmCakeFirstHelper = "Los 5 pasteles pasan al almacenamiento refrigerado y después al normal si no hay espacio en los Criaderos. Nunca van a comederos.", foodBoxFirst = "Comida primero en comederos", foodBoxFirstHelper = "Los demás alimentos pasan al almacenamiento refrigerado y después al normal si no hay espacio en los comederos. Usa Tab → R en el inventario para conservar un tipo de alimento en la mochila." },
+    th = { breedingFarmCakeFirst = "เก็บเค้กในฟาร์มผสมพันธุ์ก่อน", breedingFarmCakeFirstHelper = "เค้กทั้ง 5 ชนิดจะไปยังที่เก็บแบบแช่เย็น แล้วจึงไปที่เก็บทั่วไปเมื่อฟาร์มผสมพันธุ์ไม่มีที่ว่าง และจะไม่ถูกใส่กล่องอาหาร", foodBoxFirst = "เก็บอาหารในกล่องอาหารก่อน", foodBoxFirstHelper = "อาหารอื่นจะไปยังที่เก็บแบบแช่เย็น แล้วจึงไปที่เก็บทั่วไปเมื่อกล่องอาหารไม่มีที่ว่าง ใช้ Tab → R ในกระเป๋าเพื่อเก็บอาหารชนิดนั้นไว้กับตัว" },
+    vi = { breedingFarmCakeFirst = "Ưu tiên Trại Phối giống cho bánh", breedingFarmCakeFirstHelper = "Cả 5 loại bánh sẽ chuyển sang kho lạnh rồi kho thường nếu Trại Phối giống không còn chỗ. Bánh không bao giờ vào hộp thức ăn.", foodBoxFirst = "Ưu tiên hộp thức ăn cho thực phẩm", foodBoxFirstHelper = "Thực phẩm khác sẽ chuyển sang kho lạnh rồi kho thường nếu hộp thức ăn không còn chỗ. Dùng Tab → R trong túi đồ để giữ một loại thực phẩm trong ba lô." },
+}
+
 for locale, values in pairs(AMMO_SETTINGS_STRINGS) do
     local row = SETTINGS_STRINGS[locale]
     if type(row) == "table" then
@@ -1216,6 +1256,13 @@ for locale, values in pairs(MEDICINE_RACK_SETTINGS_STRINGS) do
     end
 end
 
+for locale, values in pairs(FOOD_FACILITY_SETTINGS_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
 for locale, values in pairs(SETTINGS_EXTRA_STRINGS) do
     local row = SETTINGS_STRINGS[locale]
     if type(row) == "table" then
@@ -1224,6 +1271,13 @@ for locale, values in pairs(SETTINGS_EXTRA_STRINGS) do
 end
 
 for locale, values in pairs(SETTINGS_DIALOG_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
+for locale, values in pairs(SETTINGS_DOWNVOTE_DIALOG_STRINGS) do
     local row = SETTINGS_STRINGS[locale]
     if type(row) == "table" then
         for key, value in pairs(values) do row[key] = value end

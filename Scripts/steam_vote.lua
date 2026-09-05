@@ -12,8 +12,11 @@ SteamVote.statuses = {
 local state = {
     log = nil,
     loadAttempted = false,
+    presenceChecked = false,
+    present = false,
     ready = false,
     polling = false,
+    resolvedStatus = nil,
     path = nil,
     sentinel = nil,
     nibbleArgs = {},
@@ -69,14 +72,12 @@ function SteamVote.configure(logger)
     state.log = logger
 end
 
-function SteamVote.initialize()
-    if state.loadAttempted then
-        if state.ready then SteamVote.refresh() end
-        return state.ready
+function SteamVote.present()
+    if state.presenceChecked then return state.present == true end
+    state.presenceChecked = true
+    if type(package) ~= "table" or type(package.searchpath) ~= "function" then
+        return false
     end
-    state.loadAttempted = true
-    if type(package) ~= "table" or type(package.searchpath) ~= "function"
-        or type(package.loadlib) ~= "function" then return false end
     local searched, helperPath = pcall(package.searchpath,
         "PalInsightQuickStackSteamVote", package.cpath)
     if not searched or type(helperPath) ~= "string" then return false end
@@ -88,6 +89,17 @@ function SteamVote.initialize()
         return false
     end
     state.path = helperPath
+    state.present = true
+    return true
+end
+
+function SteamVote.initialize()
+    if state.loadAttempted then
+        return state.ready
+    end
+    state.loadAttempted = true
+    if type(package) ~= "table" or type(package.loadlib) ~= "function"
+        or not SteamVote.present() then return false end
     state.sentinel = {}
     for index = 1, 15 do state.nibbleArgs[index] = {} end
     local names = {
@@ -138,10 +150,20 @@ end
 function SteamVote.poll()
     if state.ready ~= true or state.polling ~= true then return nil end
     local status = SteamVote.status()
-    logNativeError()
+    local failed = logNativeError()
     if status == SteamVote.statuses.noVote or status == SteamVote.statuses.down
-        or status == SteamVote.statuses.up then state.polling = false end
+        or status == SteamVote.statuses.up then
+        state.resolvedStatus = status
+        state.polling = false
+    elseif failed then
+        state.resolvedStatus = SteamVote.statuses.unavailable
+        state.polling = false
+    end
     return status
+end
+
+function SteamVote.resolvedStatus()
+    return state.resolvedStatus
 end
 
 function SteamVote.setUp()
@@ -156,7 +178,6 @@ function SteamVote.assetPath(fileName)
     local approved = {
         ["thumb-up-outline.png"] = true,
         ["thumb-up-filled.png"] = true,
-        ["thumb-down-filled.png"] = true,
     }
     if approved[fileName] ~= true or type(package) ~= "table"
         or type(package.searchpath) ~= "function" then return nil end

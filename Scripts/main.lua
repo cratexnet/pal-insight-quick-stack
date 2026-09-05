@@ -58,7 +58,7 @@ local QuickStack = require("quick_stack")
 local Palworld = require("palworld")
 
 local TAG = "[PalInsightQuickStack] "
-local VERSION = "1.2.0"
+local VERSION = "1.3.0"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
 local SETTINGS_HOST_PROTOCOL_VERSION = 3
@@ -78,6 +78,8 @@ local SHARED_BOOLEAN_SETTINGS = {
     { shared = "AutoSellAmmo", config = "AutoSellAmmo" },
     { shared = "AutoSellPalSpheres", config = "AutoSellPalSpheres" },
     { shared = "AutoSellFishingBait", config = "AutoSellFishingBait" },
+    { shared = "BreedingFarmCakeFirst", config = "BreedingFarmCakeFirst" },
+    { shared = "FoodBoxFirst", config = "FoodBoxFirst" },
     { shared = "MedicineRackFirst", config = "MedicineRackFirst" },
     { shared = "IncludeSmallIncubators", config = "IncludeSmallIncubators" },
 }
@@ -258,8 +260,13 @@ local function scheduleSettingsPrewarm(reason)
             settingsPrewarmPerformance("failed")
             stopSettingsPrewarm()
         elseif windowReady == true then
-            settingsPrewarmPerformance("ready")
-            stopSettingsPrewarm()
+            if SettingsUI.preflightSteamVote() then
+                settingsPrewarmPerformance("ready")
+                stopSettingsPrewarm()
+            elseif state.settingsPrewarmAttempts >= SETTINGS_PREWARM_MAX_ATTEMPTS then
+                settingsPrewarmPerformance("exhausted")
+                stopSettingsPrewarm()
+            end
         elseif state.settingsPrewarmAttempts >= SETTINGS_PREWARM_MAX_ATTEMPTS then
             settingsPrewarmPerformance("exhausted")
             stopSettingsPrewarm()
@@ -757,6 +764,9 @@ local function reconcileSharedSettings()
         .. tostring(state.config.AutoSellPalSpheres)
         .. ", auto sell fishing bait="
         .. tostring(state.config.AutoSellFishingBait)
+        .. ", breeding farm cake first="
+        .. tostring(state.config.BreedingFarmCakeFirst)
+        .. ", food box first=" .. tostring(state.config.FoodBoxFirst)
         .. ", medicine rack first="
         .. tostring(state.config.MedicineRackFirst)
         .. ", egg routing=" .. tostring(state.config.PalEggRouting)
@@ -867,7 +877,9 @@ local function reconcileSettingsHostRequests()
         if closeHostGeneration == state.settingsHostPanelHostGeneration
             and closeTargetGeneration == state.settingsHostGeneration
             and SettingsUI.mode() == "hosted" then
-            if SettingsUI.close("host-request") then
+            if SettingsUI.closeBlocked() then
+                state.settingsHostCloseRevision = closeRevision
+            elseif SettingsUI.close("host-request") then
                 state.settingsHostCloseRevision = closeRevision
             end
         else
@@ -878,7 +890,6 @@ local function reconcileSettingsHostRequests()
     local openRevision = nonNegativeRevision(select(1,
         settingsHostRead("OpenExtensionSettingsRequestRevision"))) or 0
     if openRevision <= state.settingsHostOpenRevision then return true end
-    state.settingsHostOpenRevision = openRevision
     local requestId = select(1,
         settingsHostRead("OpenExtensionSettingsRequestId"))
     local requestHostGeneration = nonNegativeRevision(select(1,
@@ -899,7 +910,9 @@ local function reconcileSettingsHostRequests()
             and requestInputDevice ~= "gamepad")
         or (requestInputRoute ~= "host-native"
             and requestInputRoute ~= "extension-cooked")
+        or select(1, settingsHostRead("HostSettingsOpen")) ~= true
         or not hostLive then
+        state.settingsHostOpenRevision = openRevision
         acknowledgeHostedFailure(
             openRevision, "host-unavailable", requestHostGeneration,
             requestInputRoute)
@@ -913,6 +926,7 @@ local function reconcileSettingsHostRequests()
         initialInputDevice = requestInputDevice,
         hostedInputRoute = requestInputRoute,
     })
+    state.settingsHostOpenRevision = openRevision
     if opened then
         local acknowledged = publishHostedOpenAcknowledgement(
             openRevision, requestHostGeneration, requestInputRoute)
@@ -1093,6 +1107,21 @@ SettingsUI.configure({
     configPath = state.configPath,
     registerShortcut = registerConfiguredKey,
     shortcutConflict = shortcutConflictFor,
+    publishHostedCloseBlocked = function(blocked)
+        if blocked ~= true then
+            return settingsHostWrite("ExtensionSettingsCloseBlocked", false)
+        end
+        if state.settingsHostPanelRevision == nil
+            or state.settingsHostPanelHostGeneration == nil then return true end
+        return settingsHostWrite("ExtensionSettingsCloseBlockedHostGeneration",
+                state.settingsHostPanelHostGeneration)
+            and settingsHostWrite(
+                "ExtensionSettingsCloseBlockedQuickStackGeneration",
+                state.settingsHostGeneration)
+            and settingsHostWrite("ExtensionSettingsCloseBlockedOpenRevision",
+                state.settingsHostPanelRevision)
+            and settingsHostWrite("ExtensionSettingsCloseBlocked", true)
+    end,
     readHostedControllerSnapshot = function()
         if state.settingsHostPanelRevision == nil
             or state.settingsHostPanelHostGeneration == nil then return nil end

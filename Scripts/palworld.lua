@@ -16,6 +16,15 @@ local SMALL_INCUBATOR_CLASS_PATH = "/Script/Pal.PalMapObjectHatchingEggModel"
 local GUILD_CHEST_CLASS_PATH = "/Script/Pal.PalMapObjectGuildChestModel"
 local MEDICINE_RACK_CLASS_PATH = "/Script/Pal.PalMapObjectPalMedicineBoxModel"
 local RECYCLER_CLASS_PATH = "/Script/Pal.PalMapObjectRecyclerModel"
+local BREEDING_FARM_CLASS_PATH = "/Script/Pal.PalMapObjectBreedFarmModel"
+local FOOD_BOX_CLASS_PATH = "/Script/Pal.PalMapObjectPalFoodBoxModel"
+local COLD_STORAGE_IDS = {
+    CoolerBox = true,
+    Refrigerator = true,
+    CoolerElectric = true,
+    CoolerMedieval = true,
+    CoolerAncient = true,
+}
 
 local MAIN_MENU_CLASS_PATH =
     "/Game/Pal/Blueprint/UI/InGameMainMenu/WBP_InGameMainMenu.WBP_InGameMainMenu_C"
@@ -876,8 +885,11 @@ local cachedIncubatorClass
 local cachedGuildChestClass
 local cachedMedicineRackClass
 local cachedRecyclerClass
+local cachedBreedingFarmClass
+local cachedFoodBoxClass
 
-local function destinationClassesAreValid(wantsRecycler)
+local function destinationClassesAreValid(
+    wantsRecycler, wantsFoodFacilities, wantsBreedingFarm)
     if type(cachedStorageClasses) ~= "table" or #cachedStorageClasses == 0 then
         return false
     end
@@ -886,8 +898,11 @@ local function destinationClassesAreValid(wantsRecycler)
     end
     return Palworld.isValid(cachedGuildChestClass)
         and Palworld.isValid(cachedMedicineRackClass)
+        and (not wantsFoodFacilities or Palworld.isValid(cachedFoodBoxClass))
         and (cachedIncubatorClass == nil or Palworld.isValid(cachedIncubatorClass))
         and (not wantsRecycler or Palworld.isValid(cachedRecyclerClass))
+        and (not wantsBreedingFarm
+            or Palworld.isValid(cachedBreedingFarmClass))
 end
 
 function Palworld.loadDestinationClasses(job)
@@ -899,12 +914,19 @@ function Palworld.loadDestinationClasses(job)
         end
     end
     local wantsRecycler = true
-    if destinationClassesAreValid(wantsRecycler) then
+    local wantsFoodFacilities = job.config.BreedingFarmCakeFirst == true
+        or job.config.FoodBoxFirst == true
+    local wantsBreedingFarm = job.config.BreedingFarmCakeFirst == true
+    if destinationClassesAreValid(
+        wantsRecycler, wantsFoodFacilities, wantsBreedingFarm) then
         job.storageClasses = cachedStorageClasses
         job.incubatorClass = cachedIncubatorClass
         job.guildChestClass = cachedGuildChestClass
         job.medicineRackClass = cachedMedicineRackClass
         job.recyclerClass = wantsRecycler and cachedRecyclerClass or nil
+        job.breedingFarmClass = wantsBreedingFarm
+            and cachedBreedingFarmClass or nil
+        job.foodBoxClass = wantsFoodFacilities and cachedFoodBoxClass or nil
         if job.smallIncubatorClass ~= nil and job.incubatorClass == nil then
             return false, "large incubator model class is unavailable"
         end
@@ -924,6 +946,9 @@ function Palworld.loadDestinationClasses(job)
     cachedIncubatorClass = Palworld.staticObject(INCUBATOR_CLASS_PATH)
     cachedGuildChestClass = Palworld.staticObject(GUILD_CHEST_CLASS_PATH)
     cachedMedicineRackClass = Palworld.staticObject(MEDICINE_RACK_CLASS_PATH)
+    if wantsFoodFacilities then
+        cachedFoodBoxClass = Palworld.staticObject(FOOD_BOX_CLASS_PATH)
+    end
     if wantsRecycler then
         cachedRecyclerClass = Palworld.staticObject(RECYCLER_CLASS_PATH)
     end
@@ -933,6 +958,15 @@ function Palworld.loadDestinationClasses(job)
     if cachedMedicineRackClass == nil then
         return false, "Medicine Rack model class is unavailable"
     end
+    if wantsFoodFacilities and cachedFoodBoxClass == nil then
+        return false, "Pal Food Box model class is unavailable"
+    end
+    if wantsBreedingFarm then
+        cachedBreedingFarmClass = Palworld.staticObject(BREEDING_FARM_CLASS_PATH)
+        if cachedBreedingFarmClass == nil then
+            return false, "Breeding Farm model class is unavailable"
+        end
+    end
     job.storageClasses = cachedStorageClasses
     job.incubatorClass = cachedIncubatorClass
     if job.smallIncubatorClass ~= nil and job.incubatorClass == nil then
@@ -940,6 +974,8 @@ function Palworld.loadDestinationClasses(job)
     end
     job.guildChestClass = cachedGuildChestClass
     job.medicineRackClass = cachedMedicineRackClass
+    job.foodBoxClass = wantsFoodFacilities and cachedFoodBoxClass or nil
+    job.breedingFarmClass = wantsBreedingFarm and cachedBreedingFarmClass or nil
     if wantsRecycler and cachedRecyclerClass == nil then
         return false, "Ancient Relic Recycler model class is unavailable"
     end
@@ -962,8 +998,24 @@ function Palworld.destinationKind(job, concreteModel)
     if isInstanceOf(concreteModel, job.medicineRackClass) then
         return job.config.MedicineRackFirst and "medicine_rack" or "storage"
     end
+    if job.breedingFarmClass ~= nil
+        and isInstanceOf(concreteModel, job.breedingFarmClass) then
+        return "breeding_farm"
+    end
+    if isInstanceOf(concreteModel, job.foodBoxClass) then
+        return (job.config.BreedingFarmCakeFirst or job.config.FoodBoxFirst)
+            and "food_box" or "storage"
+    end
     for _, classObject in ipairs(job.storageClasses) do
         if isInstanceOf(concreteModel, classObject) then
+            if job.config.BreedingFarmCakeFirst or job.config.FoodBoxFirst then
+                local mapObjectId
+                pcall(function()
+                    mapObjectId = Palworld.nameString(
+                        concreteModel:TryGetMapObjectId())
+                end)
+                if COLD_STORAGE_IDS[mapObjectId] then return "cold_storage" end
+            end
             return "storage"
         end
     end
