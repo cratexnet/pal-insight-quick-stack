@@ -79,6 +79,8 @@ local SIZE = {
     headerAction = 36.0,
     headerActionGap = 8.0,
     headerActionIconBox = 20.0,
+    settingsTabs = 38.0,
+    settingsTabGap = 6.0,
     footer = 112.0,
     footerHelpHeader = 28.0,
     footerHelpActionGap = 4.0,
@@ -129,7 +131,7 @@ local SETTING_KEYS = {
     "AutoSellValuables", "ValuableSellItems", "AutoSellAmmo", "AmmoSellItems",
     "AutoSellPalSpheres", "PalSphereSellItems",
     "AutoSellFishingBait", "FishingBaitSellItems",
-    "IncludeSmallIncubators", "PalEggRouting",
+    "MedicineRackFirst", "IncludeSmallIncubators", "PalEggRouting",
     "RelicRouting", "WorldTreeHolyWaterMinimum", "PerformanceCapture", "Debug",
 }
 
@@ -150,6 +152,7 @@ local DEFAULTS = {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    MedicineRackFirst = false,
     IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
@@ -228,6 +231,15 @@ local state = {
     windowCache = { ready = false },
     controller = nil,
     controls = {},
+    allFocusEntries = {},
+    settingsPages = {},
+    settingsTabButtons = {},
+    settingsTabPreviousButton = nil,
+    settingsTabNextButton = nil,
+    settingsPageOrder = { "general", "automaticSale", "specialItems" },
+    activeSettingsPage = "general",
+    settingsPageScrollOffsets = {},
+    buildingPageId = nil,
     statusText = nil,
     modeText = nil,
     footerHelp = nil,
@@ -309,11 +321,13 @@ local state = {
         "Gamepad_DPad_Left", "Gamepad_DPad_Right",
         "Gamepad_LeftStick_Up", "Gamepad_LeftStick_Down",
         "Gamepad_LeftStick_Left", "Gamepad_LeftStick_Right",
+        "Gamepad_LeftShoulder", "Gamepad_RightShoulder",
         "Gamepad_FaceButton_Bottom", "Gamepad_FaceButton_Right",
     },
     controllerPollKeys = {
         "Gamepad_DPad_Up", "Gamepad_DPad_Down",
         "Gamepad_DPad_Left", "Gamepad_DPad_Right",
+        "Gamepad_LeftShoulder", "Gamepad_RightShoulder",
         "Gamepad_FaceButton_Bottom", "Gamepad_FaceButton_Right",
     },
     hostedControllerButtons = {
@@ -321,6 +335,8 @@ local state = {
         { mask = 0x0002, key = "Gamepad_DPad_Down" },
         { mask = 0x0004, key = "Gamepad_DPad_Left" },
         { mask = 0x0008, key = "Gamepad_DPad_Right" },
+        { mask = 0x0100, key = "Gamepad_LeftShoulder" },
+        { mask = 0x0200, key = "Gamepad_RightShoulder" },
         { mask = 0x1000, key = "Gamepad_FaceButton_Bottom" },
         { mask = 0x2000, key = "Gamepad_FaceButton_Right" },
     },
@@ -1074,7 +1090,7 @@ local function makeSteamVoteControl(tree, strings)
     return box
 end
 
-local function makeRow(tree, body, label, role)
+local function makeRow(tree, body, label, role, indent)
     local rowBox = construct(tree, "/Script/UMG.SizeBox")
     local rowSurface = construct(tree, "/Script/UMG.Button")
     local frame = construct(tree, "/Script/UMG.Border")
@@ -1093,7 +1109,10 @@ local function makeRow(tree, body, label, role)
                 pressed = COLORS.text,
             })
         frame:SetBrushColor(COLORS.transparent)
-        frame:SetPadding({ Left = 12, Top = 4, Right = 12, Bottom = 4 })
+        frame:SetPadding({
+            Left = 12 + (tonumber(indent) or 0),
+            Top = 4, Right = 12, Bottom = 4,
+        })
         local labelSlot = row:AddChild(labelWidget)
         setFill(labelSlot)
         align(labelSlot, ALIGN_LEFT, ALIGN_CENTER)
@@ -1127,6 +1146,61 @@ local function addSection(tree, body, title, topGap)
         setPadding(slot, 0, topGap or 0, 0, 4)
     end)
     return ok
+end
+
+state.makeSettingsTabArrow = function(tree, glyph)
+    local box = construct(tree, "/Script/UMG.SizeBox")
+    local button = construct(tree, "/Script/UMG.Button")
+    local label = makeText(tree, glyph, 20, COLORS.muted, TEXT_CENTER)
+    if box == nil or button == nil or label == nil then return nil, nil end
+    local ok = pcall(function()
+        box:SetWidthOverride(36.0)
+        box:SetHeightOverride(SIZE.settingsTabs - 6.0)
+        button.bIsFocusable = false
+        label:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        styleSurfaceButton(button, COLORS.transparent, COLORS.controlHover,
+            COLORS.controlPressed, COLORS.controlDisabled, {
+                normal = COLORS.muted,
+                hovered = COLORS.text,
+                pressed = COLORS.textOnAccent,
+            })
+        align(button:AddChild(label), ALIGN_FILL, ALIGN_CENTER)
+        align(box:AddChild(button), ALIGN_FILL, ALIGN_FILL)
+    end)
+    if not ok then return nil, nil end
+    registerDirectActionButton(button)
+    return box, button
+end
+
+state.refreshSettingsTabs = function()
+    for _, record in ipairs(state.settingsTabButtons or {}) do
+        if P.isValid(record.widget) then
+            local selected = record.pageId == state.activeSettingsPage
+            local hovered = false
+            local pressed = false
+            pcall(function() hovered = record.widget:IsHovered() == true end)
+            pcall(function() pressed = record.widget:IsPressed() == true end)
+            local signature = tostring(selected) .. ":" .. tostring(hovered)
+                .. ":" .. tostring(pressed)
+            if signature ~= record.visualSignature then
+                record.visualSignature = signature
+                local normal = selected and COLORS.surfaceSelected
+                    or COLORS.transparent
+                local hover = selected and COLORS.surfaceSelected
+                    or COLORS.controlHover
+                styleSurfaceButton(record.widget, normal, hover,
+                    COLORS.controlPressed, COLORS.controlDisabled, {
+                        normal = selected and COLORS.text or COLORS.muted,
+                        hovered = COLORS.text,
+                        pressed = COLORS.textOnAccent,
+                    })
+                if P.isValid(record.text) then
+                    record.text:SetColorAndOpacity(slateColor(
+                        selected and COLORS.text or COLORS.muted))
+                end
+            end
+        end
+    end
 end
 
 local function refreshTriggerSurfaces()
@@ -1244,6 +1318,7 @@ local function refreshTriggerSurfaces()
             end
         end
     end
+    state.refreshSettingsTabs()
     if P.isValid(state.aboutActionHint) then
         local hint = ""
         if state.aboutOpen == true and state.aboutRosterOpen ~= true
@@ -1496,6 +1571,7 @@ local function validateCandidate(candidate)
         or type(candidate.AutoSellAmmo) ~= "boolean"
         or type(candidate.AutoSellPalSpheres) ~= "boolean"
         or type(candidate.AutoSellFishingBait) ~= "boolean"
+        or type(candidate.MedicineRackFirst) ~= "boolean"
         or type(candidate.IncludeSmallIncubators) ~= "boolean" then
         return nil, "Quick Stack toggle values must be boolean"
     end
@@ -1516,6 +1592,7 @@ local function validateCandidate(candidate)
     normalized.PalSphereSellItems = palSphereSellItems
     normalized.AutoSellFishingBait = candidate.AutoSellFishingBait
     normalized.FishingBaitSellItems = fishingBaitSellItems
+    normalized.MedicineRackFirst = candidate.MedicineRackFirst
     normalized.IncludeSmallIncubators = candidate.IncludeSmallIncubators
     normalized.PalEggRouting = eggRouting
     normalized.RelicRouting = relicRouting
@@ -1563,6 +1640,7 @@ currentStrings = function()
     local ok, value = pcall(Localization.settings)
     return ok and type(value) == "table" and value or {
         title = "Quick Stack Settings",
+        tabGeneral = "General",
         sectionBasics = "Basics",
         sectionAutoSell = "Automatic sale",
         sectionStorage = "Storage rules",
@@ -1597,6 +1675,8 @@ currentStrings = function()
         fishingBaitPickerTitle = "Fishing bait to keep",
         fishingBaitPickerHelper = "Checked fishing bait stays in your backpack and is not sold.",
         fishingBaitKeptSummary = "Keep %d / %d",
+        medicineRackFirst = "Medical supplies to Medicine Racks first",
+        medicineRackFirstHelper = "If no usable Medicine Rack is available or all are full, medical supplies still go to regular storage.",
         includeSmallIncubators = "Use small incubators (large first)",
         eggRouting = "Pal Egg routing",
         eggOnly = "Incubators only",
@@ -1621,6 +1701,7 @@ currentStrings = function()
         inputDeviceGamepad = "Controller",
         shortcutKeyboardMouseOnly = "Use a keyboard or mouse to change this shortcut.",
         navigate = "Navigate",
+        switchTabs = "Switch tabs",
         adjust = "Adjust",
         confirm = "Confirm",
         toggleSettings = "Settings",
@@ -1968,6 +2049,13 @@ function FooterGuide.footerHelpSpecs(strings)
             gamepad = { "Gamepad_DPad_Up", "Gamepad_DPad_Down",
                 "Gamepad_LeftStick_UD" },
             gamepadSeparators = { [2] = "/" },
+        },
+        {
+            id = "switch-tabs", action = strings.switchTabs or "Switch tabs",
+            keyboard = { "Q", "E" },
+            keyboardSeparators = { [1] = "/" },
+            gamepad = { "Gamepad_LeftShoulder", "Gamepad_RightShoulder" },
+            gamepadSeparators = { [1] = "/" },
         },
         {
             id = "adjust", action = strings.adjust,
@@ -2801,15 +2889,15 @@ local function claimSynchronousNavigation(keyName, source)
     local claim = state.synchronousNavigationUntil[keyName]
     local ownedUntil = type(claim) == "table"
         and (tonumber(claim.untilAt) or 0.0) or tonumber(claim) or 0.0
-    if source == "global" then return ownedUntil > now end
-    if source ~= "preview" and source ~= "actor" then return false end
-    if ownedUntil > now and type(claim) == "table"
-        and claim.source ~= source then return true end
+    if source ~= "global" and source ~= "preview"
+        and source ~= "actor" then return false end
+    if ownedUntil > now and (type(claim) ~= "table"
+        or claim.source ~= source) then return true end
     state.synchronousNavigationUntil[keyName] = {
         untilAt = now + 0.30,
         source = source,
     }
-    InputOwner.discardPendingKey(keyName)
+    if source ~= "global" then InputOwner.discardPendingKey(keyName) end
     return false
 end
 
@@ -2989,7 +3077,11 @@ local function handlePressed(keyName, device, source, shiftDown)
         state.trailingReleaseUntil.Escape = os.clock() + 0.50
         return SettingsUI.close("escape")
     end
-    if keyName == "W" or keyName == "Up" or keyName == "Tab"
+    if keyName == "Q" or keyName == "Gamepad_LeftShoulder" then
+        return state.switchSettingsPage(-1, device)
+    elseif keyName == "E" or keyName == "Gamepad_RightShoulder" then
+        return state.switchSettingsPage(1, device)
+    elseif keyName == "W" or keyName == "Up" or keyName == "Tab"
         or keyName == "Gamepad_DPad_Up"
         or keyName == "Gamepad_LeftStick_Up" then
         local direction = keyName == "Tab" and (shiftDown and -1 or 1) or -1
@@ -3457,6 +3549,16 @@ handleNumberPreview = function(control, keyName, keyEvent, source)
         commitNumberEditor(control, "number-commit", true)
         return true
     end
+    if keyName == "Q" or keyName == "E"
+        or keyName == "Gamepad_LeftShoulder"
+        or keyName == "Gamepad_RightShoulder" then
+        commitNumberEditor(control, "number-page-switch", true)
+        local direction = (keyName == "Q"
+            or keyName == "Gamepad_LeftShoulder") and -1 or 1
+        local device = keyName:find("Gamepad_", 1, true) == 1
+            and "gamepad" or "keyboard"
+        return state.switchSettingsPage(direction, device)
+    end
     if keyName == "W" or keyName == "Up" or keyName == "Tab"
         or keyName == "S" or keyName == "Down"
         or keyName == "Gamepad_DPad_Up"
@@ -3618,6 +3720,19 @@ local function hoveredPointerAction()
         end
         return nil
     end
+    if hoveredWidget(state.settingsTabPreviousButton) then
+        return { scope = "settings-tab-shift", direction = -1,
+            owner = state.settingsTabPreviousButton }
+    end
+    if hoveredWidget(state.settingsTabNextButton) then
+        return { scope = "settings-tab-shift", direction = 1,
+            owner = state.settingsTabNextButton }
+    end
+    for index, record in ipairs(state.settingsTabButtons or {}) do
+        if hoveredWidget(record.widget) then
+            return { scope = "settings-tab", index = index, owner = record }
+        end
+    end
     for _, control in ipairs(state.controls or {}) do
         local pointerHovered = control.kind == "number"
             and (hoveredWidget(control.displayButton)
@@ -3668,6 +3783,19 @@ local function pointerActionIsCurrent(action)
         return state.releaseNotesOpen ~= true and state.aboutOpen ~= true
             and state.activeChoice == action.owner
             and action.owner.labels[action.index] ~= nil
+    end
+    if action.scope == "settings-tab" then
+        return state.releaseNotesOpen ~= true and state.aboutOpen ~= true
+            and state.activeChoice == nil
+            and (state.settingsTabButtons or {})[action.index] == action.owner
+    end
+    if action.scope == "settings-tab-shift" then
+        return state.releaseNotesOpen ~= true and state.aboutOpen ~= true
+            and state.activeChoice == nil
+            and (action.direction == -1
+                and action.owner == state.settingsTabPreviousButton
+                or action.direction == 1
+                and action.owner == state.settingsTabNextButton)
     end
     if action.scope == "root" and state.releaseNotesOpen ~= true
         and state.aboutOpen ~= true
@@ -3808,6 +3936,10 @@ local function activateHoveredDirectAction()
     elseif action.scope == "choice" then
         state.modalIndex = action.index
         handled = commitNestedModalSelection("mouse")
+    elseif action.scope == "settings-tab" then
+        handled = state.showSettingsPage(action.owner.pageId, "mouse")
+    elseif action.scope == "settings-tab-shift" then
+        handled = state.switchSettingsPage(action.direction, "mouse")
     elseif action.scope == "root" then
         local control = action.owner
         if control.kind == "choice" or SettingsUI.isItemPicker(control)
@@ -4282,7 +4414,9 @@ local function pollSettingsLifecycle()
     end
     if now < (tonumber(state.nextContextCheckAt) or 0.0) then return end
     state.nextContextCheckAt = now + 0.25
-    local controller = P.currentController()
+    local gameplayContext = P.currentGameplayContext()
+    local controller = type(gameplayContext) == "table"
+        and gameplayContext.controller or nil
     if not P.isValid(controller) or not windowCacheMatches(controller) then
         SettingsUI.close("context-changed")
         return
@@ -4367,6 +4501,8 @@ end
 
 local function registerFocusable(control, scrollTarget, triggerRecord)
     control.scrollTarget = scrollTarget
+    control.pageId = state.buildingPageId
+    state.allFocusEntries[#(state.allFocusEntries or {}) + 1] = control
     control.focusIndex = #(state.focusEntries or {}) + 1
     state.focusEntries[control.focusIndex] = control
     if type(triggerRecord) == "table" then triggerRecord.control = control end
@@ -4380,8 +4516,70 @@ local function registerFocusable(control, scrollTarget, triggerRecord)
     return control
 end
 
-local function addToggleRow(tree, body, key, label, alternate)
-    local row = makeRow(tree, body, label, "toggle")
+state.rebuildSettingsFocusEntries = function()
+    local entries = {}
+    for _, control in ipairs(state.allFocusEntries or {}) do
+        if control.pageId == nil or control.pageId == state.activeSettingsPage then
+            entries[#entries + 1] = control
+            control.focusIndex = #entries
+        else
+            control.focusIndex = nil
+        end
+    end
+    state.focusEntries = entries
+    state.focusIndex = math.max(1, math.min(
+        tonumber(state.focusIndex) or 1, #entries))
+    return #entries > 0
+end
+
+state.showSettingsPage = function(pageId, device)
+    if type(state.settingsPages) ~= "table"
+        or not P.isValid(state.settingsPages[pageId]) then return false end
+    local previous = state.activeSettingsPage
+    if previous == pageId then return true end
+    if type(state.numberEdit) == "table" and commitNumberEditor ~= nil then
+        commitNumberEditor(state.numberEdit.control, "page-switch", true)
+    end
+    if P.isValid(state.scroll) and previous ~= nil then
+        pcall(function()
+            state.settingsPageScrollOffsets[previous] =
+                tonumber(state.scroll:GetScrollOffset()) or 0.0
+        end)
+    end
+    state.activeSettingsPage = pageId
+    state.pointerAction = nil
+    for id, page in pairs(state.settingsPages) do
+        if P.isValid(page) then
+            page:SetVisibility(id == pageId and VIS_VISIBLE or VIS_COLLAPSED)
+        end
+    end
+    state.rebuildSettingsFocusEntries()
+    state.focusIndex = 1
+    if P.isValid(state.scroll) then
+        pcall(function()
+            state.scroll:SetScrollOffset(tonumber(
+                state.settingsPageScrollOffsets[pageId]) or 0.0)
+        end)
+    end
+    FooterGuide.markInputDevice(device or state.lastInputDevice)
+    focusNavigationRoot()
+    refreshInputFocusVisuals()
+    return true
+end
+
+state.switchSettingsPage = function(direction, device)
+    local pages = state.settingsPageOrder or {}
+    if #pages < 1 then return false end
+    local index = 1
+    for candidate, pageId in ipairs(pages) do
+        if pageId == state.activeSettingsPage then index = candidate break end
+    end
+    index = ((index - 1 + (tonumber(direction) or 1)) % #pages) + 1
+    return state.showSettingsPage(pages[index], device)
+end
+
+local function addToggleRow(tree, body, key, label, alternate, indent)
+    local row = makeRow(tree, body, label, "toggle", indent)
     local toggle = construct(tree, "/Script/UMG.CheckBox")
     local box = construct(tree, "/Script/UMG.SizeBox")
     if row == nil or toggle == nil or box == nil then return false end
@@ -4406,8 +4604,9 @@ local function addToggleRow(tree, body, key, label, alternate)
     return true
 end
 
-local function addChoiceRow(tree, body, key, label, values, labels, alternate)
-    local row = makeRow(tree, body, label, "choice")
+local function addChoiceRow(tree, body, key, label, values, labels, alternate,
+        indent)
+    local row = makeRow(tree, body, label, "choice", indent)
     if row == nil then return false end
     local index = 1
     for candidate, value in ipairs(values) do
@@ -4490,8 +4689,9 @@ Deferred.addFishingBaitPickerRow = function(tree, body, label)
         "fishingBaitPickerHelper", "fishing-bait-picker")
 end
 
-local function addNumberRow(tree, body, key, label, minimum, maximum, alternate)
-    local row = makeRow(tree, body, label, "number")
+local function addNumberRow(tree, body, key, label, minimum, maximum, alternate,
+        indent)
+    local row = makeRow(tree, body, label, "number", indent)
     if row == nil then return false end
     local initial = math.max(minimum, math.min(maximum,
         tonumber(state.config[key]) or minimum))
@@ -6797,6 +6997,14 @@ local function clearWindowReferences()
     state.widgetTree = nil
     state.root = nil
     state.controls = {}
+    state.allFocusEntries = {}
+    state.settingsPages = {}
+    state.settingsTabButtons = {}
+    state.settingsTabPreviousButton = nil
+    state.settingsTabNextButton = nil
+    state.activeSettingsPage = "general"
+    state.settingsPageScrollOffsets = {}
+    state.buildingPageId = nil
     state.triggerSurfaces = {}
     state.directActionButtons = {}
     state.headerActionVisuals = {}
@@ -6946,6 +7154,7 @@ local function prepareWindowForOpen(mode)
     state.pendingAboutPointerClose = nil
     state.numberEdit = nil
     resetControlsToConfig()
+    state.rebuildSettingsFocusEntries()
     state.focusIndex = 1
     state.lastInputDevice = "keyboard"
     state.pollFailureSignature = nil
@@ -6965,6 +7174,20 @@ local function prepareWindowForOpen(mode)
     for _, record in ipairs(state.triggerSurfaces or {}) do
         record.visualSignature = nil
         record.selected = false
+    end
+    for pageId, page in pairs(state.settingsPages or {}) do
+        if P.isValid(page) then
+            pcall(function()
+                page:SetVisibility(pageId == state.activeSettingsPage
+                    and VIS_VISIBLE or VIS_COLLAPSED)
+            end)
+        end
+    end
+    if P.isValid(state.scroll) then
+        pcall(function()
+            state.scroll:SetScrollOffset(tonumber(
+                state.settingsPageScrollOffsets[state.activeSettingsPage]) or 0.0)
+        end)
     end
     local shown = pcall(function()
         state.widget.bIsFocusable = true
@@ -7001,11 +7224,15 @@ local function buildSettingsWindow(controller, mode)
     local contentFrame = construct(tree, "/Script/UMG.Border")
     local scroll = construct(tree, "/Script/UMG.ScrollBox")
     local contentBox = construct(tree, "/Script/UMG.SizeBox")
-    local body = construct(tree, "/Script/UMG.VerticalBox")
+    local contentLayer = construct(tree, "/Script/UMG.Overlay")
+    local generalBody = construct(tree, "/Script/UMG.VerticalBox")
+    local automaticSaleBody = construct(tree, "/Script/UMG.VerticalBox")
+    local specialItemsBody = construct(tree, "/Script/UMG.VerticalBox")
     if root == nil or shield == nil or cardBox == nil or outline == nil
         or card == nil or layout == nil or contentViewport == nil
         or contentFrame == nil or scroll == nil or contentBox == nil
-        or body == nil then
+        or contentLayer == nil or generalBody == nil
+        or automaticSaleBody == nil or specialItemsBody == nil then
         pcall(function() widget:RemoveFromParent() end)
         return nil, "settings controls cannot be created"
     end
@@ -7019,6 +7246,20 @@ local function buildSettingsWindow(controller, mode)
         - 2.0 * SIZE.windowOutline - 32.0 - SIZE.scrollbarGutter)
     state.contentWidth = contentWidth
     state.controls = {}
+    state.allFocusEntries = {}
+    state.settingsPages = {
+        general = generalBody,
+        automaticSale = automaticSaleBody,
+        specialItems = specialItemsBody,
+    }
+    state.settingsTabButtons = {}
+    state.settingsTabPreviousButton = nil
+    state.settingsTabNextButton = nil
+    state.activeSettingsPage = "general"
+    state.settingsPageScrollOffsets = {
+        general = 0.0, automaticSale = 0.0, specialItems = 0.0,
+    }
+    state.buildingPageId = nil
     state.triggerSurfaces = {}
     state.nestedOverlay = nil
     state.nestedTitle = nil
@@ -7197,9 +7438,66 @@ local function buildSettingsWindow(controller, mode)
         align(headerSlot, ALIGN_FILL, ALIGN_FILL)
         setPadding(headerSlot, 0, 0, 0, 8)
 
-        -- This single page always overflows. Reserve the scrollbar from the
-        -- first Slate layout pass so right-aligned controls cannot shift later.
-        scroll:SetAlwaysShowScrollbar(true)
+        local tabsSize = construct(tree, "/Script/UMG.SizeBox")
+        local tabsSurface = construct(tree, "/Script/UMG.Border")
+        local tabsRow = construct(tree, "/Script/UMG.HorizontalBox")
+        if tabsSize == nil or tabsSurface == nil or tabsRow == nil then
+            error("settings tab bar is unavailable")
+        end
+        tabsSize:SetHeightOverride(SIZE.settingsTabs)
+        tabsSurface:SetBrushColor(COLORS.chrome)
+        tabsSurface:SetPadding({ Left = 4, Top = 3, Right = 4, Bottom = 3 })
+        local previousBox, previousButton =
+            state.makeSettingsTabArrow(tree, "‹")
+        if previousBox == nil or previousButton == nil then
+            error("previous settings tab arrow is unavailable")
+        end
+        local previousSlot = tabsRow:AddChild(previousBox)
+        align(previousSlot, ALIGN_CENTER, ALIGN_CENTER)
+        setPadding(previousSlot, 0, 0, 4, 0)
+        state.settingsTabPreviousButton = previousButton
+        local tabLabels = {
+            general = strings.tabGeneral or "General",
+            automaticSale = strings.sectionAutoSell,
+            specialItems = strings.sectionSpecial,
+        }
+        for index, pageId in ipairs(state.settingsPageOrder) do
+            local button = construct(tree, "/Script/UMG.Button")
+            local label = makeText(tree, tabLabels[pageId] or pageId,
+                14, COLORS.muted, TEXT_CENTER)
+            if button == nil or label == nil then
+                error("settings tab is unavailable")
+            end
+            button.bIsFocusable = false
+            label:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+            align(button:AddChild(label), ALIGN_FILL, ALIGN_CENTER)
+            local buttonSlot = tabsRow:AddChild(button)
+            setFill(buttonSlot)
+            align(buttonSlot, ALIGN_FILL, ALIGN_FILL)
+            if index > 1 then
+                setPadding(buttonSlot, SIZE.settingsTabGap, 0, 0, 0)
+            end
+            local record = { pageId = pageId, widget = button, text = label }
+            state.settingsTabButtons[#state.settingsTabButtons + 1] = record
+            registerDirectActionButton(button)
+        end
+        local nextBox, nextButton = state.makeSettingsTabArrow(tree, "›")
+        if nextBox == nil or nextButton == nil then
+            error("next settings tab arrow is unavailable")
+        end
+        local nextSlot = tabsRow:AddChild(nextBox)
+        align(nextSlot, ALIGN_CENTER, ALIGN_CENTER)
+        setPadding(nextSlot, 4, 0, 0, 0)
+        state.settingsTabNextButton = nextButton
+        align(tabsSurface:AddChild(tabsRow), ALIGN_FILL, ALIGN_FILL)
+        align(tabsSize:AddChild(tabsSurface), ALIGN_FILL, ALIGN_FILL)
+        local tabsSlot = layout:AddChild(tabsSize)
+        align(tabsSlot, ALIGN_FILL, ALIGN_FILL)
+        setPadding(tabsSlot, 0, 0, 0, 8)
+
+        -- The fixed content width reserves a scrollbar gutter, so pages that
+        -- need scrolling cannot move their right-aligned controls.
+        scroll:SetAlwaysShowScrollbar(false)
         scroll.AlwaysShowScrollbarTrack = false
         scroll:SetScrollbarThickness({
             X = SIZE.scrollbarThickness, Y = SIZE.scrollbarThickness,
@@ -7220,64 +7518,93 @@ local function buildSettingsWindow(controller, mode)
         align(contentViewportSlot, ALIGN_FILL, ALIGN_FILL)
         contentBox:SetWidthOverride(contentWidth)
         contentBox:SetMinDesiredHeight(math.max(
-            SIZE.contentMinimum, height - 250.0))
-        local contentSlot = contentBox:AddChild(body)
-        align(contentSlot, ALIGN_FILL, ALIGN_FILL)
+            SIZE.contentMinimum, height - 296.0))
+        for pageId, page in pairs(state.settingsPages) do
+            local pageSlot = contentLayer:AddChildToOverlay(page)
+            align(pageSlot, ALIGN_FILL, ALIGN_FILL)
+            page:SetVisibility(pageId == state.activeSettingsPage
+                and VIS_VISIBLE or VIS_COLLAPSED)
+        end
+        local contentLayerSlot = contentBox:AddChild(contentLayer)
+        align(contentLayerSlot, ALIGN_FILL, ALIGN_FILL)
         local bodySlot = scroll:AddChild(contentBox)
         align(bodySlot, ALIGN_FILL, ALIGN_LEFT)
 
-        if not addSection(tree, body, strings.sectionBasics, 0)
-            or not addShortcutRow(tree, body, strings)
-            or not addChoiceRow(tree, body, "ResultDisplay",
+        state.buildingPageId = "general"
+        if not addSection(tree, generalBody, strings.sectionBasics, 0)
+            or not addShortcutRow(tree, generalBody, strings)
+            or not addChoiceRow(tree, generalBody, "ResultDisplay",
                 strings.resultDisplay,
                 { "Default", "TextOnly", "ResultWindow" },
                 { strings.resultDefault, strings.resultText,
                     strings.resultWindow }, true)
-            or not Deferred.addHelperText(tree, body, strings.resultDisplayHelper)
-            or not addSection(tree, body, strings.sectionAutoSell, 16)
-            or not addToggleRow(tree, body, "AutoSellValuables",
-                strings.autoSellValuables, false)
-            or not Deferred.addValuablePickerRow(tree, body,
-                strings.keptValuables)
-            or not addToggleRow(tree, body, "AutoSellAmmo",
-                strings.autoSellAmmo, true)
-            or not Deferred.addAmmoPickerRow(tree, body, strings.keptAmmo)
-            or not addToggleRow(tree, body, "AutoSellPalSpheres",
-                strings.autoSellPalSpheres, false)
-            or not Deferred.addPalSpherePickerRow(tree, body,
-                strings.keptPalSpheres)
-            or not addToggleRow(tree, body, "AutoSellFishingBait",
-                strings.autoSellFishingBait, false)
-            or not Deferred.addFishingBaitPickerRow(tree, body,
-                strings.keptFishingBait)
-            or not addSection(tree, body, strings.sectionStorage, 16)
-            or not addToggleRow(tree, body, "IncludeExcludedItems",
+            or not Deferred.addHelperText(tree, generalBody,
+                strings.resultDisplayHelper)
+            or not addSection(tree, generalBody, strings.sectionStorage, 16)
+            or not addToggleRow(tree, generalBody, "IncludeExcludedItems",
                 strings.includeExcluded, false)
-            or not addToggleRow(tree, body, "IncludeNewItems",
+            or not addToggleRow(tree, generalBody, "IncludeNewItems",
                 strings.includeNew, false)
-            or not addToggleRow(tree, body, "IncludeGuildChest",
-                strings.includeGuildChest, true)
-            or not addSection(tree, body, strings.sectionSpecial, 16)
-            or not addChoiceRow(tree, body, "PalEggRouting",
+            or not addToggleRow(tree, generalBody, "IncludeGuildChest",
+                strings.includeGuildChest, true) then
+            error("general settings rows cannot be created")
+        end
+
+        state.buildingPageId = "automaticSale"
+        if not addSection(tree, automaticSaleBody,
+                strings.sectionAutoSell, 0)
+            or not addToggleRow(tree, automaticSaleBody, "AutoSellValuables",
+                strings.autoSellValuables, false)
+            or not Deferred.addValuablePickerRow(tree, automaticSaleBody,
+                strings.keptValuables)
+            or not addToggleRow(tree, automaticSaleBody, "AutoSellAmmo",
+                strings.autoSellAmmo, true)
+            or not Deferred.addAmmoPickerRow(tree, automaticSaleBody,
+                strings.keptAmmo)
+            or not addToggleRow(tree, automaticSaleBody, "AutoSellPalSpheres",
+                strings.autoSellPalSpheres, false)
+            or not Deferred.addPalSpherePickerRow(tree, automaticSaleBody,
+                strings.keptPalSpheres)
+            or not addToggleRow(tree, automaticSaleBody, "AutoSellFishingBait",
+                strings.autoSellFishingBait, false)
+            or not Deferred.addFishingBaitPickerRow(tree, automaticSaleBody,
+                strings.keptFishingBait) then
+            error("automatic-sale settings rows cannot be created")
+        end
+
+        state.buildingPageId = "specialItems"
+        if not addSection(tree, specialItemsBody, strings.sectionSpecial, 0)
+            or not addToggleRow(tree, specialItemsBody, "MedicineRackFirst",
+                strings.medicineRackFirst, true)
+            or not Deferred.addHelperText(tree, specialItemsBody,
+                strings.medicineRackFirstHelper)
+            or not addChoiceRow(tree, specialItemsBody, "PalEggRouting",
                 strings.eggRouting,
                 { "IncubatorOnly", "IncubatorThenStorage", "ManualPlacement" },
                 { strings.eggOnly, strings.eggStorage,
                     strings.manualPlacement }, false)
-            or not addToggleRow(tree, body, "IncludeSmallIncubators",
-                strings.includeSmallIncubators, false)
-            or not addChoiceRow(tree, body, "RelicRouting",
+            or not addToggleRow(tree, specialItemsBody,
+                "IncludeSmallIncubators", strings.includeSmallIncubators,
+                false, 20.0)
+            or not addChoiceRow(tree, specialItemsBody, "RelicRouting",
                 strings.relicRouting,
                 { "RecyclerOnly", "RecyclerThenStorage", "ManualPlacement" },
                 { strings.relicOnly, strings.relicStorage,
                     strings.manualPlacement }, true)
-            or not addNumberRow(tree, body, "WorldTreeHolyWaterMinimum",
+            or not addNumberRow(tree, specialItemsBody,
+                "WorldTreeHolyWaterMinimum",
                 strings.holyWater, 1, 100, false) then
-            error("settings rows cannot be created")
+            error("special-item settings rows cannot be created")
         end
-        local pageEnd = construct(tree, "/Script/UMG.SizeBox")
-        if pageEnd == nil then error("settings page end spacing is unavailable") end
-        pageEnd:SetHeightOverride(SIZE.pageEdge)
-        body:AddChild(pageEnd)
+        state.buildingPageId = nil
+        for _, page in pairs(state.settingsPages) do
+            local pageEnd = construct(tree, "/Script/UMG.SizeBox")
+            if pageEnd == nil then
+                error("settings page end spacing is unavailable")
+            end
+            pageEnd:SetHeightOverride(SIZE.pageEdge)
+            page:AddChild(pageEnd)
+        end
 
         local versionAction = {
             box = versionButton, widget = versionButton,
@@ -7313,6 +7640,7 @@ local function buildSettingsWindow(controller, mode)
         state.controls[#state.controls + 1] = aboutControl
         state.controls[#state.controls + 1] = resetControl
         state.controls[#state.controls + 1] = closeControl
+        state.rebuildSettingsFocusEntries()
 
         local footerSize = construct(tree, "/Script/UMG.SizeBox")
         local footer = construct(tree, "/Script/UMG.Border")
@@ -7468,11 +7796,15 @@ function SettingsUI.prepare()
         and installKeyUpHook()
         and installSelectorSelectedKeyHook()
     installPointerHooks()
-    local controller = P.currentController()
+    local gameplayContext = P.currentGameplayContext()
+    local controller = type(gameplayContext) == "table"
+        and gameplayContext.controller or nil
     if state.open and (not P.isValid(controller)
             or not windowCacheMatches(controller)) then
         SettingsUI.close("context-changed")
-        controller = P.currentController()
+        gameplayContext = P.currentGameplayContext()
+        controller = type(gameplayContext) == "table"
+            and gameplayContext.controller or nil
     end
     local bridgeReady = InputOwner.prepare()
     local bridgeCacheHit = false
@@ -7542,8 +7874,12 @@ function SettingsUI.open(mode, options)
         return false, "settings surface is already open"
     end
     if type(state.config) ~= "table" then return false, "settings are unavailable" end
-    local controller = P.currentController()
-    if not P.isValid(controller) then return false, "local controller is unavailable" end
+    local gameplayContext = P.currentGameplayContext()
+    local controller = type(gameplayContext) == "table"
+        and gameplayContext.controller or nil
+    if not P.isValid(controller) then
+        return false, "local gameplay context is unavailable"
+    end
     if not installPreviewKeyHook() or not installKeyUpHook()
         or not installSelectorSelectedKeyHook() then
         return false, "focus-scoped settings input is unavailable"

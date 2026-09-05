@@ -14,6 +14,7 @@ local STORAGE_CLASS_PATHS = {
 local INCUBATOR_CLASS_PATH = "/Script/Pal.PalMapObjectHatchingEggModelBase"
 local SMALL_INCUBATOR_CLASS_PATH = "/Script/Pal.PalMapObjectHatchingEggModel"
 local GUILD_CHEST_CLASS_PATH = "/Script/Pal.PalMapObjectGuildChestModel"
+local MEDICINE_RACK_CLASS_PATH = "/Script/Pal.PalMapObjectPalMedicineBoxModel"
 local RECYCLER_CLASS_PATH = "/Script/Pal.PalMapObjectRecyclerModel"
 
 local MAIN_MENU_CLASS_PATH =
@@ -29,6 +30,7 @@ local inputUi = {
     inventoryDisplayClass = nil,
     trackingReady = false,
     worldReadyCallback = nil,
+    worldReadyHookPreCallback = nil,
     worldReadyHookCallback = nil,
     worldReadyHookPreId = nil,
     worldReadyHookPostId = nil,
@@ -209,6 +211,37 @@ function Palworld.currentController()
     return controller
 end
 
+function Palworld.currentGameplayContext(controller)
+    -- Title and loading maps may already own a local controller. Require the
+    -- possessed player objects in one live world, but do not wait for later
+    -- player-identity replication after gameplay becomes interactive.
+    controller = controller or Palworld.currentController()
+    if not isLocalController(controller) then return nil end
+
+    local pawn
+    local playerState
+    local controllerWorld
+    local pawnWorld
+    local readable = pcall(function()
+        pawn = controller.Pawn
+        playerState = controller.PlayerState
+        controllerWorld = controller:GetWorld()
+        pawnWorld = pawn:GetWorld()
+    end)
+    local controllerWorldAddress = readable
+        and Palworld.objectAddress(controllerWorld) or nil
+    if not readable or not Palworld.isValid(pawn)
+        or not Palworld.isValid(playerState)
+        or controllerWorldAddress == nil
+        or Palworld.objectAddress(pawnWorld) ~= controllerWorldAddress then
+        return nil
+    end
+
+    return {
+        controller = controller,
+    }
+end
+
 function Palworld.installWorldReadyTracking(onWorldReady)
     if type(onWorldReady) ~= "function" then
         return false, "world lifecycle callback must be a function"
@@ -218,6 +251,7 @@ function Palworld.installWorldReadyTracking(onWorldReady)
     if type(RegisterHook) ~= "function" then
         return false, "UE4SS hook API is unavailable"
     end
+    inputUi.worldReadyHookPreCallback = function() end
     inputUi.worldReadyHookCallback = function(context)
         local controller = Palworld.unwrap(context)
         if not isLocalController(controller) then return end
@@ -225,7 +259,8 @@ function Palworld.installWorldReadyTracking(onWorldReady)
         pcall(inputUi.worldReadyCallback, controller)
     end
     local ok, preId, postId = pcall(RegisterHook,
-        CLIENT_RESTART_FUNCTION, inputUi.worldReadyHookCallback)
+        CLIENT_RESTART_FUNCTION, inputUi.worldReadyHookPreCallback,
+        inputUi.worldReadyHookCallback)
     if not ok or type(preId) ~= "number" then
         return false, ok and "ClientRestart hook registration failed" or preId
     end
@@ -839,6 +874,7 @@ end
 local cachedStorageClasses
 local cachedIncubatorClass
 local cachedGuildChestClass
+local cachedMedicineRackClass
 local cachedRecyclerClass
 
 local function destinationClassesAreValid(wantsRecycler)
@@ -849,6 +885,7 @@ local function destinationClassesAreValid(wantsRecycler)
         if not Palworld.isValid(classObject) then return false end
     end
     return Palworld.isValid(cachedGuildChestClass)
+        and Palworld.isValid(cachedMedicineRackClass)
         and (cachedIncubatorClass == nil or Palworld.isValid(cachedIncubatorClass))
         and (not wantsRecycler or Palworld.isValid(cachedRecyclerClass))
 end
@@ -866,6 +903,7 @@ function Palworld.loadDestinationClasses(job)
         job.storageClasses = cachedStorageClasses
         job.incubatorClass = cachedIncubatorClass
         job.guildChestClass = cachedGuildChestClass
+        job.medicineRackClass = cachedMedicineRackClass
         job.recyclerClass = wantsRecycler and cachedRecyclerClass or nil
         if job.smallIncubatorClass ~= nil and job.incubatorClass == nil then
             return false, "large incubator model class is unavailable"
@@ -885,11 +923,15 @@ function Palworld.loadDestinationClasses(job)
     end
     cachedIncubatorClass = Palworld.staticObject(INCUBATOR_CLASS_PATH)
     cachedGuildChestClass = Palworld.staticObject(GUILD_CHEST_CLASS_PATH)
+    cachedMedicineRackClass = Palworld.staticObject(MEDICINE_RACK_CLASS_PATH)
     if wantsRecycler then
         cachedRecyclerClass = Palworld.staticObject(RECYCLER_CLASS_PATH)
     end
     if cachedGuildChestClass == nil then
         return false, "guild chest model class is unavailable"
+    end
+    if cachedMedicineRackClass == nil then
+        return false, "Medicine Rack model class is unavailable"
     end
     job.storageClasses = cachedStorageClasses
     job.incubatorClass = cachedIncubatorClass
@@ -897,6 +939,7 @@ function Palworld.loadDestinationClasses(job)
         return false, "large incubator model class is unavailable"
     end
     job.guildChestClass = cachedGuildChestClass
+    job.medicineRackClass = cachedMedicineRackClass
     if wantsRecycler and cachedRecyclerClass == nil then
         return false, "Ancient Relic Recycler model class is unavailable"
     end
@@ -916,8 +959,13 @@ function Palworld.destinationKind(job, concreteModel)
         and isInstanceOf(concreteModel, job.smallIncubatorClass) then
         return "small_incubator"
     end
+    if isInstanceOf(concreteModel, job.medicineRackClass) then
+        return job.config.MedicineRackFirst and "medicine_rack" or "storage"
+    end
     for _, classObject in ipairs(job.storageClasses) do
-        if isInstanceOf(concreteModel, classObject) then return "storage" end
+        if isInstanceOf(concreteModel, classObject) then
+            return "storage"
+        end
     end
     return nil
 end

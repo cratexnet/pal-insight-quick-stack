@@ -34,6 +34,8 @@ return {
     AutoSellFishingBait = false,
     -- Comma-separated fishing-bait IDs. Empty protects every fishing-bait type.
     FishingBaitSellItems = "",
+    -- Put medical supplies in Medicine Racks before ordinary storage.
+    MedicineRackFirst = false,
     -- Use small incubators only after large incubators have no empty slots.
     IncludeSmallIncubators = false,
 

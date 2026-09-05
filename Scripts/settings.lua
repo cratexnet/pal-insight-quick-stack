@@ -21,6 +21,7 @@ local DEFAULTS = {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    MedicineRackFirst = false,
     IncludeSmallIncubators = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
@@ -46,6 +47,7 @@ local ORDER = {
     "PalSphereSellItems",
     "AutoSellFishingBait",
     "FishingBaitSellItems",
+    "MedicineRackFirst",
     "IncludeSmallIncubators",
     "PalEggRouting",
     "RelicRouting",
@@ -255,7 +257,7 @@ local function parseConfig(text)
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
         "IncludeGuildChest", "AutoSellValuables", "AutoSellAmmo",
         "AutoSellPalSpheres", "AutoSellFishingBait",
-        "IncludeSmallIncubators",
+        "MedicineRackFirst", "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
     }) do
         local value = parseBoolean(text, name)
@@ -318,6 +320,7 @@ local function parseConfig(text)
         or parseBoolean(text, "AutoSellFishingBait") == nil
         or validatedFishingBaitSellItems == nil
         or validatedFishingBaitSellItems ~= fishingBaitSellItems
+        or parseBoolean(text, "MedicineRackFirst") == nil
         or parseBoolean(text, "IncludeSmallIncubators") == nil
         or legacyShowDetailedResults ~= nil
         or legacyOnlyExistingItems ~= nil
@@ -348,7 +351,7 @@ local function normalizeConfig(candidate, log)
         "Shift", "Ctrl", "Alt", "IncludeExcludedItems", "IncludeNewItems",
         "IncludeGuildChest", "AutoSellValuables", "AutoSellAmmo",
         "AutoSellPalSpheres", "AutoSellFishingBait",
-        "IncludeSmallIncubators",
+        "MedicineRackFirst", "IncludeSmallIncubators",
         "PerformanceCapture", "Debug",
     }) do
         if type(candidate[name]) == "boolean" then out[name] = candidate[name] end
@@ -476,6 +479,8 @@ local function configText(config)
         "    -- Sell only selected current fishing bait; an empty list protects all.",
         "    AutoSellFishingBait = " .. tostring(config.AutoSellFishingBait) .. ",",
         string.format("    FishingBaitSellItems = %q,", config.FishingBaitSellItems),
+        "    -- Put medical supplies in Medicine Racks before ordinary storage.",
+        "    MedicineRackFirst = " .. tostring(config.MedicineRackFirst) .. ",",
         "    -- Small incubators are used only after large incubators are full.",
         "    IncludeSmallIncubators = " .. tostring(config.IncludeSmallIncubators) .. ",",
         "    -- IncubatorOnly, IncubatorThenStorage, or ManualPlacement.",

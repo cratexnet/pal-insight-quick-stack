@@ -61,6 +61,12 @@ local RELIC_ITEM_IDS = {
     WorldTreeRelic_05 = true,
 }
 local WORLD_TREE_HOLY_WATER_ID = "WorldTreeHolyWater"
+local MEDICAL_SUPPLY_IDS = {
+    Herbs = true,
+    Medicines = true,
+    LuxuryMedicines = true,
+    MindControlDrug = true,
+}
 local function isRelicId(staticId)
     return RELIC_ITEM_IDS[staticId] == true
 end
@@ -90,6 +96,7 @@ local function snapshotJobConfig(config)
         AutoSellFishingBait = config.AutoSellFishingBait == true,
         FishingBaitSellItems = SaleConsumables.fishingBait.sellSet(
             config.FishingBaitSellItems),
+        MedicineRackFirst = config.MedicineRackFirst == true,
         IncludeSmallIncubators = config.IncludeSmallIncubators == true,
         PalEggRouting = config.PalEggRouting,
         RelicRouting = config.RelicRouting,
@@ -806,6 +813,10 @@ local function indexContainer(job, entry)
         end
         return
     end
+    if entry.isMedicineRack then
+        job.medicineRacks[#job.medicineRacks + 1] = entry
+        return
+    end
 
     for itemId in pairs(entry.contains) do
         local unique = job.uniqueById[itemId]
@@ -926,12 +937,14 @@ local function prepareContainerEntry(job, candidate)
         itemIds = {},
         restricted = false,
     }
-    if candidate.kind == "storage" or candidate.kind == "guild_storage" then
+    if candidate.kind == "storage" or candidate.kind == "medicine_rack"
+        or candidate.kind == "guild_storage" then
         local filterError
         filterOff, filterError = P.readFilterOff(candidate.container)
         if filterOff == nil then return nil, filterError end
     end
     if candidate.kind == "storage" or candidate.kind == "recycler"
+        or candidate.kind == "medicine_rack"
         or candidate.kind == "guild_storage" then
         local permissionError
         permission, permissionError = P.readPermission(candidate.container)
@@ -946,7 +959,9 @@ local function prepareContainerEntry(job, candidate)
 
     return {
         kind = candidate.kind,
-        isStorage = candidate.kind == "storage" or candidate.kind == "guild_storage",
+        isStorage = candidate.kind == "storage" or candidate.kind == "medicine_rack"
+            or candidate.kind == "guild_storage",
+        isMedicineRack = candidate.kind == "medicine_rack",
         isGuildStorage = candidate.kind == "guild_storage",
         isIncubator = candidate.kind == "incubator" or candidate.kind == "small_incubator",
         isSmallIncubator = candidate.kind == "small_incubator",
@@ -1078,7 +1093,8 @@ scanContainerCandidatesSlice = function(job)
 end
 
 local function appendCandidate(job, model, concrete, container, kind, instanceId)
-    local retryReads = kind == "storage" or kind == "incubator" or kind == "small_incubator"
+    local retryReads = kind == "storage" or kind == "medicine_rack"
+        or kind == "incubator" or kind == "small_incubator"
     if not retryReads then
         local _, key = containerGuid(container)
         if key == nil or key == P.ZERO_GUID or job.candidateKeys[key] then return end
@@ -1260,6 +1276,7 @@ startBaseSnapshot = function(job)
     job.compatibleAcceptedItems = {}
     job.incubators = {}
     job.smallIncubators = {}
+    job.medicineRacks = {}
     job.largeIncubatorCandidates = job.smallIncubatorClass ~= nil and {} or nil
     job.recyclers = {}
     job.recyclerBoosts = {}
@@ -1370,6 +1387,8 @@ local function newRouteState(job, item)
         incubators = job.incubators
     end
     local metadata = job.metadata[item.id]
+    local usesMedicineRack = job.config.MedicineRackFirst
+        and MEDICAL_SUPPLY_IDS[item.id] == true
     local contained = preferPlannedDestinations(
         job, job.containersByContainedItem[item.id] or {})
     local accepted = preferPlannedDestinations(
@@ -1383,6 +1402,9 @@ local function newRouteState(job, item)
         and (not item.isRelic
             or job.config.RelicRouting == "RecyclerThenStorage")
     local stages = {}
+    if usesMedicineRack then
+        stages[#stages + 1] = { kind = "normal", entries = job.medicineRacks }
+    end
     if #recyclerBoosts > 0 then
         stages[#stages + 1] = {
             kind = "recycler_boost",
@@ -1413,8 +1435,10 @@ local function newRouteState(job, item)
         stageIndex = 1,
         candidateIndex = 1,
         stages = stages,
-        reportRemainder = (item.isEgg or item.isRelic
+        reportRemainder = (usesMedicineRack or item.isEgg or item.isRelic
             or item.isHolyWater or #recyclers > 0 or hasOrdinaryDestination)
+            and not (usesMedicineRack
+                and job.unresolvedDestinationKinds.medicine_rack)
             and not (item.isEgg and job.unresolvedDestinationKinds.incubator)
             and not (item.isEgg and job.unresolvedDestinationKinds.small_incubator)
             and not (ordinaryFallback and job.unresolvedDestinationKinds.storage),

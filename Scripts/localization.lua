@@ -877,6 +877,26 @@ local SETTINGS_INPUT_HELP_STRINGS = {
     vi = { inputHelpTitle = "Hướng dẫn điều khiển", inputDeviceKeyboardMouse = "Bàn phím / chuột", inputDeviceGamepad = "Tay cầm", navigate = "Điều hướng", adjust = "Điều chỉnh", confirm = "Xác nhận", toggleSettings = "Cài đặt", returnToPalInsight = "Trở về Pal Insight", closeAllSettings = "Đóng mọi cài đặt", shortcutKeyboardMouseOnly = "Dùng bàn phím hoặc chuột để đổi phím tắt này." },
 }
 
+local SETTINGS_TAB_STRINGS = {
+    en = { tabGeneral = "General", switchTabs = "Switch tabs" },
+    ["zh-hans"] = { tabGeneral = "常规", switchTabs = "切换分页" },
+    ["zh-hant"] = { tabGeneral = "一般", switchTabs = "切換分頁" },
+    ja = { tabGeneral = "一般", switchTabs = "タブ切替" },
+    ko = { tabGeneral = "일반", switchTabs = "탭 전환" },
+    de = { tabGeneral = "Allgemein", switchTabs = "Tabs wechseln" },
+    fr = { tabGeneral = "Général", switchTabs = "Changer d’onglet" },
+    it = { tabGeneral = "Generali", switchTabs = "Cambia scheda" },
+    es = { tabGeneral = "General", switchTabs = "Cambiar pestaña" },
+    ["pt-br"] = { tabGeneral = "Geral", switchTabs = "Alternar abas" },
+    ru = { tabGeneral = "Общие", switchTabs = "Сменить вкладку" },
+    tr = { tabGeneral = "Genel", switchTabs = "Sekme değiştir" },
+    pl = { tabGeneral = "Ogólne", switchTabs = "Zmień kartę" },
+    id = { tabGeneral = "Umum", switchTabs = "Ganti tab" },
+    ["es-419"] = { tabGeneral = "General", switchTabs = "Cambiar pestaña" },
+    th = { tabGeneral = "ทั่วไป", switchTabs = "เปลี่ยนแท็บ" },
+    vi = { tabGeneral = "Chung", switchTabs = "Chuyển tab" },
+}
+
 local ABOUT_CONTENT_STRINGS = {
     en = {
         aboutSummary = "Move matching backpack items into compatible storage in the current base with one key.",
@@ -1148,6 +1168,26 @@ local CONSUMABLE_SALE_SETTINGS_STRINGS = {
     vi = { autoSellPalSpheres = "Bán Cầu Pal đã chọn", keptPalSpheres = "Cầu Pal cần giữ", palSpherePickerTitle = "Chọn Cầu Pal cần giữ", palSpherePickerHelper = "Cầu Pal được đánh dấu sẽ ở lại trong túi và không bị bán.", palSphereKeptSummary = "Giữ %d / %d", autoSellFishingBait = "Bán mồi câu đã chọn", keptFishingBait = "Mồi câu cần giữ", fishingBaitPickerTitle = "Chọn mồi câu cần giữ", fishingBaitPickerHelper = "Mồi câu được đánh dấu sẽ ở lại trong túi và không bị bán.", fishingBaitKeptSummary = "Giữ %d / %d" },
 }
 
+local MEDICINE_RACK_SETTINGS_STRINGS = {
+    en = { medicineRackFirst = "Medical supplies to Medicine Racks first", medicineRackFirstHelper = "If no usable Medicine Rack is available or all are full, medical supplies still go to regular storage." },
+    ["zh-hans"] = { medicineRackFirst = "医疗药品优先放入药品架", medicineRackFirstHelper = "没有可用的药品架或药品架已满时，医疗药品仍会放入普通储物箱。" },
+    ["zh-hant"] = { medicineRackFirst = "醫療藥品優先放入藥品架", medicineRackFirstHelper = "沒有可用的藥品架或藥品架已滿時，醫療藥品仍會放入一般儲物箱。" },
+    ja = { medicineRackFirst = "医薬品を薬品棚へ優先収納", medicineRackFirstHelper = "使用可能な薬品棚がない場合や満杯の場合、医薬品は通常の保管庫に収納されます。" },
+    ko = { medicineRackFirst = "의약품을 약품 선반에 우선 보관", medicineRackFirstHelper = "사용 가능한 약품 선반이 없거나 모두 가득 차면 의약품은 일반 보관함에 보관됩니다." },
+    de = { medicineRackFirst = "Medizin zuerst in Arzneiregale", medicineRackFirstHelper = "Ist kein nutzbares Arzneiregal verfügbar oder sind alle voll, wird Medizin weiterhin in normalen Lagern verstaut." },
+    fr = { medicineRackFirst = "Fournitures médicales d’abord dans les armoires à pharmacie", medicineRackFirstHelper = "S’il n’y a aucune armoire utilisable ou si elles sont pleines, les fournitures médicales sont tout de même rangées dans le stockage normal." },
+    it = { medicineRackFirst = "Medicinali prima negli scaffali dei medicinali", medicineRackFirstHelper = "Se non è disponibile uno scaffale utilizzabile o sono tutti pieni, i medicinali vengono comunque messi nei depositi normali." },
+    es = { medicineRackFirst = "Suministros médicos primero en botiquines", medicineRackFirstHelper = "Si no hay un botiquín disponible o todos están llenos, se guardarán igualmente en almacenes normales." },
+    ["pt-br"] = { medicineRackFirst = "Suprimentos médicos primeiro em armários de remédios", medicineRackFirstHelper = "Se não houver um armário utilizável ou todos estiverem cheios, os suprimentos ainda serão guardados em depósitos normais." },
+    ru = { medicineRackFirst = "Медикаменты сначала в аптечные шкафы", medicineRackFirstHelper = "Если доступного аптечного шкафа нет или все шкафы заполнены, медикаменты всё равно отправятся в обычное хранилище." },
+    tr = { medicineRackFirst = "Tıbbi malzemeleri önce ilaç raflarına koy", medicineRackFirstHelper = "Kullanılabilir ilaç rafı yoksa veya hepsi doluysa tıbbi malzemeler normal depolara yerleştirilir." },
+    pl = { medicineRackFirst = "Artykuły medyczne najpierw do szafek medycznych", medicineRackFirstHelper = "Jeśli nie ma dostępnej szafki lub wszystkie są pełne, artykuły medyczne nadal trafią do zwykłego magazynu." },
+    id = { medicineRackFirst = "Utamakan rak obat untuk persediaan medis", medicineRackFirstHelper = "Jika tidak ada rak obat yang dapat digunakan atau semuanya penuh, persediaan medis tetap masuk ke penyimpanan biasa." },
+    ["es-419"] = { medicineRackFirst = "Suministros médicos primero en botiquines", medicineRackFirstHelper = "Si no hay un botiquín disponible o todos están llenos, se guardarán igualmente en almacenes normales." },
+    th = { medicineRackFirst = "เก็บเวชภัณฑ์ในชั้นวางยาก่อน", medicineRackFirstHelper = "หากไม่มีชั้นวางยาที่ใช้ได้หรือชั้นวางยาทั้งหมดเต็ม เวชภัณฑ์จะยังถูกเก็บในที่เก็บของทั่วไป" },
+    vi = { medicineRackFirst = "Ưu tiên tủ thuốc cho vật tư y tế", medicineRackFirstHelper = "Nếu không có tủ thuốc dùng được hoặc tất cả đã đầy, vật tư y tế vẫn được cất vào kho thông thường." },
+}
+
 for locale, values in pairs(AMMO_SETTINGS_STRINGS) do
     local row = SETTINGS_STRINGS[locale]
     if type(row) == "table" then
@@ -1169,6 +1209,13 @@ for locale, values in pairs(CONSUMABLE_SALE_SETTINGS_STRINGS) do
     end
 end
 
+for locale, values in pairs(MEDICINE_RACK_SETTINGS_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
 for locale, values in pairs(SETTINGS_EXTRA_STRINGS) do
     local row = SETTINGS_STRINGS[locale]
     if type(row) == "table" then
@@ -1184,6 +1231,13 @@ for locale, values in pairs(SETTINGS_DIALOG_STRINGS) do
 end
 
 for locale, values in pairs(SETTINGS_INPUT_HELP_STRINGS) do
+    local row = SETTINGS_STRINGS[locale]
+    if type(row) == "table" then
+        for key, value in pairs(values) do row[key] = value end
+    end
+end
+
+for locale, values in pairs(SETTINGS_TAB_STRINGS) do
     local row = SETTINGS_STRINGS[locale]
     if type(row) == "table" then
         for key, value in pairs(values) do row[key] = value end

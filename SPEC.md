@@ -180,24 +180,34 @@ inventory item:
    for the current job.
 2. A `Tab` -> `R` ignored item stays in the player inventory unless
    `IncludeExcludedItems = true`.
-3. `PalEggRouting = "ManualPlacement"` leaves every eligible Pal Egg in the
+3. When `MedicineRackFirst = true`, the current-build `Herbs`, `Medicines`,
+   `LuxuryMedicines`, and `MindControlDrug` medical supplies use compatible
+   Medicine Racks first. Medicine Racks are identified by the dedicated
+   `/Script/Pal.PalMapObjectPalMedicineBoxModel` concrete-model class (whose
+   current map-object ID is `PalMedicineBox`), not by the generic storage-model
+   classes. Any remainder continues through ordinary-storage routing. A
+   missing, full, or rejecting Medicine Rack never prevents the ordinary
+   fallback. With the preference disabled, Medicine Racks remain eligible as
+   ordinary storage.
+4. `PalEggRouting = "ManualPlacement"` leaves every eligible Pal Egg in the
    inventory without scanning metadata or planning a destination. Otherwise an
    eligible Pal Egg uses available incubators first. `IncubatorOnly` leaves any
    remainder in the inventory; `IncubatorThenStorage` continues through
    ordinary-storage routing.
-4. `RelicRouting = "ManualPlacement"` leaves every eligible Ancient
+5. `RelicRouting = "ManualPlacement"` leaves every eligible Ancient
    Civilization Relic in the inventory without scanning metadata or planning a
    destination. Otherwise an eligible relic uses all compatible Ancient Relic
    Recyclers in stable current-base discovery order. `RecyclerOnly` leaves any
    remainder in the inventory; `RecyclerThenStorage` continues through
    ordinary-storage routing.
-5. `IncludeNewItems = false` restricts only the ordinary-storage route to writable storage
+6. `IncludeNewItems = false` restricts only the ordinary-storage route to writable storage
    that already contains the exact item. Empty incubators and empty storage
    accepted only by filters are not ordinary-storage candidates; empty
-   incubators and recycler slots remain eligible.
-6. The ordinary route prefers writable storage containing the exact item, then
+   Medicine Racks, incubators, and recycler slots remain eligible through their
+   dedicated routes.
+7. The ordinary route prefers writable storage containing the exact item, then
    writable storage whose filter accepts the item category.
-7. Leave the item in the player inventory when no valid capacity remains.
+8. Leave the item in the player inventory when no valid capacity remains.
 
 The current-build `WorldTreeRelic_01` through `WorldTreeRelic_05` IDs identify
 Ancient Civilization Relics even when no recycler exists in the base. Every
@@ -414,6 +424,7 @@ return {
     PalSphereSellItems = "",
     AutoSellFishingBait = false,
     FishingBaitSellItems = "",
+    MedicineRackFirst = false,
     PalEggRouting = "IncubatorOnly",
     RelicRouting = "RecyclerOnly",
     WorldTreeHolyWaterMinimum = 10,
@@ -435,6 +446,13 @@ fields is migrated or removed and rewritten canonically. Experimental
 `PalEggRouting` accepts `IncubatorOnly`, `IncubatorThenStorage`, or
 `ManualPlacement`. `RelicRouting` accepts `RecyclerOnly`,
 `RecyclerThenStorage`, or `ManualPlacement`.
+
+`MedicineRackFirst = false` is the default, including existing configurations.
+When enabled, Quick Stack identifies the current-build `PalMedicineBox` through
+its dedicated `UPalMapObjectPalMedicineBoxModel` class, keeps its container
+permission and filter data authoritative, and routes only the four current-build
+`EPalItemTypeB::Medicine` item IDs there before ordinary storage. Medicine Racks
+remain ordinary-storage candidates when this preference is disabled.
 
 Manual edits made while the game is running are not required to hot-reload.
 Users should close the game, edit the writable file, and restart. Modifier
@@ -470,6 +488,14 @@ reported as an external conflict.
 - Quick Stack owns one canonical settings surface. Standalone `F6` opens that
   surface directly; Pal Insight never reimplements its controls, validation,
   defaults, persistence, reset behavior, or localized copy.
+- Process-lifetime shortcuts remain registered at startup, but a closed
+  standalone or hosted settings surface may open only after the current local
+  controller owns a valid Pawn and PlayerState while the controller and Pawn
+  belong to the same live world. Closing an already open surface remains
+  available while that gameplay context is disappearing. This readiness check
+  does not wait for a player UID and does not depend on Pal Insight, so
+  standalone behavior remains immediate and independent once gameplay is
+  interactive.
 - Quick Stack's storage, settings, and result behavior remains Lua-owned and
   falls back to non-interactive compact results when the compatible Pal Insight
   result-dialog bridge is not present. The Workshop package may add only the
@@ -487,14 +513,34 @@ reported as an external conflict.
   runtime states show the current distribution channel's install/update link.
   Nexus Mods and CurseForge each publish a separate WinGDK/Game Pass archive;
   the Steam/Win64 archive must not be installed into a WinGDK game directory.
-- The settings body follows runtime order: Basics, Automatic Sale, Storage
-  Rules, then Special Item Storage. Automatic Sale contains the valuables and
-  toggles plus dedicated valuable-item, ammunition, Pal Sphere, and fishing-
-  bait pickers. Each picker is
+- The settings body uses three fixed top tabs. `General` contains the shortcut,
+  result display, ignored/new-item settings, and Guild Chest setting;
+  `Automatic Sale` contains the valuables, ammunition, Pal Sphere, and fishing-
+  bait toggles plus their keep pickers; `Special Items` contains Medicine Rack,
+  Pal Egg, small-incubator, Ancient Relic, and World Tree Holy Water settings.
+  The small-incubator toggle is visually indented beneath Pal Egg routing;
+  Holy Water remains an independent setting because its behavior is not gated
+  by relic routing. Pages are built once and only their visibility changes, so
+  modal picker state and item icons are not reconstructed during tab switches.
+  Each page retains its own scroll offset. Mouse clicks, keyboard `Q`/`E`, and
+  controller Left/Right Shoulder switch tabs. Fixed previous/next arrow buttons
+  flank the single tab row and expose the same action to the mouse. These page
+  inputs first finish an active numeric edit, and `Q`/`E` remain available
+  through the process-lifetime keyboard fallback. The global, widget-preview,
+  and cooked-actor keyboard routes use symmetric source ownership so one
+  physical press changes exactly one page regardless of which route arrives
+  first; `Tab` and `Shift+Tab` remain focus navigation within the active page
+  and shared header actions.
+- Automatic Sale contains the valuables and toggles plus dedicated valuable-
+  item, ammunition, Pal Sphere, and fishing-bait pickers. Each picker is
   one modal transaction, loads game-owned item icon textures directly and uses
   the extracted current-build localized item-name catalog without constructing
   native item-row widgets, clearly states that checked means kept, and persists
   changes through the same validated settings path as the other controls.
+- Special Item Storage begins with a default-off `MedicineRackFirst` toggle.
+  Its helper explains that medical supplies use Medicine Racks first and still
+  fall back to ordinary storage when no usable rack is available or all racks
+  are full.
 - Simplified and Traditional Chinese use concise parallel labels for both sale
   categories: `自动出售高价品` / `保留的高价品` and
   `自動出售高價品` / `保留的高價品`, matching the ammunition wording.
@@ -684,13 +730,16 @@ reported as an external conflict.
   so repeated opens do not synchronously reconstruct the complete UMG tree.
 - Process-lifetime preview/input hooks and the optional Pal Insight bridge asset
   are prepared once. Standalone-only native Escape gates are installed once on
-  the first standalone acquisition. The settings tree is prewarmed on the game
-  thread after the local player controller's `ClientRestart` establishes a
-  usable world and controller. Opening the Pal Insight settings stack may request
-  the same preparation as a fallback; an already prepared or pending window
-  makes that request a no-op. One retained, cancellable action may retry the work
-  for at most five seconds; only an explicit `windowReady = true` result is
-  success, and success, exhaustion, or runtime supersession stops the action.
+  the first standalone acquisition. The local player controller's
+  `ClientRestart` post-callback wakes settings prewarm on the game thread but is
+  not itself proof that gameplay is ready. Each attempt must resolve the same
+  live controller/Pawn/PlayerState world context required by the final open
+  transaction before it may prepare a controller bridge or settings tree.
+  Opening the Pal Insight settings stack may request the same preparation as a
+  fallback; an already prepared or pending window makes that request a no-op.
+  One retained, cancellable action may retry the work for at most five seconds;
+  only an explicit `windowReady = true` result is success, and success,
+  exhaustion, or runtime supersession stops the action.
   Idle host reconciliation must not rebuild, validate, or prewarm the settings
   tree. If lifecycle and active-host preparation were unavailable or exhausted,
   the actual open transaction may retry only the missing preparation work. The

@@ -383,7 +383,7 @@ function assertQuickStackSettings(root) {
   assert.equal((settingsUi.match(/\/Script\/UMG\.CheckBox/g) || []).length, 1,
     'only native toggle rows may construct CheckBox controls');
   assert.equal((settingsUi.match(
-    /^\s*registerDirectActionButton\((?:surface|button|displayButton|versionButton)\)/gm) || []).length, 8,
+    /^\s*registerDirectActionButton\((?:surface|button|displayButton|versionButton)\)/gm) || []).length, 10,
     'every direct Button constructor must publish its native action surface');
   assert.match(settingsBridge,
     /BRIDGE_DEFAULT_PATH[\s\S]*function Bridge\.bindActionButtons\(buttons\)[\s\S]*delegateBridge\(\)[\s\S]*OnClicked:Add\([\s\S]*bridge, "PalInsightSearchClearClicked"\)[\s\S]*function Bridge\.nativeActionDelegatesReady/,

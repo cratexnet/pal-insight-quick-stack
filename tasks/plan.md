@@ -275,6 +275,38 @@ Runtime contract proof
   incubators, unclaimed Pal, large-first fallback, delayed replication, travel,
   exclusions, and ManualPlacement in single-player and multiplayer.
 
+## Optional Medicine Rack priority (2026-09-05)
+
+- [x] Define the scope as the four current `EPalItemTypeB::Medicine` medical
+  supplies and the single `PalMedicineBox` Medicine Rack type.
+- [x] Add a default-off persisted and shared `MedicineRackFirst` setting.
+- [x] Identify Medicine Racks from the current base through the dedicated
+  `UPalMapObjectPalMedicineBoxModel` class without another scan.
+- [x] Route compatible medical supplies to Medicine Racks before ordinary
+  storage, with ordinary storage as the unconditional fallback route.
+- [x] Add the setting and fallback helper to all 17 locales.
+- [x] Run the narrow existing static checks; leave in-game routing verification
+  pending until build and installation receive separate approval.
+
+## Tabbed settings and Medicine Rack class fix (2026-09-05)
+
+- [x] Define three fixed top tabs: General, Automatic Sale, and Special Items.
+- [x] Build every settings page once, preserve per-page scroll position, and
+  support mouse, `Q`/`E`, and controller shoulder switching.
+- [x] Keep `Tab`/`Shift+Tab` focus navigation scoped to the active page plus
+  shared header actions, and visually indent the small-incubator child option.
+- [x] Identify Medicine Racks through the dedicated
+  `UPalMapObjectPalMedicineBoxModel` class and keep them eligible as ordinary
+  storage when the priority setting is disabled.
+- [x] Add the tab and footer copy to all 17 locales and run the narrow existing
+  static checks without adding test files.
+- [x] Add fixed previous/next arrows around the single tab row and route both
+  mouse actions through the same page switcher.
+- [x] Register `Q`/`E` in the keyboard fallback and allow `Q`/`E` plus controller
+  shoulders to finish an active numeric edit before switching pages.
+- [x] Make keyboard route deduplication symmetric so a global-first `Q`/`E`
+  press cannot be repeated by the widget-preview or cooked-actor route.
+
 ## Risks and Mitigations
 
 ### In-game version updates (2026-09-05)

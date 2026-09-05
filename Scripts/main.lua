@@ -78,6 +78,7 @@ local SHARED_BOOLEAN_SETTINGS = {
     { shared = "AutoSellAmmo", config = "AutoSellAmmo" },
     { shared = "AutoSellPalSpheres", config = "AutoSellPalSpheres" },
     { shared = "AutoSellFishingBait", config = "AutoSellFishingBait" },
+    { shared = "MedicineRackFirst", config = "MedicineRackFirst" },
     { shared = "IncludeSmallIncubators", config = "IncludeSmallIncubators" },
 }
 local SHARED_STRING_SETTINGS = {
@@ -756,6 +757,8 @@ local function reconcileSharedSettings()
         .. tostring(state.config.AutoSellPalSpheres)
         .. ", auto sell fishing bait="
         .. tostring(state.config.AutoSellFishingBait)
+        .. ", medicine rack first="
+        .. tostring(state.config.MedicineRackFirst)
         .. ", egg routing=" .. tostring(state.config.PalEggRouting)
         .. ", relic routing=" .. tostring(state.config.RelicRouting)
         .. ", holy water minimum="

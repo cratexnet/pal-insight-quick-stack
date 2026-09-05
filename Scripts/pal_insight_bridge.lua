@@ -548,6 +548,8 @@ local function registerKeyboardBindings()
         { name = "S", value = Key.S },
         { name = "A", value = Key.A },
         { name = "D", value = Key.D },
+        { name = "Q", value = Key.Q },
+        { name = "E", value = Key.E },
         { name = "Up", value = Key.UP_ARROW },
         { name = "Down", value = Key.DOWN_ARROW },
         { name = "Left", value = Key.LEFT_ARROW },
