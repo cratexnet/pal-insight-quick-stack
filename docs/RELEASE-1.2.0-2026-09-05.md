@@ -4,10 +4,10 @@
 - Nexus 标准包与 Game Pass（WinGDK）包均已用最终构建保存为 1.2.0；标准文件
   23916 为 Main 并已可下载，Game Pass 文件 23917 为 Optional，已公开列出且仍在
   病毒扫描。替换前的同版本文件已归档。
-- CurseForge 标准文件 8811198、Game Pass 文件 8811209 均已提交并处于
-  Under Review，选择审核通过后自动发布；此记录不代表审核已通过。
-- CurseForge 当前待审核压缩包中的 README 已显示 1.2.0，但功能摘要仍为上一版
-  文案；运行代码、版本号和更新日志不受影响。审核通过后应使用最终构建替换。
+- CurseForge 最初提交的标准文件 8811198、Game Pass 文件 8811209 因 README
+  功能摘要不是最终文案，已归档并永久删除。
+- CurseForge 已重新提交最终标准文件 8811271、Game Pass 文件 8811273；两者均
+  处于 Under Review，并选择审核通过后自动发布。此记录不代表审核已通过。
 - Steam 包位于 `release/workshop/PalInsightQuickStack`，交由维护者手动上传。
 - Steam BBCode 更新日志位于 `docs/STEAM-CHANGELOG-1.2.0.bbcode.txt`。
 - 最终标准包 SHA-256：
