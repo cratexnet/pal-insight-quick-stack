@@ -39,6 +39,7 @@ local COLORS = {
     rowHover = { R = 0.468, G = 0.515, B = 0.552, A = 0.14 },
     rowFocus = { R = 0.058, G = 0.105, B = 0.138, A = 0.88 },
     controlFocus = { R = 0.060, G = 0.156, B = 0.227, A = 0.96 },
+    surfaceSelected = { R = 0.140, G = 0.176, B = 0.207, A = 0.92 },
     controlPressed = { R = 0.056, G = 0.070, B = 0.084, A = 0.98 },
     controlDisabled = { R = 0.047, G = 0.054, B = 0.063, A = 0.64 },
     outline = { R = 0.716, G = 0.807, B = 0.855, A = 0.15 },
@@ -114,7 +115,7 @@ local SIZE = {
     aboutSupportLogoWidth = 124.0,
     aboutSupportLogoHeight = 35.0,
     releaseNotesIndexWidth = 116.0,
-    releaseNotesPickerRowHeight = 40.0,
+    releaseNotesPickerRowHeight = 38.0,
 }
 
 local FONT_SIZE = {
@@ -4974,8 +4975,18 @@ state.updateReleaseNotesVisuals = function()
             and state.lastInputDevice ~= "mouse"
         local selected = index == state.releaseNotesSelectedIndex
         if P.isValid(record.widget) then
-            styleHeaderButton(record.widget, "releaseNotes",
-                focused, selected, false)
+            styleSurfaceButton(record.widget,
+                focused and COLORS.controlFocus
+                    or selected and COLORS.surfaceSelected
+                    or COLORS.control,
+                COLORS.controlHover,
+                COLORS.controlPressed,
+                COLORS.controlDisabled)
+        end
+        if P.isValid(record.labelWidget) then
+            pcall(function()
+                record.labelWidget:SetColorAndOpacity(slateColor(COLORS.text))
+            end)
         end
     end
     for _, record in ipairs(state.releaseNotesButtons or {}) do
@@ -5051,11 +5062,11 @@ Deferred.selectReleaseNotesVersion = function(index)
     if not state.renderReleaseNotesVersion() then return false end
     state.updateReleaseNotesVisuals()
     local record = (state.releaseNotesPickerButtons or {})[index]
-    if type(record) == "table" and P.isValid(record.box)
+    if type(record) == "table" and P.isValid(record.widget)
         and P.isValid(state.releaseNotesPickerScroll) then
         pcall(function()
             state.releaseNotesPickerScroll:ScrollWidgetIntoView(
-                record.box, false, 0, 8.0)
+                record.widget, false, 0, 8.0)
         end)
     end
     return true
@@ -5124,7 +5135,7 @@ Deferred.buildReleaseNotesModal = function(tree, root, strings,
     local height = math.min(SIZE.aboutHeight, math.max(360.0, viewportHeight - 48.0))
     local innerWidth = width - SIZE.windowOutline * 2.0 - 32.0
     local indexWidth = math.min(SIZE.releaseNotesIndexWidth,
-        math.max(96.0, innerWidth * 0.24))
+        math.max(96.0, innerWidth * 0.22))
     local overlay = construct(tree, "/Script/UMG.CanvasPanel")
     local dim = construct(tree, "/Script/UMG.Border")
     local box = construct(tree, "/Script/UMG.SizeBox")
@@ -5227,33 +5238,34 @@ Deferred.buildReleaseNotesModal = function(tree, root, strings,
         local rowBox = construct(tree, "/Script/UMG.SizeBox")
         local button = construct(tree, "/Script/UMG.Button")
         local buttonContent = construct(tree, "/Script/UMG.HorizontalBox")
+        local markerBox = construct(tree, "/Script/UMG.SizeBox")
         local labelValue = "v" .. tostring(entry.version or "")
-        local label = makeText(tree, labelValue, 14, COLORS.text)
+        local label = makeText(tree, labelValue, 12, COLORS.text)
         if rowBox == nil or button == nil or buttonContent == nil
-            or label == nil then return false end
+            or markerBox == nil or label == nil then return false end
         rowBox:SetHeightOverride(SIZE.releaseNotesPickerRowHeight)
         button.bIsFocusable = true
-        button:SetToolTipText(FText(strings.selectVersion))
         local buttonStyle = button.WidgetStyle
-        buttonStyle.NormalPadding = { Left = 12, Top = 0, Right = 12, Bottom = 0 }
+        buttonStyle.NormalPadding = { Left = 8, Top = 0, Right = 8, Bottom = 0 }
         buttonStyle.PressedPadding = buttonStyle.NormalPadding
         button.WidgetStyle = buttonStyle
-        align(buttonContent:AddChild(label), ALIGN_LEFT, ALIGN_CENTER)
+        markerBox:SetWidthOverride(22.0)
+        local labelSlot = buttonContent:AddChild(label)
+        setFill(labelSlot)
+        align(labelSlot, ALIGN_LEFT, ALIGN_CENTER)
         if tostring(entry.version or "") == tostring(state.version) then
-            local starGap = construct(tree, "/Script/UMG.SizeBox")
             local star = makeText(tree, "★", 14, COLORS.currentVersion)
-            if starGap == nil or star == nil then return false end
-            starGap:SetWidthOverride(8.0)
-            align(buttonContent:AddChild(starGap), ALIGN_LEFT, ALIGN_CENTER)
-            align(buttonContent:AddChild(star), ALIGN_LEFT, ALIGN_CENTER)
+            if star == nil then return false end
+            align(markerBox:AddChild(star), ALIGN_CENTER, ALIGN_CENTER)
         end
-        align(button:AddChild(buttonContent), ALIGN_LEFT, ALIGN_CENTER)
+        align(buttonContent:AddChild(markerBox), ALIGN_CENTER, ALIGN_CENTER)
+        align(button:AddChild(buttonContent), ALIGN_FILL, ALIGN_CENTER)
         align(rowBox:AddChild(button), ALIGN_FILL, ALIGN_FILL)
         local rowSlot = indexList:AddChild(rowBox)
         setPadding(rowSlot, 0, index == 1 and 0 or 4, 0, 0)
         registerDirectActionButton(button)
         state.releaseNotesPickerButtons[index] = {
-            kind = "version", widget = button, box = rowBox, label = label,
+            kind = "version", widget = button, labelWidget = label,
         }
     end
     return state.renderReleaseNotesVersion()

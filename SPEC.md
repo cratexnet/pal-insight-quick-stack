@@ -600,7 +600,11 @@ reported as an external conflict.
   the game, while the modal keeps input ownership and remains open.
 - Version Updates opens a Quick Stack-owned, lazily built modal. Its left pane
   lists Quick Stack versions newest first and marks the running version with a
-  green five-point star, without a textual Current label; its
+  green five-point star, without a textual Current label. The version index
+  matches Pal Insight's responsive width, 38-point rows, 12-point labels,
+  eight-point horizontal button padding, standard picker state colors, and a
+  fixed 22-point trailing marker cell on every row, so the star never shifts a
+  version label; its
   right pane shows the selected version under localized Added, Changed,
   Performance, and Fixed headings. Release data is static and localized in all
   17 supported interface languages. The 1.2.0 entries reproduce the finalized
@@ -611,7 +615,8 @@ reported as an external conflict.
   timestamp is shown only when it is the
   earliest verified public timestamp across official distribution channels;
   repository commit time is not a release time, and an unverified timestamp is
-  left blank. Mouse, keyboard, and controller share the existing modal input
+  left blank. The stored UTC value preserves the precision exposed by the
+  source platform instead of inventing seconds. Mouse, keyboard, and controller share the existing modal input
   owner. Directional input selects versions, changes panes, or scrolls content;
   held controller D-pad and left-stick input use the same bounded repeat route
   as the rest of the settings surface. Closing returns focus to the Version

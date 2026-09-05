@@ -282,9 +282,11 @@ Runtime contract proof
 - [x] Use the Header version number itself as the Version Updates action and
   keep the right action row limited to About, Restore Defaults, and Close.
 - [x] Show static, newest-first Quick Stack release history with a running-
-  version marker and no unverified public timestamp.
+  version marker, verified historical public timestamps at source precision,
+  and no timestamp for the unpublished running version.
 - [x] Mark the running version only with a green five-point star; do not append
-  a localized Current label.
+  a localized Current label. Match Pal Insight's index-row geometry, typography,
+  state colors, and fixed trailing marker cell.
 - [x] Reproduce the finalized 1.2.0 changelog bullets in the panel and audit
   older summaries against their official release records.
 - [x] Include the public 0.1.0 Beta in history; retain the default-off details

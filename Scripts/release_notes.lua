@@ -4,21 +4,22 @@ local ReleaseNotes = {}
 
 -- Keep 1-5 single-topic, user-visible summaries per public release. dateUtc is
 -- the earliest verified public timestamp across official channels; blank means
--- that no public timestamp has been verified. Repository times are not releases.
+-- that no public timestamp has been verified. Preserve source precision rather
+-- than inventing seconds. Repository times are not releases.
 ReleaseNotes.versions = {
     { version = "1.2.0", dateUtc = "", groups = {
         { kind = "added", items = { 1, 2, 3, 4 } },
     } },
-    { version = "1.1.0", dateUtc = "", groups = {
+    { version = "1.1.0", dateUtc = "2026-09-04 16:22", groups = {
         { kind = "added", items = { 5, 6 } },
         { kind = "changed", items = { 7 } },
         { kind = "fixed", items = { 12 } },
     } },
-    { version = "1.0.0", dateUtc = "", groups = {
+    { version = "1.0.0", dateUtc = "2026-09-02 21:15", groups = {
         { kind = "added", items = { 8, 9, 10 } },
         { kind = "performance", items = { 11 } },
     } },
-    { version = "0.1.0", dateUtc = "", groups = {
+    { version = "0.1.0", dateUtc = "2026-08-30 18:07", groups = {
         { kind = "added", items = { 13, 14, 15, 16 } },
         { kind = "performance", items = { 17 } },
     } },

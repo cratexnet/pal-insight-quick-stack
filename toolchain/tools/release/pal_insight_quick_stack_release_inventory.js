@@ -328,8 +328,9 @@ function assertQuickStackSettings(root) {
     assert.ok(itemCount >= 1 && itemCount <= 5,
       `each release must contain 1-5 user-visible summaries; found ${itemCount}`);
     const timestamp = block.match(/dateUtc\s*=\s*"([^"]*)"/)?.[1] || '';
-    assert.match(timestamp, /^(?:|\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})$/,
-      'verified release timestamps must use YYYY-MM-DD HH:mm:ss UTC');
+    assert.match(timestamp,
+      /^(?:|\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?)$/,
+      'verified release timestamps must use YYYY-MM-DD HH:mm[:ss] UTC');
   }
   const releaseLanguages = readJson(root, RELEASE_METADATA).languages;
   for (const locale of releaseLanguages) {
