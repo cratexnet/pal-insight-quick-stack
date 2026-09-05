@@ -207,7 +207,7 @@ assert.match(settingsUi,
   /state\.activeChoice ~= nil[\s\S]*hoveredWidget\(option\.widget\)[\s\S]*commitNestedModalSelection\("mouse"\)/,
   'choice options must commit through their own hovered Button instead of virtual focus');
 assert.equal((settingsUi.match(
-  /^\s*registerDirectActionButton\((?:surface|button|displayButton)\)/gm) || []).length, 6,
+  /^\s*registerDirectActionButton\((?:surface|button|displayButton|versionButton)\)/gm) || []).length, 8,
   'every direct Button constructor must publish its native action surface');
 assert.match(settingsUi,
   /addNumberRow\([\s\S]*construct\(tree, "\/Script\/UMG\.EditableTextBox"\)[\s\S]*displayButton\.bIsFocusable = false[\s\S]*input:SetIsReadOnly\(false\)[\s\S]*input\.SelectAllTextWhenFocused = true/,

@@ -197,6 +197,8 @@ Runtime contract proof
 - [x] Replace transparent action proxies in Header, Steam voting, choices,
   nested modals, and About with direct focusable Buttons.
 - [x] Match focusable toggle and shortcut-selector geometry.
+- [x] Keep the three Header glyphs and version-button text at the primary color
+  across normal, hovered, and pressed states while retaining semantic backgrounds.
 - [x] Match Pal Insight 1.8.0 numeric editing: pointer input uses the layered
   writable native editor, while keyboard/controller input retains the bounded
   root-owned integer buffer.
@@ -277,7 +279,8 @@ Runtime contract proof
 
 ### In-game version updates (2026-09-05)
 
-- [x] Add the Version Updates Header action immediately before About.
+- [x] Use the Header version number itself as the Version Updates action and
+  keep the right action row limited to About, Restore Defaults, and Close.
 - [x] Show static, newest-first Quick Stack release history with a running-
   version marker and no unverified public timestamp.
 - [x] Mark the running version only with a green five-point star; do not append
@@ -290,7 +293,8 @@ Runtime contract proof
   supported interface languages.
 - [x] Preserve mouse, keyboard, controller, held-navigation, modal close, and
   exact Header-focus restoration behavior.
-- [x] Match Pal Insight's Version Updates glyph size and optical translation.
+- [x] Match Pal Insight's version-number button presentation without a separate
+  Version Updates glyph.
 - [x] Defer pointer selection outside the native Button callback, scope queued
   actions to the Version Updates revision, and reset selection plus scroll state
   when reopening so a prior modal cannot leak state.

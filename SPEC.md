@@ -532,11 +532,15 @@ reported as an external conflict.
   Choice close, shortcut capture completion, and mouse number-edit completion
   restore that clicked control. Header actions retain the existing content
   selection across their modal transaction.
-- The fixed Header matches Pal Insight's settings chrome: the optional Steam
-  Workshop vote control precedes Version Updates, About, Restore Defaults, and
-  Close in that order, using the same native UMG Button brushes, dimensions, spacing, icon
-  canvases, semantic hover/pressed colors, and focus treatment. While focus is
-  in this Header action row, keyboard/controller Left and Right move through
+- The fixed Header matches Pal Insight's settings chrome: the version number
+  itself opens Version Updates, while the right action row contains About,
+  Restore Defaults, and Close. The optional Steam Workshop vote control remains
+  between the identity block and right action row. These actions use the same
+  native UMG Button brushes, dimensions, spacing, semantic hover/pressed
+  background colors, and focus treatment. The three Header glyphs and the
+  version text retain the primary text color in normal, hovered, and pressed
+  states; semantic action colors do not tint them. While focus is
+  in a Header action, keyboard/controller Left and Right move through
   the currently interactive actions in display order and wrap at both ends;
   Up and Down retain the existing vertical settings navigation. Every shared
   action surface uses Pal Insight's direct `SizeBox -> Button` tree; choice
@@ -611,8 +615,8 @@ reported as an external conflict.
   owner. Directional input selects versions, changes panes, or scrolls content;
   held controller D-pad and left-stick input use the same bounded repeat route
   as the rest of the settings surface. Closing returns focus to the Version
-  Updates Header action. Its Header glyph uses the same `20`-point `≡` and
-  `{ X = 0, Y = -2 }` optical translation as Pal Insight. Pointer actions are
+  Updates version-number button. The dedicated Version Updates glyph action is
+  not present. Pointer actions are
   scoped by the Version Updates revision rather than the About revision.
   Version selection is deferred out of the native Button callback before the
   content tree is rebuilt, and a queued action from a closed modal cannot

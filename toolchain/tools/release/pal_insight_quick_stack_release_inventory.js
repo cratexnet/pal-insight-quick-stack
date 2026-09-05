@@ -363,8 +363,16 @@ function assertQuickStackSettings(root) {
       `settings Header is missing the ${action} action`);
   }
   assert.match(settingsUi,
-    /makeSteamVoteControl[\s\S]*makeIconTrigger\(tree, "≡"[\s\S]*makeIconTrigger\(tree, "ⓘ"[\s\S]*makeIconTrigger\(tree, "↻"[\s\S]*makeIconTrigger\(tree, "×"/,
+    /local versionButton = construct\(tree, "\/Script\/UMG\.Button"\)[\s\S]*makeSteamVoteControl[\s\S]*makeIconTrigger\(\s*tree,\s*"ⓘ"[\s\S]*makeIconTrigger\(\s*tree,\s*"↻"[\s\S]*makeIconTrigger\(\s*tree,\s*"×"/,
     'settings Header action order must match Pal Insight');
+  assert.doesNotMatch(settingsUi, /makeIconTrigger\(\s*tree,\s*"≡"/,
+    'Version Updates must use the Header version number instead of a glyph');
+  assert.match(settingsUi,
+    /versionButton\.bIsFocusable = true[\s\S]*versionButton:SetToolTipText\(FText\(releaseStrings\.title\)\)[\s\S]*versionButton:AddChild\(versionBox\)[\s\S]*titleRow:AddChild\(versionButton\)/,
+    'the Header version number must be the focusable Version Updates action');
+  assert.match(settingsUi,
+    /registerFocusable\(releaseNotesControl, versionButton, versionAction\)[\s\S]*registerFocusable\(state\.steamVoteControl, voteBox\)[\s\S]*registerFocusable\(aboutControl, aboutAction\.box, aboutAction\)/,
+    'Header focus order must follow version, Steam vote, then right-side actions');
   assert.match(settingsUi,
     /local function makeIconTrigger[\s\S]*?\/Script\/UMG\.Button[\s\S]*?button\.bIsFocusable = true[\s\S]*?styleHeaderButton[\s\S]*?box:AddChild\(button\)/,
     'settings Header actions must use Pal Insight direct Button controls');
@@ -374,7 +382,7 @@ function assertQuickStackSettings(root) {
   assert.equal((settingsUi.match(/\/Script\/UMG\.CheckBox/g) || []).length, 1,
     'only native toggle rows may construct CheckBox controls');
   assert.equal((settingsUi.match(
-    /^\s*registerDirectActionButton\((?:surface|button|displayButton)\)/gm) || []).length, 7,
+    /^\s*registerDirectActionButton\((?:surface|button|displayButton|versionButton)\)/gm) || []).length, 8,
     'every direct Button constructor must publish its native action surface');
   assert.match(settingsBridge,
     /BRIDGE_DEFAULT_PATH[\s\S]*function Bridge\.bindActionButtons\(buttons\)[\s\S]*delegateBridge\(\)[\s\S]*OnClicked:Add\([\s\S]*bridge, "PalInsightSearchClearClicked"\)[\s\S]*function Bridge\.nativeActionDelegatesReady/,

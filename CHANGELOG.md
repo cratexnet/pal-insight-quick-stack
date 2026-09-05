@@ -15,8 +15,8 @@
 - Automatic selling runs before Quick Stack storage. Items excluded through
   Inventory `Tab → R` are always protected, and sales use the selected result-
   display mode.
-- Added a localized Version Updates panel beside About. It supports mouse,
-  keyboard, and controller navigation and shows concise release summaries.
+- Added localized release history, opened by selecting the version number in
+  the settings header.
 
 ## 1.1.0 - 2026-09-05
 

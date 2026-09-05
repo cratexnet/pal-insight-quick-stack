@@ -683,7 +683,8 @@ local function makeTrigger(tree, label, width, warning, indicatorText, height,
     return record
 end
 
-local function styleHeaderButton(button, role, focused, hovered, pressed)
+local function styleHeaderButton(button, role, focused, hovered, pressed,
+        neutralForeground)
     if not P.isValid(button) then return false end
     local roleColor = role == "about" and COLORS.actionInfo
         or role == "primary" and COLORS.accent
@@ -744,8 +745,10 @@ local function styleHeaderButton(button, role, focused, hovered, pressed)
         press = role == "steamVote" and COLORS.controlPressed
             or mixLinearColor(COLORS.controlPressed, roleColor, 0.34)
         normalForeground = COLORS.text
-        hoverForeground = role == "steamVote" and COLORS.text or roleColor
-        pressForeground = role == "steamVote" and COLORS.text or roleColor
+        hoverForeground = (role == "steamVote" or neutralForeground == true)
+            and COLORS.text or roleColor
+        pressForeground = (role == "steamVote" or neutralForeground == true)
+            and COLORS.text or roleColor
     end
     local display = pressed and press or hovered and hover or normal
     local displayForeground = pressed and pressForeground
@@ -765,15 +768,13 @@ local function styleHeaderButton(button, role, focused, hovered, pressed)
     end)
 end
 
-local function makeIconTrigger(tree, glyph, tooltip, role)
+local function makeIconTrigger(tree, glyph, tooltip, role, neutralForeground)
     local box = construct(tree, "/Script/UMG.SizeBox")
     local button = construct(tree, "/Script/UMG.Button")
     local iconBox = construct(tree, "/Script/UMG.SizeBox")
-    local size = role == "close" and 27 or role == "reset" and 17
-        or role == "releaseNotes" and 20 or 18
+    local size = role == "close" and 27 or role == "reset" and 17 or 18
     local translation = role == "close" and { X = 1.0, Y = -6.0 }
         or role == "reset" and { X = 1.0, Y = 1.0 }
-        or role == "releaseNotes" and { X = 0.0, Y = -2.0 }
         or { X = 0.0, Y = -1.0 }
     local icon = makeText(tree, glyph, size, COLORS.text, TEXT_CENTER)
     if box == nil or button == nil or iconBox == nil or icon == nil then
@@ -805,6 +806,7 @@ local function makeIconTrigger(tree, glyph, tooltip, role)
         box = box, widget = button, surface = button, text = icon,
         visualButton = button, directButton = true,
         role = role, tooltip = tooltip or "",
+        neutralForeground = neutralForeground == true,
     }
     registerDirectActionButton(button)
     state.headerActionVisuals[#state.headerActionVisuals + 1] = record
@@ -1213,7 +1215,7 @@ local function refreshTriggerSurfaces()
                 if signature ~= record.visualSignature then
                     record.visualSignature = signature
                     styleHeaderButton(record.visualButton, record.role,
-                        focused, hovered, pressed)
+                        focused, hovered, pressed, record.neutralForeground)
                 end
             end
         end
@@ -7068,6 +7070,7 @@ local function buildSettingsWindow(controller, mode)
         local identity = construct(tree, "/Script/UMG.VerticalBox")
         local titleRow = construct(tree, "/Script/UMG.HorizontalBox")
         local versionBox = construct(tree, "/Script/UMG.SizeBox")
+        local versionButton = construct(tree, "/Script/UMG.Button")
         local versionBadge = construct(tree, "/Script/UMG.Border")
         local headerActionArea = construct(tree, "/Script/UMG.SizeBox")
         local headerActionStack = construct(tree, "/Script/UMG.VerticalBox")
@@ -7082,13 +7085,12 @@ local function buildSettingsWindow(controller, mode)
             11, COLORS.textMuted, TEXT_LEFT)
         local voteBox = makeSteamVoteControl(tree, strings)
         local releaseStrings = SettingsUI.releaseNotes.current()
-        local releaseNotesAction = makeIconTrigger(tree, "≡",
-            releaseStrings.title, "releaseNotes")
-        local aboutAction = makeIconTrigger(tree, "ⓘ", strings.about, "about")
-        local resetAction = makeIconTrigger(tree, "↻", strings.reset, "reset")
-        local closeAction = makeIconTrigger(tree, "×", strings.close, "close")
-        local releaseNotesCell = releaseNotesAction ~= nil
-            and makeHeaderActionCell(tree, releaseNotesAction.box) or nil
+        local aboutAction = makeIconTrigger(
+            tree, "ⓘ", strings.about, "about", true)
+        local resetAction = makeIconTrigger(
+            tree, "↻", strings.reset, "reset", true)
+        local closeAction = makeIconTrigger(
+            tree, "×", strings.close, "close", true)
         local aboutCell = aboutAction ~= nil
             and makeHeaderActionCell(tree, aboutAction.box) or nil
         local resetCell = resetAction ~= nil
@@ -7097,13 +7099,13 @@ local function buildSettingsWindow(controller, mode)
             and makeHeaderActionCell(tree, closeAction.box) or nil
         if headerSize == nil or header == nil or headerRow == nil
             or identity == nil or titleRow == nil or versionBox == nil
-            or versionBadge == nil or title == nil or version == nil
+            or versionButton == nil or versionBadge == nil
+            or title == nil or version == nil
             or modeText == nil or headerActionArea == nil
             or headerActionStack == nil or headerActionRow == nil
             or headerActionHintBox == nil or headerActionHint == nil
-            or releaseNotesAction == nil or aboutAction == nil
-            or resetAction == nil or closeAction == nil
-            or releaseNotesCell == nil or aboutCell == nil
+            or aboutAction == nil or resetAction == nil or closeAction == nil
+            or aboutCell == nil
             or resetCell == nil or closeCell == nil then
             error("settings header is unavailable")
         end
@@ -7118,13 +7120,25 @@ local function buildSettingsWindow(controller, mode)
         local titleSlot = titleRow:AddChild(title)
         align(titleSlot, ALIGN_LEFT, ALIGN_CENTER)
         versionBox:SetHeightOverride(24.0)
-        versionBadge:SetBrushColor(COLORS.control)
+        versionButton.bIsFocusable = true
+        versionButton:SetToolTipText(FText(releaseStrings.title))
+        local versionButtonStyle = versionButton.WidgetStyle
+        versionButtonStyle.NormalPadding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
+        versionButtonStyle.PressedPadding = { Left = 0, Top = 0, Right = 0, Bottom = 0 }
+        versionButton.WidgetStyle = versionButtonStyle
+        styleHeaderButton(versionButton, "releaseNotes", false, false, false, true)
+        versionBadge:SetBrushColor(COLORS.transparent)
         versionBadge:SetPadding({ Left = 8, Top = 2, Right = 8, Bottom = 2 })
+        version:SetColorAndOpacity({
+            SpecifiedColor = COLORS.text,
+            ColorUseRule = 2,
+        })
         local versionTextSlot = versionBadge:AddChild(version)
         align(versionTextSlot, ALIGN_CENTER, ALIGN_CENTER)
         local versionBadgeSlot = versionBox:AddChild(versionBadge)
         align(versionBadgeSlot, ALIGN_FILL, ALIGN_FILL)
-        local versionSlot = titleRow:AddChild(versionBox)
+        align(versionButton:AddChild(versionBox), ALIGN_FILL, ALIGN_FILL)
+        local versionSlot = titleRow:AddChild(versionButton)
         setPadding(versionSlot, 8, 0, 0, 0)
         align(versionSlot, ALIGN_LEFT, ALIGN_CENTER)
         local modeSlot = identity:AddChild(modeText)
@@ -7138,13 +7152,8 @@ local function buildSettingsWindow(controller, mode)
             align(voteSlot, ALIGN_CENTER, ALIGN_LEFT)
         end
         headerActionArea:SetWidthOverride(
-            SIZE.headerAction * 4.0 + SIZE.headerActionGap * 3.0)
+            SIZE.headerAction * 3.0 + SIZE.headerActionGap * 2.0)
         headerActionArea:SetHeightOverride(52.0)
-        local releaseNotesSlot = headerActionRow:AddChild(releaseNotesCell)
-        align(releaseNotesSlot, ALIGN_CENTER, ALIGN_CENTER)
-        if not addHeaderActionGap(tree, headerActionRow) then
-            error("settings header Version Updates gap is unavailable")
-        end
         local aboutSlot = headerActionRow:AddChild(aboutCell)
         align(aboutSlot, ALIGN_CENTER, ALIGN_CENTER)
         if not addHeaderActionGap(tree, headerActionRow) then
@@ -7258,12 +7267,17 @@ local function buildSettingsWindow(controller, mode)
         pageEnd:SetHeightOverride(SIZE.pageEdge)
         body:AddChild(pageEnd)
 
-        if state.steamVoteControl ~= nil and voteBox ~= nil then
-            registerFocusable(state.steamVoteControl, voteBox)
-            state.controls[#state.controls + 1] = state.steamVoteControl
-        end
+        local versionAction = {
+            box = versionButton, widget = versionButton,
+            surface = versionButton, text = version,
+            visualButton = versionButton, directButton = true,
+            role = "releaseNotes", tooltip = releaseStrings.title,
+            neutralForeground = true,
+        }
+        registerDirectActionButton(versionButton)
+        state.headerActionVisuals[#state.headerActionVisuals + 1] = versionAction
         local releaseNotesControl = {
-            kind = "releaseNotes", widget = releaseNotesAction.widget,
+            kind = "releaseNotes", widget = versionButton,
             tooltip = releaseStrings.title,
         }
         local aboutControl = {
@@ -7275,12 +7289,15 @@ local function buildSettingsWindow(controller, mode)
         local closeControl = {
             kind = "close", widget = closeAction.widget, tooltip = strings.close,
         }
-        registerFocusable(releaseNotesControl,
-            releaseNotesAction.box, releaseNotesAction)
+        registerFocusable(releaseNotesControl, versionButton, versionAction)
+        state.controls[#state.controls + 1] = releaseNotesControl
+        if state.steamVoteControl ~= nil and voteBox ~= nil then
+            registerFocusable(state.steamVoteControl, voteBox)
+            state.controls[#state.controls + 1] = state.steamVoteControl
+        end
         registerFocusable(aboutControl, aboutAction.box, aboutAction)
         registerFocusable(resetControl, resetAction.box, resetAction)
         registerFocusable(closeControl, closeAction.box, closeAction)
-        state.controls[#state.controls + 1] = releaseNotesControl
         state.controls[#state.controls + 1] = aboutControl
         state.controls[#state.controls + 1] = resetControl
         state.controls[#state.controls + 1] = closeControl
