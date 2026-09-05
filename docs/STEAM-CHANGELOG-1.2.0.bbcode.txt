@@ -1,0 +1,8 @@
+[h1]Pal Insight: Quick Stack 1.2.0[/h1]
+
+[list]
+[*]Added automatic selling for four independently configurable item categories: 9 high-value merchant items, 32 ammunition types, 10 Pal Sphere types, and 4 fishing baits. Every category is disabled by default.
+[*]Added icon-assisted keep lists for every sale category. Checked items are not sold, and item names follow all 17 supported game languages. The selectors support mouse, keyboard, and controller input.
+[*]Automatic selling runs before Quick Stack storage. Items excluded through Inventory Tab → R are always protected, and sales use the selected result-display mode.
+[*]Added localized release history, opened by selecting the version number in the settings header.
+[/list]

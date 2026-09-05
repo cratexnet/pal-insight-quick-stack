@@ -283,7 +283,7 @@ Runtime contract proof
   keep the right action row limited to About, Restore Defaults, and Close.
 - [x] Show static, newest-first Quick Stack release history with a running-
   version marker, verified historical public timestamps at source precision,
-  and no timestamp for the unpublished running version.
+  and the current version's UTC timestamp captured when publication begins.
 - [x] Mark the running version only with a green five-point star; do not append
   a localized Current label. Match Pal Insight's index-row geometry, typography,
   state colors, and fixed trailing marker cell.

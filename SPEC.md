@@ -612,11 +612,11 @@ reported as an external conflict.
   historical entries are checked against their official release records,
   including the public `0.1.0` release. The
   runtime does not parse `CHANGELOG.md` or perform network access. A release
-  timestamp is shown only when it is the
-  earliest verified public timestamp across official distribution channels;
-  repository commit time is not a release time, and an unverified timestamp is
-  left blank. The stored UTC value preserves the precision exposed by the
-  source platform instead of inventing seconds. Mouse, keyboard, and controller share the existing modal input
+  timestamp is recorded in UTC when public release begins, then reconciled to
+  the earliest verified public timestamp across official distribution channels;
+  repository commit time is not a release time. The stored value preserves the
+  precision exposed by the source platform instead of inventing seconds. Mouse,
+  keyboard, and controller share the existing modal input
   owner. Directional input selects versions, changes panes, or scrolls content;
   held controller D-pad and left-stick input use the same bounded repeat route
   as the rest of the settings surface. Closing returns focus to the Version

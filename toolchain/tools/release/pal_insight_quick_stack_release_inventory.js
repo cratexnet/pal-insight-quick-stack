@@ -311,8 +311,8 @@ function assertQuickStackSettings(root) {
     /version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"[\s\S]*version\s*=\s*"0\.1\.0"/,
     'version updates must list Quick Stack releases newest first');
   assert.match(releaseNotes,
-    /version\s*=\s*"1\.2\.0"\s*,\s*dateUtc\s*=\s*""/,
-    'an unpublished Quick Stack version must not invent a public timestamp');
+    /version\s*=\s*"1\.2\.0"\s*,\s*dateUtc\s*=\s*"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/,
+    'the Quick Stack release must record its UTC publication timestamp');
   assert.doesNotMatch(releaseNotes, /version\s*=\s*"Unreleased"/,
     'Unreleased changes must not appear in player-facing version updates');
   const versionData = releaseNotes.slice(

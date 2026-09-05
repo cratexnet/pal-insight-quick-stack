@@ -2,12 +2,12 @@ local Localization = require("localization")
 
 local ReleaseNotes = {}
 
--- Keep 1-5 single-topic, user-visible summaries per public release. dateUtc is
--- the earliest verified public timestamp across official channels; blank means
--- that no public timestamp has been verified. Preserve source precision rather
--- than inventing seconds. Repository times are not releases.
+-- Keep 1-5 single-topic, user-visible summaries per public release. Record the
+-- current release's UTC timestamp when publication begins, then reconcile it to
+-- the earliest verified public timestamp across official channels. Preserve
+-- source precision rather than inventing seconds. Repository times are not releases.
 ReleaseNotes.versions = {
-    { version = "1.2.0", dateUtc = "", groups = {
+    { version = "1.2.0", dateUtc = "2026-09-05 02:55:05", groups = {
         { kind = "added", items = { 1, 2, 3, 4 } },
     } },
     { version = "1.1.0", dateUtc = "2026-09-04 16:22", groups = {

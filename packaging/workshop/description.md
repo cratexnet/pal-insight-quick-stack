@@ -42,9 +42,9 @@ Press [b]F5[/b] while standing inside your current base. Quick Stack moves match
 [*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118]Pal Insight[/url] 是可选模组，不安装也可以正常使用 Quick Stack。
 [/list]
 
-Quick Stack 1.1.0 has been tested in single-player. A community tester also confirmed that it worked without issue on a dedicated server with the mod installed client-side only. The tester's game build and distribution platform were not recorded; co-op behavior has not yet been verified.
+Quick Stack 1.2.0 has been tested in single-player. A community tester also confirmed that it worked without issue on a dedicated server with the mod installed client-side only. The tester's game build and distribution platform were not recorded; co-op behavior has not yet been verified.
 
-Quick Stack 1.1.0 已完成单人测试。一名社区玩家另行确认：在专用服务器上仅客户端安装本模组即可正常使用。该玩家使用的游戏构建及发行平台未记录；co-op 行为尚未完成实机验证。
+Quick Stack 1.2.0 已完成单人测试。一名社区玩家另行确认：在专用服务器上仅客户端安装本模组即可正常使用。该玩家使用的游戏构建及发行平台未记录；co-op 行为尚未完成实机验证。
 
 [b]Do not combine Steam Workshop, Nexus, and CurseForge copies.[/b]
 
