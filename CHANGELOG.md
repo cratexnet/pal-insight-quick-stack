@@ -1,11 +1,30 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 - 2026-09-07
 
 ### Changed
 
-- Pal Insight is now the optional sole in-game settings host. Quick Stack keeps
-  its standalone F5 action, but no longer exposes a separate F6 settings panel.
+- Quick Stack continues to work independently with F5. With Pal Insight
+  installed, its settings are available under F6 → Extensions. Without Pal
+  Insight, saved or default settings still apply, but cannot be changed in game.
+- Quick Stack now uses Pal Insight's shared settings host and on-screen control
+  guide while retaining its own settings page. Keeping common settings
+  infrastructure in one place provides a consistent keyboard, mouse, and
+  controller experience across companion mods, while reducing duplicated work
+  and making future fixes easier to maintain.
+- Opening Quick Stack settings now hides the underlying Pal Insight window,
+  keeping the interface clear and focused. Returning from Quick Stack restores
+  the previous Pal Insight page.
+- Removed the separate About page while keeping release notes, restore defaults,
+  and close controls. On Steam, a compact Like action appears in the settings
+  header and disappears after a successful recommendation.
+- Standardized result colors: green for success, yellow for warnings, red for
+  errors, blue for processing, and neutral white when no action is needed.
+
+### Fixed
+
+- Fixed a handshake failure that could prevent the Quick Stack settings panel
+  from opening through Pal Insight.
 
 ## 1.3.1 - 2026-09-05
 
