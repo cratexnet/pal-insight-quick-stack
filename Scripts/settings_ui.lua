@@ -8044,7 +8044,6 @@ local function buildSettingsWindow(controller, mode)
             error("settings acknowledgement modal cannot be initialized")
         end
         widget:SetVisibility(VIS_COLLAPSED)
-        widget:AddToViewport(120)
         refreshTriggerSurfaces()
     end)
     if not ok then
@@ -8286,6 +8285,21 @@ function SettingsUI.open(mode, options)
         discardWindowCache()
         return false, "settings window cannot be activated"
     end
+    -- Keep prewarmed and closed trees detached. Palworld may restore the
+    -- visibility of viewport widgets when Photo Mode exits, which must not
+    -- expose a settings surface whose input lifecycle is still closed.
+    local viewportAdded = pcall(function() widget:AddToViewport(120) end)
+    if not viewportAdded then
+        state.open = false
+        state.lifecycle = "closed"
+        state.mode = nil
+        pcall(function()
+            widget.bIsFocusable = false
+            widget:SetVisibility(VIS_COLLAPSED)
+            widget:RemoveFromParent()
+        end)
+        return false, "settings window cannot be attached"
+    end
     prepareFinished = os.clock()
     local acquired, acquireError, retainedTransaction = acquireInput(
         controller, widget, mode, hostedInputRoute)
@@ -8317,6 +8331,7 @@ function SettingsUI.open(mode, options)
         pcall(function()
             widget.bIsFocusable = false
             widget:SetVisibility(VIS_COLLAPSED)
+            widget:RemoveFromParent()
         end)
         return false, acquireError or "settings input ownership cannot be acquired"
     end
@@ -8401,11 +8416,12 @@ completeClose = function(closedMode, reason, widget, controller, escapeClose)
     state.shortcutCaptureCancelKey = nil
     state.shortcutCaptureCancelUntil = 0.0
     if preserveWindow and P.isValid(widget) then
-        local hidden = pcall(function()
+        local detached = pcall(function()
             widget.bIsFocusable = false
             widget:SetVisibility(VIS_COLLAPSED)
+            widget:RemoveFromParent()
         end)
-        if not hidden then
+        if not detached then
             preserveWindow = false
             discardWindowCache()
         end

@@ -238,6 +238,10 @@ Runtime contract proof
   success, timeout, or runtime supersession.
 - [x] Verify in game that the first hosted open reuses the prepared settings
   tree (`window_cache=hit`, 19 ms observed) on the Insight-to-Quick-Stack click.
+- [x] Keep prewarmed and closed settings trees detached from the viewport so
+  Photo Mode HUD restoration cannot expose an input-inactive cached window.
+- [x] Keep the cached cooked input bridge detached outside an active settings
+  lease so Photo Mode HUD restoration cannot create an invisible pointer blocker.
 - [x] Reserve the main one-page settings scrollbar before its first Slate
   layout pass so the cold open cannot shift right-aligned controls.
 - [ ] Verify mouse, keyboard, and controller behavior in game before syncing or

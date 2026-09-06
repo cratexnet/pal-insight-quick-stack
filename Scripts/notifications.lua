@@ -365,6 +365,7 @@ local function mountCompactFrame(widget, tree, content, textWidgets,
         slot:SetAutoSize(true)
         slot:SetPosition({ X = 0.0, Y = 0.0 })
         slot:SetZOrder(0)
+        root:SetVisibility(VIS_HIT_TEST_INVISIBLE)
         widget.bIsFocusable = false
         widget:SetVisibility(VIS_HIT_TEST_INVISIBLE)
         widget:AddToViewport(20)

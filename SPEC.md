@@ -843,9 +843,17 @@ reported as an external conflict.
   releases the modal lease through a fail-open emergency path rather than
   leaving an unrecoverable input lock.
 - The settings widget is reused only while its world, local controller, locale,
-  viewport size, and widget identity still match. Closing hides the valid
-  cached tree after releasing input; a mismatch discards it before rebuilding,
-  so repeated opens do not synchronously reconstruct the complete UMG tree.
+  viewport size, and widget identity still match. Prewarm may construct the
+  valid cached tree, but a closed settings widget is always detached from the
+  viewport after releasing input. Opening attaches that cached tree again; a
+  mismatch discards it before rebuilding. This prevents game-owned HUD
+  visibility restoration, including Photo Mode exit, from exposing a closed
+  settings surface whose input lifecycle is inactive.
+- The cooked input bridge follows the same viewport-lifetime rule. Prewarm may
+  retain its UObject cache, but the transparent bridge is attached only for an
+  active modal-input lease and is detached by normal and emergency release.
+  This prevents HUD restoration from making an opacity-zero bridge hit-testable
+  over Palworld dialogs.
 - Process-lifetime preview/input hooks and the optional Pal Insight bridge asset
   are prepared once. Standalone-only native Escape gates are installed once on
   the first standalone acquisition. The local player controller's
@@ -890,9 +898,9 @@ reported as an external conflict.
 - Warm-open acceptance is measured, not inferred. After one cold construction
   in an unchanged world/controller/locale/viewport, ten close/open cycles must
   reuse both the settings tree and cooked input bridge, perform no `LoadAsset`,
-  `RegisterHook`, `CreateWidget`, `AddToViewport`, or full-tree construction in
-  the open transaction, and keep warm-open synchronous time at or below
-  16.7 ms for every sample.
+  `RegisterHook`, `CreateWidget`, or full-tree construction in the open
+  transaction. Each real open performs only the required viewport attachment,
+  and keeps warm-open synchronous time at or below 16.7 ms for every sample.
 - Pal Insight never scans for storage, moves items, or becomes responsible for
   a Quick Stack job.
 - A compatible Pal Insight may additionally lend its cooked input bridge to a

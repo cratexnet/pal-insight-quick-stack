@@ -652,6 +652,26 @@ local function setCookedBridgeActive(bridge, active)
     end) == true
 end
 
+local function mountCookedBridge(bridge)
+    if not P.isValid(bridge) then return false end
+    return pcall(function()
+        bridge.bIsFocusable = false
+        bridge:SetRenderOpacity(0.0)
+        bridge:SetVisibility(3)
+        bridge:AddToViewport(99)
+    end) == true
+end
+
+local function detachCookedBridge(bridge)
+    if not P.isValid(bridge) then return true end
+    return pcall(function() bridge:RemoveFromParent() end) == true
+end
+
+local function reclaimCookedBridge(bridge, detached)
+    if detached == true and not mountCookedBridge(bridge) then return false end
+    return setCookedBridgeActive(bridge, true)
+end
+
 local function restoreInputContext(controller, controllerAddress, context)
     if not sameObject(controller, controllerAddress) then return true end
     if type(context) ~= "table" then return false end
@@ -776,7 +796,7 @@ local function discardBridgeCache()
         return true
     end
     if not setCookedBridgeActive(bridge, false) then return false end
-    if pcall(function() bridge:RemoveFromParent() end) ~= true then return false end
+    if not detachCookedBridge(bridge) then return false end
     state.bridgeCache = nil
     return true
 end
@@ -804,15 +824,15 @@ local function prepareBridgeCache(controller)
     ok = pcall(function() bridge = library:Create(world, bridgeClass, controller) end)
     if not ok or not P.isValid(bridge) then return nil, false end
     local prepared = pcall(function()
-        -- Mount once. Open/close only registers its already-created input
-        -- component; the hot path never reconstructs the cooked widget.
+        -- Keep the prepared UObject detached while input ownership is inactive.
+        -- Photo Mode can restore visibility on viewport widgets, turning this
+        -- transparent bridge into an invisible pointer blocker.
         bridge.bIsFocusable = false
         bridge:SetRenderOpacity(0.0)
         bridge:SetVisibility(3)
         bridge:UnregisterInputComponent()
         bridge:SetInputActionPriority(BRIDGE_PRIORITY)
         bridge:SetInputActionBlocking(false)
-        bridge:AddToViewport(99)
     end)
     local bridgeAddress = prepared and P.objectAddress(bridge) or nil
     if bridgeAddress == nil then
@@ -919,6 +939,10 @@ function Bridge.acquire(controller, ownerWidget, options)
         if cookedAvailable then discardBridgeCache() end
         return false, "bridge input ownership cannot be prepared"
     end
+    if cookedAvailable and not mountCookedBridge(bridge) then
+        discardBridgeCache()
+        return false, "bridge widget cannot be attached"
+    end
 
     state.generation = state.generation + 1
     state.bridge = bridge
@@ -970,7 +994,7 @@ function Bridge.acquire(controller, ownerWidget, options)
         bridgeAvailable = cookedAvailable == true,
         bridgeCacheHit = bridgeCacheHit == true,
         bridgeCreated = cookedAvailable == true and bridgeCacheHit ~= true,
-        bridgeMounted = cookedAvailable == true and bridgeCacheHit ~= true,
+        bridgeMounted = cookedAvailable == true,
         nativeInputActive = state.nativeInputActive == true,
     }
 
@@ -1345,6 +1369,12 @@ function Bridge.release(options)
         log("cooked input bridge could not be detached")
         return false
     end
+    local cookedDetached = not cookedWasActive or detachCookedBridge(bridge)
+    if not cookedDetached then
+        setCookedBridgeActive(bridge, true)
+        log("cooked input bridge could not leave the viewport")
+        return false
+    end
     local isolationReleased = releaseInputIsolation()
     local inputRestored = isolationReleased
         and restoreInputContext(controller, controllerAddress, restoreContext)
@@ -1352,7 +1382,7 @@ function Bridge.release(options)
     if not isolationReleased or not inputRestored then
         local isolationReclaimed = reclaimInputIsolation(isolation)
         local bridgeReclaimed = not cookedWasActive
-            or setCookedBridgeActive(bridge, true)
+            or reclaimCookedBridge(bridge, cookedDetached)
         local modalReclaimed = applyModalInput()
         log("input restore failed; modal rollback isolation="
             .. tostring(isolationReclaimed) .. " bridge="
@@ -1364,7 +1394,7 @@ function Bridge.release(options)
     if nativeWasActive and not NativeSettingsInput.release() then
         local isolationReclaimed = reclaimInputIsolation(isolation)
         local bridgeReclaimed = not cookedWasActive
-            or setCookedBridgeActive(bridge, true)
+            or reclaimCookedBridge(bridge, cookedDetached)
         local modalReclaimed = applyModalInput()
         log("native controller filter could not be released; modal rollback isolation="
             .. tostring(isolationReclaimed) .. " bridge="
@@ -1398,19 +1428,24 @@ function Bridge.emergencyRelease(options)
     -- because a best-effort call was attempted.
     local isolation = state.inputIsolation
     local cookedWasActive = state.cookedInputActive == true
-    local cookedReleased = not cookedWasActive
+    local cookedDeactivated = not cookedWasActive
         or setCookedBridgeActive(bridge, false)
+    local cookedDetached = cookedDeactivated
+        and (not cookedWasActive or detachCookedBridge(bridge))
+    local cookedReleased = cookedDeactivated and cookedDetached
     if not cookedReleased and P.isValid(bridge) then
-        cookedReleased = pcall(function()
+        local forceDeactivated = pcall(function()
             bridge:SetInputActionBlocking(false)
             bridge:UnregisterInputComponent()
         end) == true
+        cookedDetached = forceDeactivated and detachCookedBridge(bridge)
+        cookedReleased = forceDeactivated and cookedDetached
     end
     local isolationReleased = releaseInputIsolation()
     if not cookedReleased or not isolationReleased then
         local isolationReclaimed = reclaimInputIsolation(isolation)
         local bridgeReclaimed = not cookedWasActive
-            or setCookedBridgeActive(bridge, true)
+            or reclaimCookedBridge(bridge, cookedDetached)
         applyModalInput()
         log("modal watchdog retained recovery transaction: cooked="
             .. tostring(cookedReleased) .. " isolation="
@@ -1429,7 +1464,7 @@ function Bridge.emergencyRelease(options)
         controller, controllerAddress, restoreContext)
     if not restored then
         reclaimInputIsolation(isolation)
-        if cookedWasActive then setCookedBridgeActive(bridge, true) end
+        if cookedWasActive then reclaimCookedBridge(bridge, cookedDetached) end
         applyModalInput()
         log("modal watchdog could not restore input; recovery transaction retained")
         return false
@@ -1439,7 +1474,7 @@ function Bridge.emergencyRelease(options)
         or NativeSettingsInput.emergencyRelease() == true
     if not nativeReleased then
         reclaimInputIsolation(isolation)
-        if cookedWasActive then setCookedBridgeActive(bridge, true) end
+        if cookedWasActive then reclaimCookedBridge(bridge, cookedDetached) end
         applyModalInput()
         log("modal watchdog could not release native controller filter; recovery transaction retained")
         return false
