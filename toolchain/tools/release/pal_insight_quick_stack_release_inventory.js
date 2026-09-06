@@ -201,11 +201,14 @@ function assertQuickStackSettings(root) {
       `settings host contract is missing ${field}`);
   }
   assert.match(main,
-    /local function livePalInsightRuntime\([\s\S]*HostHeartbeat[\s\S]*local function livePalInsightF6Owner\([\s\S]*F6OwnerGeneration/,
-    'F6 ownership must follow the Pal Insight runtime lease, not transient UI readiness');
+    /palInsightSettingsOwnsInput = function\(\)[\s\S]*HostHeartbeat[\s\S]*SETTINGS_HOST_LEASE_SECONDS[\s\S]*HostSettingsOpen/,
+    'standalone F5 must still yield while Pal Insight settings own input');
   assert.match(main,
-    /settingsHostWrite\("F6BehaviorVersion", 2\)[\s\S]*if not livePalInsightF6Owner\(\) then[\s\S]*settingsHostWrite\("F6Owner", "QuickStack"\)/,
-    'Quick Stack must not overwrite a live Pal Insight F6 owner');
+    /local function dispatchConfiguredPress\(\)[\s\S]*palInsightSettingsOwnsInput\(\)[\s\S]*QuickStack\.begin/,
+    'F5 dispatch must remain standalone while respecting the hosted settings modal');
+  assert.match(main,
+    /QuickStack\.configure\(state\.config[\s\S]*registerConfiguredKey\(\)/,
+    'Quick Stack must register its gameplay shortcut without waiting for Pal Insight');
   assert.match(main, /local\s+SHARED_API_VERSION\s*=\s*3\b/,
     'shared settings contract must use API version 3');
   for (const setting of ['IncludeExcludedItems', 'IncludeNewItems']) {
@@ -808,6 +811,14 @@ function assertReleaseMetadata(root, version) {
     'release metadata must list every supported Palworld locale in runtime order');
   assert.equal(metadata.multiplayer, 'unverified',
     'multiplayer must remain unverified until representative runtime evidence exists');
+  assert.deepEqual(metadata.nexus, {
+    mainFileDisplayName: 'Pal Insight: Quick Stack',
+    gamePassFileDisplayName: 'Game Pass Experimental (WinGDK)',
+  }, 'Nexus file display names must remain stable across releases');
+  assert.doesNotMatch(metadata.nexus.mainFileDisplayName, /\d+\.\d+\.\d+/,
+    'Nexus Main display name must not contain a release version');
+  assert.doesNotMatch(metadata.nexus.gamePassFileDisplayName, /\d+\.\d+\.\d+/,
+    'Nexus Game Pass display name must not contain a release version');
 }
 
 function assertWorkshopMetadata(root, version) {

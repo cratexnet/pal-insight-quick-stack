@@ -2,7 +2,7 @@
 
 ## Objective
 
-Build an independent UE4SS Lua mod for Palworld 1.0 that moves eligible items
+Build a separately packaged Pal Insight extension for Palworld 1.0 that moves eligible items
 from the local player's common inventory into appropriate storage in the
 current base when the player presses F5.
 
@@ -11,9 +11,10 @@ configuration while replacing its global object scans, repeated full-database
 lookups, nested item-by-chest routing, and burst RPC submission with bounded,
 base-local work.
 
-The mod is independently installable and does not require Pal Insight. When a
-compatible Pal Insight is also installed, its F6 panel may expose this mod's
-settings as an optional convenience and discovery path.
+The extension runs its F5 action independently. Pal Insight is the optional sole
+in-game settings host and opens Quick Stack's settings surface from its
+Extensions page. Without Pal Insight, F5 still works from the persisted/default
+configuration, but Quick Stack does not expose a standalone settings panel.
 
 ## Verified Inputs
 
@@ -59,8 +60,9 @@ settings as an optional convenience and discovery path.
 7. Runtime ambiguity fails closed: no move is attempted if local-player,
    current-base, common-inventory, exclusion-list, permission, or destination
    state cannot be read completely.
-8. Pal Insight integration is a second-stage convenience, not a dependency of
-   the core feature.
+8. Pal Insight is the optional sole in-game settings host. Quick Stack's F5
+   action remains standalone, and either load order must converge without
+   requiring a game restart.
 
 ## User-Visible Behavior
 
@@ -338,9 +340,9 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
 
 ### Feedback
 
-- The standalone mod creates the same compact, centered, non-focusable status
-  HUD presentation used by Pal Insight's F7 feedback. It does not depend on Pal
-  Insight and does not use Palworld's persistent side-log feed. The compact
+- Quick Stack creates the same compact, centered, non-focusable status HUD
+  presentation used by Pal Insight's feedback. Its implementation remains
+  extension-owned and does not use Palworld's persistent side-log feed. The compact
   frame grows from 360 to at most 520 logical units, is further clamped to the
   viewport safe width, and uses a deterministic content-width wrap budget.
   Text stays on one line while it fits; beyond the safe maximum it wraps and
@@ -429,8 +431,8 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
 
 ### Localization
 
-- Quick Stack is standalone and owns its localization; it must not read Pal
-  Insight tables or require Pal Insight for translated runtime text.
+- Quick Stack owns its localization and does not read Pal Insight translation
+  tables; its translated runtime text remains extension-owned.
 - Every Quick Stack-authored notification, result title, section label, summary,
   helper, button, empty state, submitted state, and stopped state has
   an explicit translation for the same 17 interface locales supported by
@@ -443,8 +445,8 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
   row; Quick Stack does not duplicate game-owned item translations.
 - All locale rows contain exactly the same keys as English. The release gate
   rejects a missing locale, a missing key, inline Chinese result copy in the
-  notification owner, or omission of the standalone localization module.
-- Brand names remain proper names. The optional Pal Insight F6 bridge localizes
+  notification owner, or omission of the extension localization module.
+- Brand names remain proper names. The Pal Insight F6 host localizes
   its Quick Stack shortcut and detailed-result rows in all 17 locales while the
   section name remains `Pal Insight: Quick Stack`.
 
@@ -566,21 +568,22 @@ reported as an external conflict.
 
 ### Product contract
 
-- Quick Stack works fully without Pal Insight.
-- Quick Stack owns one canonical settings surface. Standalone `F6` opens that
-  surface directly; Pal Insight never reimplements its controls, validation,
-  defaults, persistence, reset behavior, or localized copy.
-- Process-lifetime shortcuts remain registered at startup, but a closed
-  standalone or hosted settings surface may open only after the current local
+- Quick Stack always registers its configured F5 action. Without a compatible
+  Pal Insight runtime, it exposes no in-game settings entry.
+- Quick Stack owns one canonical settings surface. Pal Insight opens that
+  surface from `F6 -> Extensions`; Pal Insight never reimplements its controls,
+  validation, defaults, persistence, reset behavior, or localized copy.
+- The F5 shortcut is owned by Quick Stack and remains active without Pal
+  Insight. It is suppressed while a compatible Pal Insight settings window owns
+  input. The hosted settings surface may open only after the current local
   controller owns a valid Pawn and PlayerState while the controller and Pawn
   belong to the same live world. Closing an already open surface remains
   available while that gameplay context is disappearing. This readiness check
-  does not wait for a player UID and does not depend on Pal Insight, so
-  standalone behavior remains immediate and independent once gameplay is
-  interactive.
+  does not wait for a player UID, so hosted behavior remains immediate once
+  gameplay is interactive.
 - Quick Stack's storage, settings, and result behavior remains Lua-owned and
-  falls back to non-interactive compact results when the compatible Pal Insight
-  result-dialog bridge is not present. The Workshop package may add only the
+  may fall back to non-interactive compact results when the compatible Pal
+  Insight result-dialog bridge cannot acquire its separate lease. The Workshop package may add only the
   isolated Steam-vote helper described below; it does not participate in item
   routing and non-Workshop packages omit it. Quick Stack does not ship a
   duplicate cooked UI PAK.
@@ -595,6 +598,11 @@ reported as an external conflict.
   runtime states show the current distribution channel's install/update link.
   Nexus Mods and CurseForge each publish a separate WinGDK/Game Pass archive;
   the Steam/Win64 archive must not be installed into a WinGDK game directory.
+  Nexus file display names are stable across releases: the Main file is
+  `Pal Insight: Quick Stack` and the Optional Game Pass file is
+  `Game Pass Experimental (WinGDK)`. The release version belongs only in the
+  Nexus Version field and the versioned ZIP filename, so Vortex can associate
+  later uploads with the existing same-channel mod file.
 - The settings body uses three fixed top tabs. `General` contains the shortcut,
   result display, ignored/new-item settings, and Guild Chest setting;
   `Automatic Sale` contains the valuables, ammunition, Pal Sphere, and fishing-
@@ -693,7 +701,7 @@ reported as an external conflict.
   modal close actions must not add a transparent `CheckBox` proxy. When the
   cooked bridge is available, each direct Button's native `OnClicked` delegate
   is the sole mouse action owner. The process-lifetime `LeftMouseButton`
-  binding is only a standalone compatibility fallback and is suppressed while
+  binding is only a compatibility fallback for extension-owned hosted input and is suppressed while
   native delegates are live; both routes share one hovered-action executor and
   must never run for the same click. Toggle rows use the focusable
   native `CheckBox`; keyboard/controller activation performs an explicit state
@@ -719,8 +727,8 @@ reported as an external conflict.
   Defaults. The Footer is informational only. About opens a
   Quick Stack-owned modal and all three actions remain operable by mouse,
   keyboard, and controller. The About modal is not a placeholder: it identifies
-  Quick Stack, recommends Pal Insight without implying that Quick Stack depends
-  on it, and uses the same three-column creator hierarchy as Pal Insight. The
+  Quick Stack, identifies Pal Insight as its optional settings host, and uses the same
+  three-column creator hierarchy as Pal Insight. The
   CrateX.app action is on the left, the creator biography is in the center, and
   Special Thanks plus Supporters remain fixed on the right even when their
   rosters are empty. Those two roster actions use the same shared direct-Button
@@ -854,9 +862,9 @@ reported as an external conflict.
   active modal-input lease and is detached by normal and emergency release.
   This prevents HUD restoration from making an opacity-zero bridge hit-testable
   over Palworld dialogs.
-- Process-lifetime preview/input hooks and the optional Pal Insight bridge asset
-  are prepared once. Standalone-only native Escape gates are installed once on
-  the first standalone acquisition. The local player controller's
+- Process-lifetime preview/input hooks and the Pal Insight bridge asset are
+  prepared once. Hosted native Escape gates are installed once on the first
+  hosted acquisition. The local player controller's
   `ClientRestart` post-callback wakes settings prewarm on the game thread but is
   not itself proof that gameplay is ready. Each attempt must resolve the same
   live controller/Pawn/PlayerState world context required by the final open
@@ -885,7 +893,7 @@ reported as an external conflict.
   marshalled to the game thread, while the existing open-panel pump can drain a
   lost wake without blocking later input. Cooked controller axis events dispatch
   directly through a type-checked handler. Cooked controller key parameters
-  accept both reflected `FName` wrappers and direct Lua strings; standalone
+  accept both reflected `FName` wrappers and direct Lua strings; extension-owned
   polling remains the fallback, and both routes feed the same D-pad, stick,
   Accept, and Back handlers. Preview/cooked ownership suppresses
   the corresponding delayed global event for the same physical press.
@@ -906,7 +914,7 @@ reported as an external conflict.
 - A compatible Pal Insight may additionally lend its cooked input bridge to a
   Quick Stack result card. This is used only for an Inventory/Equipment-triggered
   result, uses a separate capability, and does not transfer item movement or
-  settings ownership to Pal Insight.
+  settings implementation to Pal Insight.
 
 ### Runtime contract
 
@@ -914,10 +922,8 @@ Settings hosting uses private, versioned scalar shared variables under
 `PalInsightSettingsHost.*`. Both runtimes publish a monotonically increasing
 load generation and a short heartbeat lease. Open, close, failure, and
 acknowledgement revisions carry both the Pal Insight host generation and the
-Quick Stack target generation; the revision is written last as the transaction
-commit marker. The Quick Stack F6 owner also publishes a cooperative behavior
-version so Pal Insight never mistakes an older or external callback for an
-inert peer. Stale generations and expired leases are ignored.
+  Quick Stack target generation; the revision is written last as the transaction
+  commit marker. Stale generations and expired leases are ignored.
 
 Protocol version 3 assigns every hosted open exactly one controller route:
 `host-native` retains Pal Insight's native filter and delivers scoped controller
@@ -927,21 +933,12 @@ echo the selected route. Quick Stack rolls back when it cannot publish the open
 acknowledgement and retains a failed close acknowledgement for retry, so the
 parent never restores a competing input route from a partial transaction.
 
-Load order is symmetric. `IsKeyBindRegistered(F6)` proves only that the chord is
-occupied; it does not identify the callback owner. Quick Stack skips a new
-registration only when the shared generation and cooperative behavior version
-identify a retained Quick Stack callback, or when a live Pal Insight lease owns
-`F6`. For any other occupied `F6`, Quick Stack logs a possible external conflict
-and still registers its standalone settings callback, so an unrelated callback
-cannot make Quick Stack settings unreachable; both external actions may run for
-the same press. If Quick Stack registers first, Pal Insight later becomes the
-sole live action owner within the cooperative pair and the retained Quick Stack
-callback becomes inert while the runtime ownership lease is live, even during a
-temporary actor/UI readiness gap. After a Quick Stack hot reload, a retained
-callback targets only the newest Quick Stack generation while no Pal Insight
-host is live. Quick Stack publishes a versioned cooperative-F6 capability so Pal
-Insight can distinguish this behavior from an older or external callback. Quick
-Stack publishes capability and reconciles legacy settings from its existing
+Load order is symmetric. Pal Insight is the only runtime that registers `F6`.
+Quick Stack publishes its versioned capability and registers F5 only after a
+fresh compatible Pal Insight host lease appears. Retained Quick Stack callbacks
+re-check that lease and their current runtime generation before dispatch, so
+they become inert when Pal Insight is absent, stale, or replaced. Quick Stack
+publishes capability and reconciles settings from its existing
 500 ms cadence. This idle heartbeat reads and writes only scalar shared state;
 it never prepares widgets, walks
 viewport-owned objects, or validates the settings window cache. While Pal
@@ -1058,7 +1055,7 @@ state fails closed; the gate never scans all live widgets.
 
 - UE4SS Lua mod
 - Palworld 1.0 reflected SDK contracts
-- No Pal Insight runtime dependency
+- Optional compatible Pal Insight runtime for the in-game settings surface
 - No third-party Lua dependencies
 
 ## Project Structure
@@ -1067,7 +1064,7 @@ state fails closed; the gate never scans all live widgets.
 Scripts/
   main.lua        Runtime entry point and keybind dispatch
   config.lua      Package-owned default configuration seed
-  localization.lua Standalone 17-language runtime text and locale resolution
+  localization.lua Extension-owned 17-language runtime text and locale resolution
   settings.lua    Writable Saved-config parser and shortcut helpers
   notifications.lua Native local progress and completion feedback
   palworld.lua    Current-build reflected object boundary
@@ -1143,7 +1140,8 @@ the prototype uses:
 
 - Preserve exclusions, permissions, filters, capacity, and current-base scope.
 - Keep server-authoritative mutation and fail closed on incomplete state.
-- Keep standalone operation independent of Pal Insight.
+- Require a live compatible Pal Insight runtime before starting Quick Stack or
+  opening its settings surface.
 - Report verified facts separately from runtime assumptions.
 
 ### Ask first
@@ -1151,7 +1149,7 @@ the prototype uses:
 - Install or enable the prototype in the game.
 - Disable or modify the existing QuickStackHotkey installation.
 - Add persistent diagnostic probes or performance capture.
-- Modify Pal Insight for the optional F6 integration.
+- Modify the private Pal Insight extension-host protocol.
 - Build, package, publish, create a GitHub repository, or create a Workshop item.
 
 ### Never
@@ -1160,7 +1158,8 @@ the prototype uses:
 - Use global object enumeration in the warm shortcut path.
 - Send an unbounded burst of destination RPCs.
 - Ship developer diagnostics enabled.
-- Make Pal Insight a mandatory dependency.
+- Expose a standalone settings shortcut or execute Quick Stack while Pal
+  Insight is absent, stale, disabled, or incompatible.
 
 ## Success Criteria
 
@@ -1176,18 +1175,16 @@ the prototype uses:
 - Runtime capture on the representative base meets the per-slice budget or the
   budget is revised with recorded evidence before release.
 - At most one destination move request is submitted per frame.
-- Standalone configuration works through the writable
+- Quick Stack configuration remains owned by the extension through the writable
   `%LOCALAPPDATA%\Pal\Saved\PalInsightQuickStackSettings.lua` and survives
   Workshop updates.
 - Existing `0.1.x` values in `PalInsightQuickStack-config.lua` migrate without
   deleting or modifying the legacy file.
-- Standalone `F6` opens Quick Stack's own settings surface and can change and
-  persist the shortcut, result-display choice, three storage-rule toggles, Pal
-  Egg route, Ancient Civilization Relic route, and World Tree Holy Water
-  threshold without Pal Insight.
-- When both mods are present and compatible, Pal Insight's `Extensions` page
-  opens that same Quick Stack-owned surface as a separate hosted panel; when
-  either mod is absent, the other continues normally.
+- Pal Insight's `Extensions` page opens Quick Stack's extension-owned settings
+  surface and can change and persist the shortcut, result-display choice,
+  storage-rule toggles, routing choices, and thresholds.
+- Without a live compatible Pal Insight runtime, F5 is inert and no Quick Stack
+  settings surface can open.
 
 ## Open Questions Requiring Runtime Evidence
 
@@ -1200,8 +1197,9 @@ the prototype uses:
 
 ## Workshop Documentation Contract
 
-Every release description must document the standalone and Pal Insight-hosted
-settings paths near the feature list, not only in troubleshooting text.
+Every release description must identify Pal Insight as the optional in-game
+settings host and document the hosted settings path near the feature list, not
+only in troubleshooting text.
 
 ### Simplified Chinese draft
 
@@ -1210,10 +1208,9 @@ settings paths near the feature list, not only in troubleshooting text.
 
 默认快捷键为 F5。
 
-独立使用 Quick Stack：
-按 F6 打开 Quick Stack 设置面板，修改后自动保存。
+Quick Stack 单独安装时仍可使用默认 F5，但不会提供独立游戏内设置面板。
+Pal Insight 是可选的统一设置宿主。
 
-与 Pal Insight 配合使用：
 按 F6 打开 Pal Insight，进入“扩展（Extensions）”→“Quick Stack”打开同一套
 Quick Stack 设置面板。按 Escape 或手柄 Back 只返回 Pal Insight；按 F6 关闭整个设置栈。
 

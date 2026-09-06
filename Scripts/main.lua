@@ -62,6 +62,7 @@ local VERSION = "1.3.1"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
 local SETTINGS_HOST_PROTOCOL_VERSION = 3
+local SETTINGS_HOST_RUNTIME_PROTOCOL_VERSION = 1
 local SETTINGS_HOST_PREFIX = "PalInsightSettingsHost."
 local SETTINGS_HOST_LEASE_SECONDS = 1.5
 local SHARED_POLL_MS = 500
@@ -108,6 +109,11 @@ local SHARED_NUMBER_SETTINGS = {
 }
 
 local runtimeIsSuperseded
+local livePalInsightRuntimeImpl
+local palInsightSettingsOwnsInput
+local function livePalInsightRuntime()
+    return livePalInsightRuntimeImpl ~= nil and livePalInsightRuntimeImpl()
+end
 
 local state = {
     config = nil,
@@ -117,8 +123,6 @@ local state = {
     shortcutConflictLoggedSignature = nil,
     inputDispatchPending = false,
     inputDispatchCallback = nil,
-    settingsInputDispatchPending = false,
-    settingsInputDispatchCallback = nil,
     sharedRevision = nil,
     sharedPolling = false,
     sharedPollHandle = nil,
@@ -129,11 +133,8 @@ local state = {
     hostActivityLastProbeAt = 0.0,
     hostActivityHostLive = false,
     hostActivityHostSettingsOpen = false,
-    settingsShortcutRegistered = false,
-    settingsShortcutCallback = nil,
     settingsHostOpenRevision = 0,
     settingsHostCloseRevision = 0,
-    settingsSelfToggleRevision = 0,
     settingsHostRequestSignalRevision = 0,
     settingsHostGeneration = 0,
     settingsHostLivenessRevision = 0,
@@ -310,7 +311,8 @@ stopSettingsPrewarm = function()
 end
 
 local function dispatchConfiguredPress()
-    if state.inputDispatchPending or SettingsUI.mode() ~= nil then return end
+    if state.inputDispatchPending or SettingsUI.mode() ~= nil
+        or palInsightSettingsOwnsInput() then return end
     local bindingSignature = state.bindingSignature
     local settingsGeneration = SettingsUI.inputGeneration()
     state.inputDispatchPending = true
@@ -318,7 +320,7 @@ local function dispatchConfiguredPress()
         state.inputDispatchCallback = nil
         state.inputDispatchPending = false
         if runtimeIsSuperseded ~= nil and runtimeIsSuperseded() then return end
-        if SettingsUI.mode() ~= nil then return end
+        if SettingsUI.mode() ~= nil or palInsightSettingsOwnsInput() then return end
         -- 窗口重新关闭也不能让旧按压生效；此处只检查标量和配置。
         if state.bindingSignature ~= bindingSignature
             or Settings.chordSignature(state.config) ~= bindingSignature
@@ -478,29 +480,18 @@ local function initializeSettingsHostGeneration()
         settingsHostRead("OpenExtensionSettingsRequestRevision"))) or 0
     state.settingsHostCloseRevision = nonNegativeRevision(select(1,
         settingsHostRead("CloseExtensionSettingsRequestRevision"))) or 0
-    state.settingsSelfToggleRevision = nonNegativeRevision(select(1,
-        settingsHostRead("QuickStackToggleRequestRevision"))) or 0
     state.settingsHostRequestSignalRevision = nonNegativeRevision(select(1,
         settingsHostRead("HostRequestSignalRevision"))) or 0
 end
 
-local function nextHostRevision(name)
-    local current = nonNegativeRevision(select(1, settingsHostRead(name))) or 0
-    return current + 1
-end
-
-local function signalSettingsHostRequest()
-    local revision = nextHostRevision("HostRequestSignalRevision")
-    return settingsHostWrite("HostRequestSignalRevision", revision)
-end
-
-local function livePalInsightRuntime()
-    local protocol = select(1, settingsHostRead("ProtocolVersion"))
+livePalInsightRuntimeImpl = function()
+    local protocol = select(1, settingsHostRead("HostProtocolVersion"))
+    local supports = select(1, settingsHostRead("SupportsQuickStack")) == true
     local heartbeat = tonumber((select(1, settingsHostRead("HostHeartbeat"))))
     local generation = nonNegativeRevision(
         select(1, settingsHostRead("HostGeneration")))
     local runtimeVersion = select(1, settingsHostRead("HostRuntimeVersion"))
-    local live = protocol == SETTINGS_HOST_PROTOCOL_VERSION
+    local live = protocol == SETTINGS_HOST_RUNTIME_PROTOCOL_VERSION and supports
         and heartbeat ~= nil
         and os.clock() - heartbeat <= SETTINGS_HOST_LEASE_SECONDS
         and generation ~= nil and generation > 0
@@ -508,126 +499,18 @@ local function livePalInsightRuntime()
     return live, live and generation or nil
 end
 
+palInsightSettingsOwnsInput = function()
+    local heartbeat = tonumber((select(1,
+        settingsHostRead("HostHeartbeat"))))
+    local fresh = heartbeat ~= nil
+        and os.clock() - heartbeat <= SETTINGS_HOST_LEASE_SECONDS
+    return fresh and select(1, settingsHostRead("HostSettingsOpen")) == true
+end
+
 local function livePalInsightHost()
     local live, generation = livePalInsightRuntime()
     local ready = select(1, settingsHostRead("HostReady")) == true
     return live and ready, live and ready and generation or nil
-end
-
-local function livePalInsightF6Owner()
-    local live, generation = livePalInsightRuntime()
-    if not live then return false end
-    local owner = select(1, settingsHostRead("F6Owner"))
-    local ownerGeneration = nonNegativeRevision(select(1,
-        settingsHostRead("F6OwnerGeneration")))
-    return owner == "PalInsight" and ownerGeneration == generation
-end
-
-local function requestCurrentQuickStackToggle()
-    local generation = nonNegativeRevision(select(1,
-        settingsHostRead("QuickStackGeneration")))
-    if generation == nil or generation <= 0 then return false end
-    local revision = nextHostRevision("QuickStackToggleRequestRevision")
-    local committed = settingsHostWrite(
-            "QuickStackToggleRequestTargetGeneration", generation)
-        and settingsHostWrite("QuickStackToggleRequestRevision", revision)
-    if committed then signalSettingsHostRequest() end
-    return committed
-end
-
-local function toggleSettingsForCurrentRuntime()
-    if livePalInsightF6Owner() then
-        if SettingsUI.mode() == "standalone"
-            and not SettingsUI.close("host-takeover") then
-            return false, "standalone settings could not yield to Pal Insight"
-        end
-        -- Pal Insight owns the physical F6 binding while its host lease is
-        -- live. UE4SS cannot unregister this earlier Quick Stack callback, so
-        -- it must become inert instead of forwarding the same press and
-        -- toggling the host a second time.
-        return true, nil
-    end
-    local toggled, toggleError = SettingsUI.toggle("standalone")
-    return toggled == true, toggleError
-end
-
-local function dispatchSettingsShortcut()
-    if state.settingsInputDispatchPending then return end
-    state.settingsInputDispatchPending = true
-    state.settingsInputDispatchCallback = function()
-        state.settingsInputDispatchCallback = nil
-        state.settingsInputDispatchPending = false
-        local ok, errorMessage = pcall(function()
-            if runtimeIsSuperseded() then
-                if not requestCurrentQuickStackToggle() then
-                    error("current Quick Stack runtime request is unavailable")
-                end
-                return
-            end
-            local toggled, toggleError = toggleSettingsForCurrentRuntime()
-            if not toggled then error(toggleError or "settings toggle failed") end
-        end)
-        if not ok then log("settings input error: " .. tostring(errorMessage)) end
-    end
-    local scheduled = pcall(ExecuteInGameThread, state.settingsInputDispatchCallback)
-    if not scheduled then
-        state.settingsInputDispatchPending = false
-        state.settingsInputDispatchCallback = nil
-        log("cannot dispatch settings shortcut to the game thread")
-    end
-end
-
-local function retainedQuickStackF6Callback()
-    if select(1, settingsHostRead("F6Owner")) ~= "QuickStack"
-        or select(1, settingsHostRead("F6BehaviorVersion")) ~= 2 then
-        return false
-    end
-    local ownerGeneration = nonNegativeRevision(select(1,
-        settingsHostRead("F6OwnerGeneration")))
-    local publishedGeneration = nonNegativeRevision(select(1,
-        settingsHostRead("QuickStackGeneration")))
-    return ownerGeneration ~= nil and ownerGeneration > 0
-        and ownerGeneration == publishedGeneration
-        and ownerGeneration < state.settingsHostGeneration
-end
-
-local function registerSettingsShortcut()
-    if state.settingsShortcutRegistered then return true, nil end
-    initializeSettingsHostGeneration()
-    if type(RegisterKeyBind) ~= "function" or type(IsKeyBindRegistered) ~= "function"
-        or type(Key) ~= "table" then
-        return false, "UE4SS settings-key API is unavailable"
-    end
-    local keyValue = Settings.keyValue("F6")
-    if keyValue == nil then return false, "F6 is unavailable" end
-    local queried, registered = pcall(IsKeyBindRegistered, keyValue)
-    if not queried then return false, "F6 ownership cannot be queried" end
-    if registered == true and livePalInsightF6Owner() then
-        return true, nil
-    end
-    if registered == true and retainedQuickStackF6Callback() then
-        return true, nil
-    end
-    state.settingsShortcutCallback = function()
-        dispatchSettingsShortcut()
-    end
-    local ok, errorMessage = pcall(
-        RegisterKeyBind, keyValue, state.settingsShortcutCallback)
-    if not ok then
-        state.settingsShortcutCallback = nil
-        return false, errorMessage
-    end
-    state.settingsShortcutRegistered = true
-    if registered == true then
-        log("F6 is already registered by another UE4SS action; Quick Stack "
-            .. "also registered its settings shortcut, so both actions may run")
-    end
-    settingsHostWrite("F6BehaviorVersion", 2)
-    if not livePalInsightF6Owner() then
-        settingsHostWrite("F6OwnerGeneration", state.settingsHostGeneration)
-        settingsHostWrite("F6Owner", "QuickStack")
-    end
-    return true, nil
 end
 
 local function revisionValue(value)
@@ -783,7 +666,7 @@ local function publishSettingsSurfaceCapability()
     if runtimeIsSuperseded() then return false, "superseded" end
     state.settingsHostLivenessRevision = state.settingsHostLivenessRevision + 1
     local values = {
-        { "ProtocolVersion", SETTINGS_HOST_PROTOCOL_VERSION },
+        { "QuickStackProtocolVersion", SETTINGS_HOST_PROTOCOL_VERSION },
         { "QuickStackReady", true },
         { "QuickStackRuntimeVersion", VERSION },
         { "QuickStackGeneration", state.settingsHostGeneration },
@@ -843,21 +726,6 @@ local function reconcileSettingsHostRequests()
             and not SettingsUI.close("runtime-superseded") then return true end
         return false
     end
-    local selfToggleRevision = nonNegativeRevision(select(1,
-        settingsHostRead("QuickStackToggleRequestRevision"))) or 0
-    if selfToggleRevision > state.settingsSelfToggleRevision then
-        state.settingsSelfToggleRevision = selfToggleRevision
-        local targetGeneration = nonNegativeRevision(select(1,
-            settingsHostRead("QuickStackToggleRequestTargetGeneration")))
-        if targetGeneration == state.settingsHostGeneration then
-            local toggled, toggleError = toggleSettingsForCurrentRuntime()
-            if not toggled then
-                log("forwarded settings input error: "
-                    .. tostring(toggleError or "settings toggle failed"))
-            end
-        end
-    end
-
     if SettingsUI.mode() == "hosted" then
         local hostLive, hostGeneration = livePalInsightHost()
         local hostSettingsOpen = select(1,
@@ -903,9 +771,7 @@ local function reconcileSettingsHostRequests()
     local requestInputRoute = select(1,
         settingsHostRead("OpenExtensionSettingsInputRoute"))
     local hostLive, liveHostGeneration = livePalInsightHost()
-    if select(1, settingsHostRead("ProtocolVersion"))
-            ~= SETTINGS_HOST_PROTOCOL_VERSION
-        or requestId ~= "quickStack"
+    if requestId ~= "quickStack"
         or requestTargetGeneration ~= state.settingsHostGeneration
         or requestHostGeneration ~= liveHostGeneration
         or (requestInputDevice ~= "keyboard" and requestInputDevice ~= "mouse"
@@ -1107,7 +973,9 @@ SettingsUI.configure({
     version = VERSION,
     config = state.config,
     configPath = state.configPath,
-    registerShortcut = registerConfiguredKey,
+    registerShortcut = function(candidate)
+        return registerConfiguredKey(candidate)
+    end,
     shortcutConflict = shortcutConflictFor,
     publishHostedCloseBlocked = function(blocked)
         if blocked ~= true then
@@ -1211,6 +1079,10 @@ SettingsUI.configure({
     end,
 })
 QuickStack.configure(state.config, log, debugLog)
+local shortcutRegistered, shortcutRegisterError = registerConfiguredKey()
+if not shortcutRegistered then
+    log("shortcut unavailable: " .. tostring(shortcutRegisterError))
+end
 local worldTrackingReady, worldTrackingError = Palworld.installWorldReadyTracking(
     function()
         if not scheduleSettingsPrewarm("world-ui-ready") then
@@ -1226,24 +1098,12 @@ if not inputTrackingReady then
     log("inventory-page shortcut unavailable: " .. tostring(inputTrackingError))
 end
 
-local registered, registerError = registerConfiguredKey()
-if not registered then
-    log("load failed: " .. tostring(registerError))
-else
-    log("loaded " .. VERSION .. " -- " .. Settings.chordSignature(state.config)
-        .. " quick-stacks inside the current base")
+local existingRevision = revisionValue(
+    select(1, sharedRead("SettingsRevision"))) or 0
+if publishCanonicalSettings(existingRevision + 1)
+    and publishSettingsSurfaceCapability() then
+    scheduleSharedPoll()
 end
-
-local settingsRegistered, settingsRegisterError = registerSettingsShortcut()
-if not settingsRegistered then
-    log("settings shortcut unavailable: " .. tostring(settingsRegisterError))
-end
-
-if registered then
-    local existingRevision = revisionValue(
-        select(1, sharedRead("SettingsRevision"))) or 0
-    if publishCanonicalSettings(existingRevision + 1)
-        and publishSettingsSurfaceCapability() then
-        scheduleSharedPoll()
-    end
-end
+log("loaded " .. VERSION .. " -- configured action is "
+    .. Settings.chordSignature(state.config)
+    .. "; Pal Insight provides the in-game settings entry")

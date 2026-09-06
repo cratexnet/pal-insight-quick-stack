@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Pal Insight is now the optional sole in-game settings host. Quick Stack keeps
+  its standalone F5 action, but no longer exposes a separate F6 settings panel.
+
 ## 1.3.1 - 2026-09-05
 
 ### Added

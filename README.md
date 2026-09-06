@@ -1,6 +1,6 @@
 # Pal Insight: Quick Stack | 一键归箱
 
-面向 Palworld 1.0 的独立 UE4SS Lua 模组。默认在基地内按 `F5`，把玩家普通背包中符合条件的物品归入当前基地的对应容器。
+面向 Palworld 1.0 的 Pal Insight 扩展。安装并启用 Pal Insight 后，默认在基地内按 `F5`，把玩家普通背包中符合条件的物品归入当前基地的对应容器。
 
 > 当前版本：`1.3.1`。
 > 本次新增默认关闭的自动出售功能，可分别配置高价品、弹药、帕鲁球和钓饵及其
@@ -93,12 +93,15 @@ Alt = false,
 
 `Key` 使用 UE4SS 的按键名称，例如 `F5`、`S`、`HOME`。手动改完后需要重启游戏，首版不要求热重载。
 
-## 与 Pal Insight 配合
+## 依赖与设置
 
-Quick Stack 本身不依赖 Pal Insight。安装兼容版 Pal Insight 后，可通过：
+Quick Stack 需要 UE4SS Experimental。Pal Insight 是可选的统一设置宿主：
+未安装 Pal Insight 时，默认 `F5` 仍可执行收纳，但没有独立的游戏内设置面板。
+
+通过以下路径打开设置：
 
 ```text
-F6 → Controls → Pal Insight: Quick Stack
+F6 → Extensions → Pal Insight: Quick Stack
 ```
 
 这里可以直接改键，并调整“收纳提示”、“收纳已忽略的物品”、
@@ -107,8 +110,7 @@ F6 → Controls → Pal Insight: Quick Stack
 所有设置都由 Quick Stack 保存。
 “收纳提示”设为“仅文字”后，所有触发方式都只显示中央短提示。兼容版 Pal Insight
 还会为背包页触发的逐项结果卡提供输入桥；Quick
-Stack 不附带第二份 PAK。未安装或版本不兼容时，快捷键及该开关仍从 Saved
-配置读取，收纳结果自动降级为中央短提示。
+Stack 不附带第二份 PAK。所有设置仍由 Quick Stack 保存到 Saved 目录。
 
 ## 配置项
 
@@ -188,7 +190,8 @@ Tab 页面判定也不扫描 Widget：模组在主菜单实例创建时保存一
 库存、基地对象、容器槽位和提交前复核都分成有上限的游戏线程切片；
 物品路由使用“已有物品”和“接受类别”索引，不执行全世界扫描或瞬间
 RPC 连发。提交后的确认只按 120 ms 间隔复核本次实际提交涉及的背包槽位，
-最多 3 秒，不存在常驻 UObject Tick 或全局对象轮询。可选 F6 集成继续以 500 ms
+最多 3 秒，不存在常驻 UObject Tick 或全局对象轮询。Pal Insight F6
+集成继续以 500 ms
 低频处理能力发布、预热和兼容设置；检测到 Pal Insight 设置已打开后，16 ms
 快速路径每次只读一个请求信号，只有信号变化才接收完整打开／关闭事务，
 不执行仓库扫描或界面重建。

@@ -8189,6 +8189,9 @@ end
 
 function SettingsUI.open(mode, options)
     options = type(options) == "table" and options or {}
+    if mode ~= "hosted" then
+        return false, "Pal Insight is required to open Quick Stack settings"
+    end
     local openStarted = os.clock()
     local prewarm = state.lastPrepareDiagnostics
     local includePrewarm = type(prewarm) == "table" and prewarm.didWork == true
@@ -8201,7 +8204,7 @@ function SettingsUI.open(mode, options)
     local cacheFinished = openStarted
     local buildFinished = openStarted
     local prepareFinished = openStarted
-    mode = mode == "hosted" and "hosted" or "standalone"
+    mode = "hosted"
     local hostedInputRoute = mode == "hosted" and options.hostedInputRoute or nil
     if mode == "hosted" and hostedInputRoute ~= "host-native"
         and hostedInputRoute ~= "extension-cooked" then
@@ -8495,7 +8498,7 @@ function SettingsUI.toggle(mode)
         if SettingsUI.closeBlocked() then return true end
         return SettingsUI.close("shortcut")
     end
-    return SettingsUI.open(mode or "standalone")
+    return SettingsUI.open(mode)
 end
 
 function SettingsUI.closeBlocked()
