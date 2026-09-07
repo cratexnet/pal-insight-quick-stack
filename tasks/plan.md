@@ -2,13 +2,14 @@
 
 ## Overview
 
-Deliver an independent, fail-closed Quick Stack mod in risk-first slices. Prove
+Deliver a separately packaged, fail-closed Pal Insight extension in risk-first slices. Prove
 the current Palworld item-move contract and base-local discovery route before
-building routing breadth or optional Pal Insight integration.
+building routing breadth or the required Pal Insight integration.
 
 ## Architecture Decisions
 
-- Keep Quick Stack in its own repository and Workshop item.
+- Keep Quick Stack in its own repository and Workshop item while requiring Pal
+  Insight at runtime.
 - Treat one F5 operation as a generation-scoped job with a single owner.
 - Freeze the three-state result-display policy at the accepted F5 press. When a
   detailed card is selected, own its modal input independently of the later
@@ -18,8 +19,8 @@ building routing breadth or optional Pal Insight integration.
   generation.
 - Pace server requests to at most one destination per frame.
 - Keep writable Saved-directory `PalInsightQuickStackSettings.lua` as the
-  standalone source of truth; packaged configuration is only a first-run seed.
-- Add Pal Insight F6 integration only after the standalone route is accepted.
+  extension-owned source of truth; packaged configuration is only a first-run seed.
+- Use Pal Insight as the sole F6 settings host.
 
 ## Dependency Graph
 
@@ -30,8 +31,8 @@ Runtime contract proof
       -> indexed routing plan
         -> paced server submission
           -> egg/incubator parity
-            -> standalone acceptance
-              -> optional Pal Insight F6 bridge
+            -> hosted acceptance
+              -> required Pal Insight F6 bridge
                 -> release tooling and packaging
 ```
 
@@ -70,7 +71,7 @@ Runtime contract proof
   whitelist derived from current game item-description data.
 - [x] Prove the current-build sell RPC ABI, server-registered `ShopID` source,
   and shop lifetime without relying on an empty or synthetic shop ID.
-- [x] Add the setting to writable config, standalone F6, and the Pal Insight
+- [x] Add the setting to writable config and the Pal Insight-hosted
   shared-settings bridge.
 - [x] Add a generation-scoped sale phase that revalidates source slots, respects
   `Tab` -> `R` exclusions, and never submits more than one sell request per frame.
@@ -142,36 +143,37 @@ Runtime contract proof
 - [ ] Performance capture meets the recorded budget on the representative base.
 - [ ] Developer-only diagnostics are false and excluded from candidate artifacts.
 
-## Phase 4: Optional Pal Insight Integration
+## Phase 4: Required Pal Insight Integration
 
 - [ ] Publish Quick Stack presence, versions, settings, and revision through
   scalar UE4SS shared variables.
 - [ ] Add low-frequency revision reconciliation and safe keybind replacement.
-- [ ] With separate approval, append a conditional `Pal Insight: Quick Stack`
-  class to the bottom of Pal Insight's existing final F6 tab, `Controls`, with
+- [x] Add a conditional `Pal Insight: Quick Stack` row to Pal Insight's
+  `Extensions` page, with
   only the shortcut setting.
 - [ ] Verify both load orders, missing/incompatible versions, config persistence,
   and independent uninstall behavior.
 
 ### Checkpoint: Integration
 
-- [ ] Standalone Quick Stack remains fully functional without Pal Insight.
+- [ ] Quick Stack remains inert without a live compatible Pal Insight host.
 - [ ] Pal Insight remains fully functional without Quick Stack.
+- [ ] Both load orders converge without a game restart.
 - [ ] No incompatible or absent integration produces an empty F6 section.
-- [ ] No Quick Stack setting appears outside its own `Controls` class.
+- [ ] Quick Stack settings open only through Pal Insight's Extensions page.
 
 ## Phase 5: Distribution
 
 - [x] Add standalone runtime localization for all 17 Palworld interface locales
   with English fallback and native localized item rows.
-- [x] Localize the optional Pal Insight Quick Stack shortcut row in the same 17
+- [x] Localize the Pal Insight-hosted Quick Stack shortcut row in the same 17
   locales without changing the fixed product section name.
 - [ ] Observe English, Simplified Chinese, and one long-text locale in game.
 - [x] Add independent release inventory and diagnostics gate.
 - [x] Add separate Win64 and WinGDK portable layouts for Nexus and CurseForge.
 - [x] Prepare README, changelog, icon, Workshop metadata, and compatibility text.
 - [x] Document both manual Saved-directory rebinding and the conditional
-  `F6 -> Controls -> Pal Insight: Quick Stack` path.
+  `F6 -> Extensions -> Pal Insight: Quick Stack` path.
 - [ ] Obtain explicit approval before building, packaging, creating GitHub, or
   publishing Workshop content.
 
@@ -452,7 +454,7 @@ Runtime contract proof
 | UI or lifecycle change lets a stale F5 job continue | High | Single job owner plus world/base/controller generation tokens |
 | Many containers cause a game-thread hitch | High | Base-local enumeration, indexed routing, bounded slices |
 | Server rejects or delays request bursts | High | One destination request per frame and capacity recheck |
-| Optional integration couples release cycles | Medium | Versioned scalar bridge; standalone config remains authoritative |
+| Required host couples release compatibility | Medium | Versioned scalar bridge; extension config remains authoritative |
 | UE4SS keybind cannot be unregistered | Medium | Old callbacks compare active signature and become inert |
 
 ## Open Questions

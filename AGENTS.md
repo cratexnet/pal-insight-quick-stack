@@ -42,8 +42,9 @@ separately. Request approval before adding an in-game diagnostic probe.
   controller, or player change.
 - Submit at most one destination move RPC per frame and revalidate the
   destination before submission.
-- Keep Quick Stack fully functional without Pal Insight. Pal Insight integration
-  owns only in-game shortcut editing.
+- Treat Pal Insight as a required runtime dependency. Without a live compatible
+  Pal Insight host, Quick Stack must not execute its gameplay shortcut or open
+  any standalone settings surface.
 - Keep reflected Palworld access in `Scripts/palworld.lua`, job orchestration in
   `Scripts/quick_stack.lua`, and startup/input dispatch in `Scripts/main.lua`.
 - Package configuration is a seed. Writable settings belong under

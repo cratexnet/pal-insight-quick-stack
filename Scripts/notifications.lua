@@ -63,6 +63,7 @@ local STATIC_WARMUP_TASK_COUNT = #STATIC_WARMUP_PATHS + 1
 
 local COLORS = {
     primary = { R = 0.209, G = 0.533, B = 0.665, A = 1.00 },
+    success = { R = 0.353, G = 0.773, B = 0.412, A = 1.00 },
     warning = { R = 0.807, G = 0.451, B = 0.102, A = 1.00 },
     danger = { R = 0.800, G = 0.390, B = 0.380, A = 1.00 },
     surface = { R = 0.015, G = 0.021, B = 0.027, A = 0.96 },
@@ -912,10 +913,10 @@ local function resultTitle(outcome, details, strings)
     if outcome == "stopped" then
         return strings.failureTitle, COLORS.danger
     end
-    if details.saleConfirmationPending or outcome == "submitted"
-        or outcome == "noop" then
+    if details.saleConfirmationPending or outcome == "submitted" then
         return strings.attentionTitle, COLORS.warning
     end
+    if outcome == "noop" then return strings.noopTitle, COLORS.text end
     if fullTotal > 0 then
         if confirmedTotal > 0 then
             return strings.partialSuccessTitle, COLORS.warning
@@ -928,7 +929,7 @@ local function resultTitle(outcome, details, strings)
         end
         return strings.attentionTitle, COLORS.warning
     end
-    return strings.successTitle, COLORS.primary
+    return strings.successTitle, COLORS.success
 end
 
 local function detailedFallbackMessage(outcome, details, strings)

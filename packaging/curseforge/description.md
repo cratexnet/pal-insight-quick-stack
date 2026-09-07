@@ -3,12 +3,14 @@
 <p style="text-align: center;">Press <strong>F5</strong> while standing inside your current base. Quick Stack can sell selected items, then move eligible items from your normal backpack into compatible storage in that base.</p>
 <p style="text-align: center;">It is a standalone, client-side UE4SS Lua mod. <a href="https://www.curseforge.com/palworld/blueprint-code-mods/pal-insight" rel="nofollow">Pal Insight</a> is optional.</p>
 <p><img src="https://media.forgecdn.net/attachments/1917/542/pal-insight-quick-stack-promo-final-png.png" alt="Pal Insight: Quick Stack"></p>
-<h2>What's New in 1.3.0</h2>
+<h2>What's New in 1.4.0</h2>
 <ul>
-<li><strong>Medicine Rack priority:</strong> Optionally route the 3 current medical supplies to Medicine Racks first. If no usable rack is available or all racks are full, they continue to ordinary storage. This option is off by default.</li>
-<li><strong>Dedicated food routing:</strong> The 5 cakes use Breeding Farms first, while other food uses Pal Food Boxes first. Both routes then continue through cold storage and ordinary storage. Cakes never enter Pal Food Boxes. This option is on by default.</li>
-<li><strong>Tabbed settings:</strong> Settings are organized into General, Automatic Sale, and Special Items tabs, with mouse, keyboard, controller, and visible arrow navigation. Small-Incubator usage and Holy Water quantity appear as child options of their routing settings.</li>
+<li><strong>Automatic selling fixed:</strong> F5 now finds an available merchant in the current base automatically and applies Noble and Fine Furs passives from party Pals to sale prices for configured valuables, ammunition, Pal Spheres, and fishing bait.</li>
+<li><strong>Safe merchant fallback:</strong> A new default-on option keeps sale items in the backpack when no merchant is found. Disable it to send those items through normal storage rules instead.</li>
+<li><strong>Clearer results:</strong> Results now use status-specific titles and one line per processing category. Automatic mode opens detailed results when F5 is used from the inventory and shows a text notification elsewhere.</li>
+<li><strong>Routing and stability fixes:</strong> Corrected dedicated food routing so the 5 cake types use Breeding Farms and other food uses Pal Food Boxes before cold and ordinary storage, and fixed a crash when closing Quick Stack settings with Esc or controller Back.</li>
 </ul>
+<p>Version 1.3.0 added Medicine Rack priority, dedicated food routing, and General, Automatic Sale, and Special Items settings tabs.</p>
 <p>Version 1.2.0 added automatic selling for 9 high-value items, 32 ammunition types, 10 Pal Sphere types, and 4 fishing baits; icon-assisted keep lists; safe sale-before-storage ordering; and localized release history.</p>
 <p>Version 1.1.0 added optional Guild Chest and small-Incubator support. Both are off by default.</p>
 <h2>Quick Start</h2>
@@ -31,6 +33,7 @@
 <p>Each category is configured independently and disabled by default. Icon-assisted keep lists support all 17 Palworld interface languages and mouse, keyboard, and controller input.</p>
 <p>Checked items are kept. Items excluded through Inventory <strong>Tab &gt; R</strong> are always protected from selling.</p>
 <p>Review each keep list before enabling it. The high-value category initially allows all 9 supported items to be sold; the other categories initially keep all supported items.</p>
+<p>F5 searches the current base for an available merchant. Sale prices include Noble and Fine Furs passives from party Pals. If no merchant is found, sale items stay in the backpack by default; disable <strong>Keep sale items when no merchant is found</strong> to let them continue through normal storage rules.</p>
 <h2>What Quick Stack Moves</h2>
 <p>Quick Stack handles the normal backpack inventory only. It does not move equipped items, food-slot items, Key Items, or items outside the supported inventory area.</p>
 <p>It uses storage facilities from <strong>your current base only</strong>. By default:</p>
@@ -82,6 +85,7 @@
 <li><strong>Text Only</strong></li>
 <li><strong>Result Window</strong></li>
 </ul>
+<p>Automatic mode opens the detailed result window when F5 is triggered from the Inventory screen and shows a text notification elsewhere. Text Only always uses text, while Result Window requests the detailed panel everywhere.</p>
 <p>Results show sold, stored, excluded, and unstored items. The detailed window uses Palworld's native icons and localized names and supports mouse, keyboard, and controller input.</p>
 <p>If the detailed window cannot open safely, Quick Stack falls back to a text notification. An item is reported as sold or stored only after the backpack confirms that its quantity decreased.</p>
 <p><img src="https://media.forgecdn.net/attachments/1917/550/01-quick-stack-results-png.png" alt="Quick Stack result window"></p>
@@ -139,6 +143,7 @@
 <li>Check Medicine Rack, food, Pal Egg, Relic, and ordinary-storage routing settings.</li>
 <li>Check storage filters, permissions, and capacity.</li>
 <li>Confirm that the item belongs to the supported normal backpack.</li>
+<li>Make sure an available merchant is present in the current base. The F5 result reports when none is found.</li>
 </ul>
 <h3>Reporting a Problem</h3>
 <p>Include your platform, installation channel, game mode, relevant versions and settings, exact reproduction steps, expected and actual results, the complete <code>UE4SS.log</code>, and original crash files when available.</p>

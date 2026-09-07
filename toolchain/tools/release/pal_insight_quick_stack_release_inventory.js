@@ -333,10 +333,10 @@ function assertQuickStackSettings(root) {
     /function SettingsUI\.open\(mode,[\s\S]*buildSettingsWindow/,
     'standalone and hosted entry points must use one settings surface');
   assert.match(releaseNotes,
-    /version\s*=\s*"1\.3\.1"[\s\S]*version\s*=\s*"1\.3\.0"[\s\S]*version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"[\s\S]*version\s*=\s*"0\.1\.0"/,
+    /version\s*=\s*"1\.4\.0"[\s\S]*version\s*=\s*"1\.3\.1"[\s\S]*version\s*=\s*"1\.3\.0"[\s\S]*version\s*=\s*"1\.2\.0"[\s\S]*version\s*=\s*"1\.1\.0"[\s\S]*version\s*=\s*"1\.0\.0"[\s\S]*version\s*=\s*"0\.1\.0"/,
     'version updates must list Quick Stack releases newest first');
   assert.match(releaseNotes,
-    /version\s*=\s*"1\.3\.1"\s*,\s*dateUtc\s*=\s*"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/,
+    /version\s*=\s*"1\.4\.0"\s*,\s*dateUtc\s*=\s*"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}"/,
     'the running Quick Stack version must record its UTC version-upgrade timestamp');
   assert.doesNotMatch(releaseNotes, /version\s*=\s*"Unreleased"/,
     'Unreleased changes must not appear in player-facing version updates');
@@ -344,7 +344,7 @@ function assertQuickStackSettings(root) {
     releaseNotes.indexOf('ReleaseNotes.versions = {'),
     releaseNotes.indexOf('\nlocal TEXT = {'));
   const versionBlocks = versionData.split(/\{ version\s*=/).slice(1);
-  assert.equal(versionBlocks.length, 6,
+  assert.equal(versionBlocks.length, 7,
     'version updates must contain the running version and every public Quick Stack release');
   for (const block of versionBlocks) {
     const itemCount = [...block.matchAll(/items\s*=\s*\{([^}]*)\}/g)]
@@ -384,12 +384,12 @@ function assertQuickStackSettings(root) {
     }, 0);
   assert.ok(topLevelLocalCount < 190,
     `settings UI has ${topLevelLocalCount} top-level locals; keep headroom below Lua's 200-local limit`);
-  for (const action of ['steamVote', 'releaseNotes', 'about', 'reset', 'close']) {
+  for (const action of ['steamVote', 'releaseNotes', 'reset', 'close']) {
     assert.ok(settingsUi.includes(`kind = "${action}"`),
       `settings Header is missing the ${action} action`);
   }
   assert.match(settingsUi,
-    /local versionButton = construct\(tree, "\/Script\/UMG\.Button"\)[\s\S]*makeSteamVoteControl[\s\S]*makeIconTrigger\(\s*tree,\s*"ⓘ"[\s\S]*makeIconTrigger\(\s*tree,\s*"↻"[\s\S]*makeIconTrigger\(\s*tree,\s*"×"/,
+    /local versionButton = construct\(tree, "\/Script\/UMG\.Button"\)[\s\S]*makeSteamVoteControl[\s\S]*makeIconTrigger\(\s*tree,\s*"↻"[\s\S]*makeIconTrigger\(\s*tree,\s*"×"/,
     'settings Header action order must match Pal Insight');
   assert.doesNotMatch(settingsUi, /makeIconTrigger\(\s*tree,\s*"≡"/,
     'Version Updates must use the Header version number instead of a glyph');
@@ -397,8 +397,8 @@ function assertQuickStackSettings(root) {
     /versionButton\.bIsFocusable = true[\s\S]*versionButton:SetToolTipText\(FText\(releaseStrings\.title\)\)[\s\S]*versionButton:AddChild\(versionBox\)[\s\S]*titleRow:AddChild\(versionButton\)/,
     'the Header version number must be the focusable Version Updates action');
   assert.match(settingsUi,
-    /registerFocusable\(releaseNotesControl, versionButton, versionAction\)[\s\S]*registerFocusable\(state\.steamVoteControl, voteBox\)[\s\S]*registerFocusable\(aboutControl, aboutAction\.box, aboutAction\)/,
-    'Header focus order must follow version, Steam vote, then right-side actions');
+    /registerFocusable\(releaseNotesControl, versionButton, versionAction\)[\s\S]*registerFocusable\(state\.steamVoteControl, voteBox\)[\s\S]*registerFocusable\(resetControl, resetAction\.box, resetAction\)[\s\S]*registerFocusable\(closeControl, closeAction\.box, closeAction\)/,
+    'Header focus order must follow version, Steam vote, reset, then close');
   assert.match(settingsUi,
     /local function makeIconTrigger[\s\S]*?\/Script\/UMG\.Button[\s\S]*?button\.bIsFocusable = true[\s\S]*?styleHeaderButton[\s\S]*?box:AddChild\(button\)/,
     'settings Header actions must use Pal Insight direct Button controls');
@@ -446,9 +446,6 @@ function assertQuickStackSettings(root) {
   assert.match(settingsUi,
     /ensureChoiceModal = function\(\)[\s\S]*buildChoiceModal[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
     'lazy choice and reset actions must join the active native click owner');
-  assert.match(settingsUi,
-    /ensureAboutModal = function\(\)[\s\S]*buildAboutModal[\s\S]*InputOwner\.bindActionButtons\(state\.directActionButtons\)/,
-    'lazy About actions must join the active native click owner');
   assert.doesNotMatch(settingsUi, /OnPreviewMouseButtonDown/,
     'the failed root Preview mouse adapter must not compete with Button OnClicked');
   const shortcutWarning = settingsUi.slice(
@@ -471,20 +468,13 @@ function assertQuickStackSettings(root) {
     /local function refreshSteamVotePalVisuals[\s\S]*?SetBrushFromTexture[\s\S]*?SetVisibility\(VIS_VISIBLE\)[\s\S]*?function SettingsUI\.prepare\(\)[\s\S]*?refreshSteamVotePalVisuals\(\)/,
     'the Chillet portrait must retry during low-frequency settings preparation');
   assert.match(settingsUi,
-    /\/Script\/UMG\.GridPanel[\s\S]*?footerSize:SetHeightOverride\(SIZE\.footer\)[\s\S]*?FooterGuide\.footerHelpSpecs[\s\S]*?FooterGuide\.addGroup/,
-    'settings footer must retain Pal Insight fixed-height native input-guide layout');
-  for (const keyGuideContract of [
-    'KEYBOARD_KEY_GUIDE', 'XINPUT_KEY_GUIDE', 'DUALSENSE_KEY_GUIDE',
-    'keyGuideTexturePath', 'makeFooterKeycap', 'refreshFooterHelp',
-  ]) {
-    assert.ok(settingsUi.includes(keyGuideContract),
-      `settings footer is missing ${keyGuideContract}`);
-  }
+    /footerSize:SetHeightOverride\(SIZE\.footer\)[\s\S]*?state\.footerBounds\s*=\s*\{[\s\S]*?layout:AddChild\(footerSize\)/,
+    'hosted settings must reserve the shared Pal Insight footer region');
   assert.match(settingsUi,
-    /keyGuideTexturePath[\s\S]*?LoadAsset[\s\S]*?SetBrushFromTexture/,
-    'settings footer must load Palworld native key-guide textures');
+    /function FooterGuide\.refreshFooterHelp\(force\)[\s\S]*?state\.publishHostedFooter\(packet\)/,
+    'hosted settings must publish footer state for Pal Insight to render');
   assert.match(settingsUi,
-    /function FooterGuide\.markInputDevice[\s\S]*?FooterGuide\.refreshFooterHelp\(device == "gamepad"\)/,
+    /function FooterGuide\.markInputDevice[\s\S]*?FooterGuide\.refreshFooterHelp\(false\)/,
     'settings footer must refresh when the active input device changes');
   assert.match(settingsUi,
     /if applied then[\s\S]*?FooterGuide\.refreshFooterHelp\((?:true|false)\)/,
@@ -568,9 +558,11 @@ function assertQuickStackSettings(root) {
   const steamVote = fs.readFileSync(absolute(root, 'Scripts/steam_vote.lua'), 'utf8');
   assert.match(steamVote, /PalInsightQuickStackSteamVote/,
     'Quick Stack must load its own Steam vote helper');
-  assert.ok(steamVote.includes(
-    '"\\\\palinsightquickstack\\\\scripts\\\\palinsightquickstacksteamvote.dll"'),
-    'Quick Stack must reject a Steam vote helper outside its own mod directory');
+  assert.match(steamVote,
+    /debug\.getinfo\(1, "S"\)[\s\S]*directory \.\. "\/PalInsightQuickStackSteamVote\.dll"/,
+    'Quick Stack must load its Steam vote helper beside its own Lua module');
+  assert.match(steamVote, /package\.loadlib, state\.path/,
+    'Quick Stack must load Steam vote exports from the resolved local helper');
   const nativeVote = fs.readFileSync(absolute(root,
     'native/steam_vote/pal_insight_quick_stack_steam_vote.cpp'), 'utf8');
   const nativeVoteExports = fs.readFileSync(absolute(root,

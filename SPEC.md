@@ -16,6 +16,13 @@ in-game settings host and opens Quick Stack's settings surface from its
 Extensions page. Without Pal Insight, F5 still works from the persisted/default
 configuration, but Quick Stack does not expose a standalone settings panel.
 
+Hosted settings reuse Pal Insight's input-help footer, including localized
+labels, configured settings shortcut, and device-specific key icons. Quick Stack
+publishes only its footer bounds, current input device, interaction context, and
+status text through the generation-scoped host bridge; it does not draw a second
+copy. Nested dialogs and shortcut capture hide the footer until normal settings
+navigation resumes. Closing or losing the extension restores the host footer.
+
 ## Verified Inputs
 
 - Reference runtime:

@@ -6,15 +6,16 @@ Drücke in deiner aktuellen Basis [b]F5[/b]. Quick Stack verkauft konfigurierte 
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Neu in 1.3.0[/h2]
+[h2]Neu in 1.4.0[/h2]
 
 [list]
-[*][b]Arzneiregale:[/b] 3 Medizinarten können zuerst in Arzneiregale. Sind keine Plätze frei, folgen normale Lager. Standardmäßig aus.
-[*][b]Nahrungsrouten:[/b] 5 Kuchen bevorzugen Zuchtfarmen, andere Nahrung Futtertröge; danach folgen Kühlanlagen und normale Lager. Kuchen kommen nie in Futtertröge. Standardmäßig an.
-[*][b]Tabs:[/b] Allgemein, Automatischer Verkauf und Besondere Gegenstände unterstützen Maus, Tastatur, Controller und Pfeile. Kleine Brutkästen und Weihwassermenge sind Unteroptionen ihrer Route.
+[*][b]Automatischer Verkauf korrigiert:[/b] F5 findet einen Händler der aktuellen Basis, verkauft Wertgegenstände, Munition, Pal-Sphären und Angelköder und berücksichtigt Kostbar und Edles Fell von Gruppen-Pals beim Preis.
+[*][b]Sicherer Rückfall:[/b] Eine standardmäßig aktive Option behält Verkaufsgegenstände im Rucksack, wenn kein Händler gefunden wird. Deaktiviert gelten normale Lagerregeln.
+[*][b]Klarere Ergebnisse:[/b] Statusabhängige Titel und eine Zeile je Kategorie. Automatisch öffnet im Inventar Details, andernorts eine Textmeldung.
+[*][b]Routen und Stabilität:[/b] Korrigiert wurden Nahrungsprioritäten und ein möglicher Absturz beim Schließen der Einstellungen mit Esc oder Controller-Zurück, auch über Pal Insight.
 [/list]
 
-1.2.0 ergänzte Verkauf, Behaltelisten und Versionsverlauf; 1.1.0 optionale Gildentruhen und kleine Brutkästen.
+1.3.0 ergänzte Arzneiregal-Priorität, eigene Nahrungsrouten und Einstellungen mit drei Tabs.
 
 [h2]Alle Funktionen[/h2]
 
@@ -24,15 +25,16 @@ Drücke in deiner aktuellen Basis [b]F5[/b]. Quick Stack verkauft konfigurierte 
 [*]Wertgegenstände, Munition, Pal-Sphären und Angelköder einzeln aktivieren
 [*]Behaltelisten mit Symbolen per Maus, Tastatur oder Controller bedienen
 [*]Mit [b]Tab > R[/b] ausgeschlossene Gegenstände niemals verkaufen
+[*]Händler der aktuellen Basis finden und Kostbar sowie Edles Fell von Gruppen-Pals einrechnen
+[*]Verkaufsgegenstände ohne Händler standardmäßig behalten oder normalen Lagerregeln übergeben
 [/list]
 
-Prüfe die Behaltelisten. Wertgegenstände erlauben anfangs alle 9 Arten; andere Kategorien behalten zunächst alles.
+Alle Kategorien sind zunächst aus. Wertgegenstände erlauben alle 9 Arten; andere Kategorien behalten alles.
 
 [b]Schnelles Verstauen[/b]
 
 [list]
-[*]Verarbeitet nur den normalen Rucksack und die aktuelle Basis
-[*]Lässt Ausrüstung, Nahrungsslots, Schlüsselgegenstände und nicht unterstützte Bereiche unverändert
+[*]Verarbeitet nur normalen Rucksack und aktuelle Basis; lässt Ausrüstung, Nahrungsslots und Schlüsselgegenstände unverändert
 [*]Beachtet standardmäßig die Ausschlüsse über [b]Tab > R[/b]
 [*]Kann Ausschlüsse verstauen, ohne Palworlds Liste zu ändern
 [*]Kann neue Arten in kompatiblen freien Lagerplätzen zulassen
@@ -57,8 +59,8 @@ Arzneiregale sind standardmäßig aus, Nahrungsrouten an. [b]Tab > R[/b] schütz
 [b]Ergebnisse[/b]
 
 [list]
-[*]Automatisch, Nur Text oder Ergebnisfenster auswählen
-[*]Verkaufte, verstaute, ausgeschlossene und nicht verstaute Gegenstände prüfen
+[*]Automatisch öffnet im Inventar mit F5 Details, andernorts Text; Nur Text und Ergebnisfenster erzwingen den jeweiligen Modus
+[*]Statustitel und Kategoriezeilen zeigen Verkauf, Verstauen, Ausschlüsse und nicht verarbeitete Gegenstände
 [*]Native Symbole und lokalisierte Namen in detaillierten Ergebnissen verwenden
 [*]Auf Text zurückfallen, wenn das Detailfenster nicht geöffnet werden kann
 [/list]
@@ -72,11 +74,7 @@ Erst eine bestätigte Mengenabnahme zählt als Verkauf oder Verstauen.
 [*][b]F6[/b] – Quick-Stack-Einstellungen im eigenständigen Betrieb öffnen
 [/list]
 
-Die Tabs [b]Allgemein[/b], [b]Automatischer Verkauf[/b] und [b]Besondere Gegenstände[/b] unterstützen Maus, Tastatur, Controller und Pfeile. Kleine Brutkästen und Weihwassermenge sind Unteroptionen ihrer Routen.
-
-Tastenkürzel, Ergebnisse, Verkauf, Behaltelisten und alle Lagerrouten lassen sich im Spiel einstellen.
-
-Einstellungen überstehen Workshop-Updates und übernehmen bestehende 0.1.x-Daten.
+Die drei Tabs unterstützen Maus, Tastatur, Controller und Pfeile. Kleine Brutkästen und Weihwassermenge sind Unteroptionen. Einstellungen überstehen Workshop-Updates und übernehmen 0.1.x-Daten.
 
 Mit [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 oder neuer[/b][/url] öffnest du dieselben Einstellungen unter:
 
@@ -89,14 +87,10 @@ Quick Stack verwaltet Verkauf, Verschiebungen und Einstellungen. Ohne Pal Insigh
 [h2]Sprache, Sicherheit und Leistung[/h2]
 
 [list]
-[*]Unterstützt alle 17 aktuellen Palworld-Oberflächensprachen
-[*]Verwendet Palworlds native Symbole und lokalisierte Namen
-[*]Durchsucht nur die aktuelle Basis
-[*]Teilt Arbeit in begrenzte Spielthread-Schritte
-[*]Sendet Zielanfragen einzeln
-[*]Prüft Spieler, Basis, Quelle, Ziel, Filter, Rechte und Kapazität erneut
-[*]Stoppt bei Zustandsänderungen oder fehlender Bestätigung
-[*]Läuft vollständig auf dem Client
+[*]Unterstützt alle 17 Sprachen mit Palworlds nativen Symbolen und lokalisierten Namen
+[*]Durchsucht nur die aktuelle Basis und läuft vollständig auf dem Client
+[*]Arbeitet in begrenzten Spielthread-Schritten und sendet Zielanfragen einzeln
+[*]Prüft Spieler, Basis, Gegenstände, Ziel, Filter, Rechte und Kapazität erneut; stoppt bei Änderungen
 [/list]
 
 Vermeide andere Rucksackaktionen, solange die Fortschrittsmeldung sichtbar ist.
@@ -118,7 +112,7 @@ Vermeide andere Rucksackaktionen, solange die Fortschrittsmeldung sichtbar ist.
 [list]
 [*]Steam-Einzelspieler: Getestet
 [*]Pal-Insight-2.0.0-Integration: Unterstützt
-[*]Dedizierter Server: Ein Tester meldete erfolgreiche rein clientseitige Nutzung; Spielversion und Plattform wurden nicht erfasst
+[*]Dedizierter Server: Ein erfolgreicher rein clientseitiger Bericht; Spielversion und Plattform nicht erfasst
 [*]Co-op: Nicht verifiziert
 [*]Game Pass/WinGDK: Paket statisch geprüft, noch nicht im Spiel verifiziert
 [/list]
@@ -127,13 +121,13 @@ Vermeide andere Rucksackaktionen, solange die Fortschrittsmeldung sichtbar ist.
 
 [b]F5 reagiert nicht:[/b] Prüfe Basis, UE4SS, Quick Stack, Tastenkürzel und ob nur eine Mod-Kopie installiert ist.
 
-[b]Nicht verkauft oder verstaut:[/b] Prüfe Verkauf, Behalteliste, [b]Tab > R[/b], alle Routen, Filter, Rechte und Kapazität.
+[b]Nicht verkauft oder verstaut:[/b] Prüfe Verkauf, Behalteliste, [b]Tab > R[/b], Händler der aktuellen Basis, Routen, Filter, Rechte und Kapazität.
 
-Fehlerberichte benötigen Plattform, Versionen, Einstellungen, Schritte, Soll-/Ist-Ergebnis, UE4SS-Protokoll und Absturzdateien.
+Fehlerberichte benötigen Plattform, Versionen, Einstellungen, Schritte, Soll/Ist, UE4SS-Protokoll und Absturzdateien.
 
 [h2]Palworld-Zuchtplaner[/h2]
 
-Mit dem [url=https://cratex.app/games/palworld/breeding][b]Palworld-Zuchtplaner von CrateX.app[/b][/url] kannst du einen Spielstand importieren, Routen mit deinen vorhandenen Pals vergleichen oder allgemeine Zuchtkombinationen suchen. Spielstanddaten werden lokal im Browser verarbeitet und bleiben auf deinem Gerät.
+Mit dem [url=https://cratex.app/games/palworld/breeding][b]Palworld-Zuchtplaner von CrateX.app[/b][/url] kannst du Spielstände importieren, Routen mit eigenen Pals vergleichen oder Kombinationen suchen. Die Daten bleiben lokal im Browser.
 
 [url=https://cratex.app/games/palworld/breeding][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1787096480-407403883.jpg[/img][/url]
 

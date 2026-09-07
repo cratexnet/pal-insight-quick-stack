@@ -56,9 +56,10 @@ local Settings = require("settings")
 local SettingsUI = require("settings_ui")
 local QuickStack = require("quick_stack")
 local Palworld = require("palworld")
+local SteamVote = require("steam_vote")
 
 local TAG = "[PalInsightQuickStack] "
-local VERSION = "1.3.1"
+local VERSION = "1.4.0"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
 local SETTINGS_HOST_PROTOCOL_VERSION = 3
@@ -136,6 +137,7 @@ local state = {
     settingsHostOpenRevision = 0,
     settingsHostCloseRevision = 0,
     settingsHostRequestSignalRevision = 0,
+    steamVoteRequestRevision = 0,
     settingsHostGeneration = 0,
     settingsHostLivenessRevision = 0,
     settingsHostPanelRevision = nil,
@@ -482,6 +484,8 @@ local function initializeSettingsHostGeneration()
         settingsHostRead("CloseExtensionSettingsRequestRevision"))) or 0
     state.settingsHostRequestSignalRevision = nonNegativeRevision(select(1,
         settingsHostRead("HostRequestSignalRevision"))) or 0
+    state.steamVoteRequestRevision = nonNegativeRevision(select(1,
+        sharedRead("SteamVoteRequestRevision"))) or 0
 end
 
 livePalInsightRuntimeImpl = function()
@@ -502,9 +506,18 @@ end
 palInsightSettingsOwnsInput = function()
     local heartbeat = tonumber((select(1,
         settingsHostRead("HostHeartbeat"))))
-    local fresh = heartbeat ~= nil
+    local generation = nonNegativeRevision(select(1,
+        settingsHostRead("HostGeneration")))
+    return select(1, settingsHostRead("HostProtocolVersion"))
+            == SETTINGS_HOST_RUNTIME_PROTOCOL_VERSION
+        and select(1, settingsHostRead("SupportsQuickStack")) == true
+        and select(1, settingsHostRead("HostReady")) == true
+        and type((select(1,
+            settingsHostRead("HostRuntimeVersion")))) == "string"
+        and heartbeat ~= nil
         and os.clock() - heartbeat <= SETTINGS_HOST_LEASE_SECONDS
-    return fresh and select(1, settingsHostRead("HostSettingsOpen")) == true
+        and generation ~= nil and generation > 0
+        and select(1, settingsHostRead("HostSettingsOpen")) == true
 end
 
 local function livePalInsightHost()
@@ -679,6 +692,47 @@ local function publishSettingsSurfaceCapability()
     return true, nil
 end
 
+local function steamVoteStatus()
+    local statuses = SteamVote.statuses
+    if not SteamVote.present() then return statuses.unavailable end
+    if not SteamVote.initialize() then return statuses.unavailable end
+    local status = SteamVote.polling() and SteamVote.poll() or SteamVote.status()
+    if not SteamVote.polling() then
+        return SteamVote.resolvedStatus() or status or statuses.unavailable
+    end
+    return status or SteamVote.resolvedStatus() or statuses.querying
+end
+
+local function publishSteamVote()
+    return sharedWrite("SteamVoteAvailable", SteamVote.present())
+        and sharedWrite("SteamVoteStatus", steamVoteStatus())
+end
+
+local function reconcileSteamVoteRequest()
+    local request = nonNegativeRevision(select(1,
+        sharedRead("SteamVoteRequestRevision"))) or 0
+    if request <= state.steamVoteRequestRevision then return true end
+    state.steamVoteRequestRevision = request
+    local requestHost = nonNegativeRevision(select(1,
+        sharedRead("SteamVoteRequestHostGeneration")))
+    local requestTarget = nonNegativeRevision(select(1,
+        sharedRead("SteamVoteRequestTargetGeneration")))
+    local hostLive, hostGeneration = livePalInsightHost()
+    local accepted = hostLive == true
+        and requestHost == hostGeneration
+        and requestTarget == state.settingsHostGeneration
+        and SteamVote.present()
+        and SteamVote.initialize()
+    if accepted then
+        local status = steamVoteStatus()
+        accepted = status == SteamVote.statuses.up or SteamVote.setUp()
+    end
+    sharedWrite(accepted and "SteamVoteAppliedRevision"
+        or "SteamVoteRejectedRevision", request)
+    publishSteamVote()
+    return accepted
+end
+
 local function publishHostedAcknowledgementContext(hostGeneration, inputRoute)
     return settingsHostWrite(
             "ExtensionSettingsAckHostGeneration", hostGeneration)
@@ -727,10 +781,18 @@ local function reconcileSettingsHostRequests()
         return false
     end
     if SettingsUI.mode() == "hosted" then
-        local hostLive, hostGeneration = livePalInsightHost()
+        local hostGeneration = nonNegativeRevision(select(1,
+            settingsHostRead("HostGeneration")))
+        local hostAvailable = select(1,
+                settingsHostRead("HostProtocolVersion"))
+                == SETTINGS_HOST_RUNTIME_PROTOCOL_VERSION
+            and select(1, settingsHostRead("SupportsQuickStack")) == true
+            and select(1, settingsHostRead("HostReady")) == true
+            and type((select(1,
+                settingsHostRead("HostRuntimeVersion")))) == "string"
         local hostSettingsOpen = select(1,
             settingsHostRead("HostSettingsOpen")) == true
-        if not hostLive
+        if not hostAvailable
             or hostGeneration ~= state.settingsHostPanelHostGeneration
             or not hostSettingsOpen then
             SettingsUI.close("host-unavailable")
@@ -770,19 +832,38 @@ local function reconcileSettingsHostRequests()
         settingsHostRead("OpenExtensionSettingsInputDevice"))
     local requestInputRoute = select(1,
         settingsHostRead("OpenExtensionSettingsInputRoute"))
-    local hostLive, liveHostGeneration = livePalInsightHost()
-    if requestId ~= "quickStack"
-        or requestTargetGeneration ~= state.settingsHostGeneration
-        or requestHostGeneration ~= liveHostGeneration
-        or (requestInputDevice ~= "keyboard" and requestInputDevice ~= "mouse"
-            and requestInputDevice ~= "gamepad")
-        or (requestInputRoute ~= "host-native"
-            and requestInputRoute ~= "extension-cooked")
-        or select(1, settingsHostRead("HostSettingsOpen")) ~= true
-        or not hostLive then
+    if requestId ~= "quickStack" then
+        state.settingsHostOpenRevision = openRevision
+        return true
+    end
+    local liveHostGeneration = nonNegativeRevision(select(1,
+        settingsHostRead("HostGeneration")))
+    local hostAvailable = select(1,
+            settingsHostRead("HostProtocolVersion"))
+            == SETTINGS_HOST_RUNTIME_PROTOCOL_VERSION
+        and select(1, settingsHostRead("SupportsQuickStack")) == true
+        and select(1, settingsHostRead("HostReady")) == true
+        and type((select(1,
+            settingsHostRead("HostRuntimeVersion")))) == "string"
+    local rejectionCode
+    if requestTargetGeneration ~= state.settingsHostGeneration then
+        rejectionCode = "stale-extension"
+    elseif not hostAvailable then
+        rejectionCode = "host-unavailable"
+    elseif requestHostGeneration ~= liveHostGeneration then
+        rejectionCode = "stale-host"
+    elseif requestInputDevice ~= "keyboard" and requestInputDevice ~= "mouse"
+        and requestInputDevice ~= "gamepad" then
+        rejectionCode = "invalid-input-device"
+    elseif requestInputRoute ~= "host-managed" then
+        rejectionCode = "invalid-input-route"
+    elseif select(1, settingsHostRead("HostSettingsOpen")) ~= true then
+        rejectionCode = "host-settings-closed"
+    end
+    if rejectionCode ~= nil then
         state.settingsHostOpenRevision = openRevision
         acknowledgeHostedFailure(
-            openRevision, "host-unavailable", requestHostGeneration,
+            openRevision, rejectionCode, requestHostGeneration,
             requestInputRoute)
         return true
     end
@@ -828,6 +909,8 @@ local function reconcileSettingsHost()
     state.hostActivityHostLive = hostLive == true
     state.hostActivityHostSettingsOpen = hostSettingsOpen
     state.hostActivityLastProbeAt = os.clock()
+    reconcileSteamVoteRequest()
+    publishSteamVote()
     if not hostSettingsOpen then
         state.settingsPrewarmHostOpenHandled = false
     elseif not state.settingsPrewarmHostOpenHandled then
@@ -977,7 +1060,18 @@ SettingsUI.configure({
         return registerConfiguredKey(candidate)
     end,
     shortcutConflict = shortcutConflictFor,
+    publishHostedFooter = function(packet)
+        if state.settingsHostPanelRevision == nil
+            or state.settingsHostPanelHostGeneration == nil then return false end
+        return settingsHostWrite("ExtensionFooter", table.concat({
+            state.settingsHostPanelHostGeneration, state.settingsHostGeneration,
+            state.settingsHostPanelRevision }, ",") .. "\n" .. packet)
+    end,
     publishHostedCloseBlocked = function(blocked)
+        if select(1, settingsHostRead("ExtensionSettingsCloseBlocked")) ~= (blocked == true) then
+            local epoch = tonumber((select(1, settingsHostRead("ExtensionInputEpoch")))) or 0
+            settingsHostWrite("ExtensionInputEpoch", epoch + 1)
+        end
         if blocked ~= true then
             return settingsHostWrite("ExtensionSettingsCloseBlocked", false)
         end
@@ -991,6 +1085,15 @@ SettingsUI.configure({
             and settingsHostWrite("ExtensionSettingsCloseBlockedOpenRevision",
                 state.settingsHostPanelRevision)
             and settingsHostWrite("ExtensionSettingsCloseBlocked", true)
+    end,
+    readHostedInputEvents = function()
+        if state.settingsHostPanelRevision == nil then return nil end
+        local packet = select(1, settingsHostRead("ExtensionInputEvents"))
+        local header = table.concat({ state.settingsHostPanelHostGeneration,
+            state.settingsHostGeneration, state.settingsHostPanelRevision }, ",") .. "\n"
+        if type(packet) == "string" and packet:sub(1, #header) == header then
+            return packet:sub(#header + 1), tonumber((select(1, settingsHostRead("ExtensionInputEpoch")))) or 0
+        end
     end,
     readHostedControllerSnapshot = function()
         if state.settingsHostPanelRevision == nil
@@ -1101,7 +1204,8 @@ end
 local existingRevision = revisionValue(
     select(1, sharedRead("SettingsRevision"))) or 0
 if publishCanonicalSettings(existingRevision + 1)
-    and publishSettingsSurfaceCapability() then
+    and publishSettingsSurfaceCapability()
+    and publishSteamVote() then
     scheduleSharedPoll()
 end
 log("loaded " .. VERSION .. " -- configured action is "

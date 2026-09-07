@@ -75,19 +75,17 @@ end
 function SteamVote.present()
     if state.presenceChecked then return state.present == true end
     state.presenceChecked = true
-    if type(package) ~= "table" or type(package.searchpath) ~= "function" then
+    -- 只加载本模块 Scripts 旁的专属依赖，不依赖安装目录名称或全局 cpath。
+    local source = debug.getinfo(1, "S").source:gsub("^@", ""):gsub("\\", "/")
+    local directory = source:match("^(.*)/[^/]+$")
+    if directory == nil then return false end
+    local helperPath = directory .. "/PalInsightQuickStackSteamVote.dll"
+    local file = io.open(helperPath, "rb")
+    if file == nil then
+        log("Steam Workshop vote helper is not installed")
         return false
     end
-    local searched, helperPath = pcall(package.searchpath,
-        "PalInsightQuickStackSteamVote", package.cpath)
-    if not searched or type(helperPath) ~= "string" then return false end
-    local normalizedPath = helperPath:gsub("/", "\\"):lower()
-    local expectedSuffix =
-        "\\palinsightquickstack\\scripts\\palinsightquickstacksteamvote.dll"
-    if normalizedPath:sub(-#expectedSuffix) ~= expectedSuffix then
-        log("Steam Workshop vote helper rejected outside this mod: " .. helperPath)
-        return false
-    end
+    file:close()
     state.path = helperPath
     state.present = true
     return true
@@ -155,8 +153,12 @@ function SteamVote.poll()
         or status == SteamVote.statuses.up then
         state.resolvedStatus = status
         state.polling = false
-    elseif failed then
+    elseif failed and state.resolvedStatus ~= SteamVote.statuses.noVote
+        and state.resolvedStatus ~= SteamVote.statuses.down
+        and state.resolvedStatus ~= SteamVote.statuses.up then
         state.resolvedStatus = SteamVote.statuses.unavailable
+        state.polling = false
+    elseif failed then
         state.polling = false
     end
     return status

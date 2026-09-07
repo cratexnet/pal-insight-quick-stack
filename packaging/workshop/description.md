@@ -6,15 +6,16 @@ Press [b]F5[/b] inside your current base. Quick Stack can sell selected items, t
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]What's New in 1.3.0[/h2]
+[h2]What's New in 1.4.0[/h2]
 
 [list]
-[*][b]Medicine Rack priority:[/b] Optionally route the 3 current medical supplies to Medicine Racks first. If no usable rack is available or all racks are full, they continue to ordinary storage. This option is off by default.
-[*][b]Dedicated food routing:[/b] The 5 cakes use Breeding Farms first, while other food uses Pal Food Boxes first. Both routes then continue through cold storage and ordinary storage. Cakes never enter Pal Food Boxes. This option is on by default.
-[*][b]Tabbed settings:[/b] Settings are organized into General, Automatic Sale, and Special Items tabs, with mouse, keyboard, controller, and visible arrow navigation. Small-Incubator usage and Holy Water quantity appear as child options of their routing settings.
+[*][b]Automatic selling fixed:[/b] F5 finds an available current-base merchant, sells configured valuables, ammunition, Pal Spheres, and bait, and applies Noble and Fine Furs from party Pals.
+[*][b]Safe fallback:[/b] A new default-on option keeps sale items in the backpack when no merchant is found. Disable it to use normal storage rules.
+[*][b]Clearer results:[/b] Status titles and one line per category. Automatic opens details from Inventory and shows text elsewhere.
+[*][b]Routing and stability:[/b] Corrected cake and food priorities and a crash when closing Settings with Esc or controller Back, including from Pal Insight.
 [/list]
 
-Version 1.2.0 added automatic selling, keep lists, sale-before-storage ordering, and release history. Version 1.1.0 added optional Guild Chest and small-Incubator support.
+Version 1.3.0 added Medicine Rack priority, dedicated food routing, and three-tab Settings.
 
 [h2]All Features[/h2]
 
@@ -24,15 +25,16 @@ Version 1.2.0 added automatic selling, keep lists, sale-before-storage ordering,
 [*]Enable valuables, ammunition, Pal Spheres, and fishing bait separately
 [*]Use icon-assisted keep lists with mouse, keyboard, or controller
 [*]Keep all [b]Tab > R[/b] excluded items safe from selling
+[*]Find a current-base merchant and apply party Noble and Fine Furs to sale prices
+[*]Keep sale items in the backpack when no merchant is found by default, or use normal storage rules
 [/list]
 
-Review keep lists before enabling selling. High-value items initially allow all 9 items; other categories initially keep everything.
+All categories are off by default. High-value items initially allow all 9 items; other categories keep everything.
 
 [b]Quick storage[/b]
 
 [list]
-[*]Processes only the normal backpack and current base
-[*]Leaves equipment, food slots, Key Items, and unsupported areas untouched
+[*]Processes only the normal backpack and current base; leaves equipment, food slots, and Key Items untouched
 [*]Respects [b]Tab > R[/b] exclusions by default
 [*]Can include excluded items without changing Palworld's exclusion list
 [*]Can allow new item types in compatible ordinary-storage slots
@@ -57,9 +59,9 @@ Medicine Rack priority is off by default; food routing is on. [b]Tab > R[/b] exc
 [b]Results[/b]
 
 [list]
-[*]Choose Automatic, Text Only, or Result Window
-[*]Review sold, stored, excluded, and unstored items
-[*]Use native icons and localized names in detailed results
+[*]Automatic opens details from Inventory and text elsewhere; Text Only and Result Window force those modes
+[*]Status titles and category lines show sold, stored, excluded, and unstored items
+[*]Detailed results use native icons and localized names
 [*]Fall back to text when the detailed window is unavailable
 [/list]
 
@@ -72,11 +74,7 @@ Items count as sold or stored only after the backpack confirms the quantity decr
 [*][b]F6[/b] — open Quick Stack Settings when running standalone
 [/list]
 
-Settings are organized into [b]General[/b], [b]Automatic Sale[/b], and [b]Special Items[/b] tabs. Use the mouse, keyboard, controller, or the visible arrows on both sides to change tabs. Small-Incubator usage and World Tree Holy Water quantity are shown as child options of their corresponding routing settings.
-
-Configure shortcuts, results, selling, keep lists, and every storage route in game.
-
-Settings survive Workshop updates and import existing 0.1.x settings.
+The [b]General[/b], [b]Automatic Sale[/b], and [b]Special Items[/b] tabs support mouse, keyboard, controller, and side arrows. Child options include small Incubators and Holy Water quantity. Settings survive Workshop updates and import existing 0.1.x data.
 
 With [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 or newer[/b][/url], open the same settings from:
 
@@ -89,14 +87,10 @@ Quick Stack still owns selling, movement, and settings. If Pal Insight is disabl
 [h2]Language, Safety, and Performance[/h2]
 
 [list]
-[*]Supports all 17 current Palworld interface languages
-[*]Uses Palworld's native item icons and localized names
-[*]Searches only the current base
-[*]Splits work into bounded game-thread slices
-[*]Sends destination requests one at a time
-[*]Rechecks the player, base, source item, destination, filters, permissions, and capacity
-[*]Stops when required state changes or cannot be verified
-[*]Runs entirely on the client
+[*]Supports all 17 interface languages with Palworld's native icons and names
+[*]Searches only the current base and runs entirely on the client
+[*]Uses bounded game-thread work and sends one destination request at a time
+[*]Rechecks player, base, items, destination, filters, permissions, and capacity; stops if state changes
 [/list]
 
 Avoid other inventory actions while the in-progress message is visible.
@@ -127,7 +121,7 @@ Avoid other inventory actions while the in-progress message is visible.
 
 [b]F5 does nothing:[/b] Confirm that you are inside a base, UE4SS and Quick Stack are enabled, the shortcut is correct, and only one Quick Stack copy is installed.
 
-[b]Items were not sold or stored:[/b] Check the sale toggle, keep list, [b]Tab > R[/b], Medicine Rack, food, Egg, Relic, and ordinary-storage routing, filters, permissions, and capacity.
+[b]Items were not sold or stored:[/b] Check the sale toggle, keep list, [b]Tab > R[/b], current-base merchant, routing, filters, permissions, and capacity.
 
 Bug reports should include platform, versions, settings, reproduction steps, expected and actual results, the complete UE4SS log, and crash files.
 

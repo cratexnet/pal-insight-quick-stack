@@ -29,6 +29,11 @@ Nexus and CurseForge each receive two separately named portable ZIPs. The
 standard archive is extracted into the Steam Palworld folder that contains
 `Pal`:
 
+The ZIP filenames remain versioned for artifact traceability. On Nexus, the
+file display names do not: Main is always `Pal Insight: Quick Stack`, Optional
+is always `Game Pass Experimental (WinGDK)`, and the release version is entered
+only in the Nexus Version field.
+
 ```text
 CHANGELOG.md
 CREDITS.md

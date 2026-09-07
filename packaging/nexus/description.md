@@ -8,13 +8,16 @@
 
 [center][img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788399721-964224582.png[/img][/center]
 
-[size=5][b]WHAT'S NEW IN 1.3.0[/b][/size]
+[size=5][b]WHAT'S NEW IN 1.4.0[/b][/size]
 
 [list]
-[*][b]Medicine Rack routing:[/b] Added optional Medicine Rack priority for the 3 current medical supplies. When no usable Medicine Rack is available or all racks are full, items continue to ordinary storage. The option is disabled by default.[/*]
-[*][b]Dedicated food routing:[/b] Added default-on routing for food. The 5 cakes use Breeding Farms first, while other food uses Pal Food Boxes first; both routes continue through cold storage and then ordinary storage. Cakes never enter Pal Food Boxes, and Inventory [b]Tab > R[/b] exclusions remain protected.[/*]
-[*][b]Tabbed settings:[/b] Reorganized Settings into General, Automatic Sale, and Special Items tabs. Tabs support mouse, keyboard, and controller navigation, with visible arrow controls on both sides. Small-incubator usage and Holy Water quantity are displayed as child options of their corresponding routing settings.[/*]
+[*][b]Automatic selling fixed:[/b] F5 now finds an available merchant in the current base automatically and applies Noble and Fine Furs passives from party Pals to sale prices for configured valuables, ammunition, Pal Spheres, and fishing bait.[/*]
+[*][b]Safe merchant fallback:[/b] A new default-on option keeps sale items in the backpack when no merchant is found. Disable it to send those items through normal storage rules instead.[/*]
+[*][b]Clearer results:[/b] Results now use status-specific titles and one line per processing category. Automatic mode opens detailed results when F5 is used from the inventory and shows a text notification elsewhere.[/*]
+[*][b]Routing and stability fixes:[/b] Corrected dedicated food routing so the 5 cake types use Breeding Farms and other food uses Pal Food Boxes before cold and ordinary storage, and fixed a crash when closing Quick Stack settings with Esc or controller Back.[/*]
 [/list]
+
+Version 1.3.0 added Medicine Rack priority, dedicated food routing, and General, Automatic Sale, and Special Items settings tabs.
 
 Version 1.2.0 added optional automatic selling for 9 high-value merchant items, 32 ammunition types, 10 Pal Sphere types, and 4 fishing baits, with icon-assisted keep lists and localized release history.
 
@@ -87,6 +90,8 @@ Review the keep list before enabling a category.
 
 Enabling storage of ignored items does not make those items eligible for automatic selling.
 
+F5 searches the current base for an available merchant. Sale prices include Noble and Fine Furs passives from party Pals. If no merchant is found, sale items stay in the backpack by default; disable [b]Keep sale items when no merchant is found[/b] to let them continue through normal storage rules.
+
 [size=5][b]CONFIGURABLE STORAGE RULES[/b][/size]
 
 From F6 Settings, configure whether Quick Stack may also store or prioritize:
@@ -155,7 +160,7 @@ Choose one of three result modes:
 [*][b]Result window[/b][/*]
 [/list]
 
-Standalone Quick Stack uses non-interactive central notifications. With a compatible Pal Insight version active, Automatic mode can show a detailed result window when triggered from the Inventory screen; Result window requests that panel everywhere.
+Automatic mode opens the detailed result window when F5 is triggered from the Inventory screen and shows a text notification elsewhere. Text only always uses text, while Result window requests the detailed panel everywhere.
 
 Automatic selling uses the same selected result-display mode as storage.
 
@@ -248,6 +253,7 @@ Avoid other inventory operations while the progress notification is visible.
 [*]Check whether the item is selected in the category's keep list.[/*]
 [*]Check whether the item is excluded through Inventory [b]Tab > R[/b].[/*]
 [*]Confirm that the item belongs to one of the supported automatic-sale categories.[/*]
+[*]Make sure an available merchant is present in the current base. The F5 result reports when none is found.[/*]
 [/list]
 
 [b]Some items remain in the backpack[/b]

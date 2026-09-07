@@ -145,6 +145,8 @@ function writeJson(file, value) {
 
 // The release gate must pass before any previous artifact is removed.
 const version = assertPrebuild(ROOT);
+const releaseMetadata = JSON.parse(fs.readFileSync(
+  path.join(ROOT, 'packaging', 'release.json'), 'utf8'));
 
 for (const directory of [RELEASE_ROOT, ASSEMBLY_ROOT, ROUNDTRIP_ROOT]) {
   removeOwnedDirectory(directory);
@@ -206,6 +208,7 @@ const packageRecord = (file, entries) => ({
 const manifest = {
   release: `Pal Insight: Quick Stack ${version}`,
   status: 'passed',
+  nexus: releaseMetadata.nexus,
   packages: {
     nexus: packageRecord(archives.nexus, archiveEntries.nexus),
     nexusGamePass: packageRecord(

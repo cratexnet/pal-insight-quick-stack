@@ -82,13 +82,6 @@ local SIZE = {
     settingsTabs = 38.0,
     settingsTabGap = 6.0,
     footer = 112.0,
-    footerHelpHeader = 28.0,
-    footerHelpActionGap = 4.0,
-    footerHelpKeyGap = 2.0,
-    footerHelpSeparatorGap = 4.0,
-    footerHelpRowGap = 8.0,
-    footerHelpGroupGap = 12.0,
-    footerKeyGuide = 28.0,
     inlineShortcutMinWidth = 28.0,
     inlineShortcutMaxWidth = 180.0,
     aboutWidth = 620.0,
@@ -246,12 +239,8 @@ local state = {
     activeSettingsPage = "general",
     settingsPageScrollOffsets = {},
     buildingPageId = nil,
-    statusText = nil,
     modeText = nil,
-    footerHelp = nil,
-    footerGuideRecords = nil,
     footerGuideSignature = nil,
-    footerMode = nil,
     gamepadKeyGuideFamily = "xinput",
     shortcutWarningText = nil,
     shortcutControl = nil,
@@ -1001,7 +990,7 @@ local function applySteamVoteVisual(status, force)
     if type(control) ~= "table" then return false end
     local statuses = SteamVote.statuses
     setSteamVoteLocked(state.steamVotePendingUp == true
-        or status == statuses.settingUp)
+        or status == statuses.settingUp or status == statuses.up)
     if status == statuses.querying or status == statuses.settingUp then
         status = state.steamVoteDisplayStatus or statuses.noVote
     elseif status ~= statuses.up and status ~= statuses.down then
@@ -1011,11 +1000,10 @@ local function applySteamVoteVisual(status, force)
     state.steamVoteDisplayStatus = status
     pcall(function()
         if P.isValid(state.steamVoteBox) then
-            state.steamVoteBox:SetVisibility(
-                status == statuses.down and VIS_COLLAPSED or VIS_VISIBLE)
+            state.steamVoteBox:SetVisibility(VIS_VISIBLE)
         end
         state.steamVoteNoneSurface:SetVisibility(
-            status == statuses.noVote and VIS_VISIBLE or VIS_COLLAPSED)
+            status ~= statuses.up and VIS_VISIBLE or VIS_COLLAPSED)
         state.steamVoteUpSurface:SetVisibility(
             status == statuses.up and VIS_VISIBLE or VIS_COLLAPSED)
         if P.isValid(state.steamVoteNoneWidget) then
@@ -1023,13 +1011,12 @@ local function applySteamVoteVisual(status, force)
             state.steamVoteNoneWidget:SetToolTipText(FText(strings.voteLike))
         end
     end)
-    control.widget = status == statuses.noVote and state.steamVoteNoneWidget
-        or state.steamVoteUpSurface
-    control.hiddenFromFocus = status == statuses.down
+    control.widget = state.steamVoteNoneWidget
+    control.hiddenFromFocus = status == statuses.up
     control.passive = status == statuses.up
     local strings = currentStrings()
     control.tooltip = status == statuses.up and strings.voteThanks
-        or status == statuses.noVote and strings.voteLike or ""
+        or strings.voteLike
     if state.open == true and type(state.rebuildSettingsFocusEntries) == "function" then
         state.rebuildSettingsFocusEntries()
     end
@@ -1037,7 +1024,9 @@ local function applySteamVoteVisual(status, force)
 end
 
 local function pollSteamVote()
-    if not SteamVote.polling() then return false end
+    if not SteamVote.polling() then
+        return applySteamVoteVisual(SteamVote.resolvedStatus() or SteamVote.status(), false)
+    end
     local status = SteamVote.poll()
     local statuses = SteamVote.statuses
     if state.steamVotePendingUp == true
@@ -1084,7 +1073,7 @@ local function makeSteamVoteControl(tree, strings)
     local box = construct(tree, "/Script/UMG.SizeBox")
     local overlay = construct(tree, "/Script/UMG.Overlay")
     local none = makeSteamVoteAction(tree,
-        makeSteamVoteContent(tree, "thumb-up-outline.png", false), strings.voteLike)
+        makeSteamVoteContent(tree, "thumb-up-outline.png", true), strings.voteLike)
     local upSurface = construct(tree, "/Script/UMG.Border")
     local upContent = makeSteamVoteContent(tree, "thumb-up-filled.png", true)
     if box == nil or overlay == nil or none == nil
@@ -1096,7 +1085,7 @@ local function makeSteamVoteControl(tree, strings)
     align(overlay:AddChildToOverlay(none.surface), ALIGN_FILL, ALIGN_FILL)
     align(overlay:AddChildToOverlay(upSurface), ALIGN_FILL, ALIGN_FILL)
     box:SetWidthOverride(64.0)
-    box:SetHeightOverride(SIZE.button)
+    box:SetHeightOverride(SIZE.headerAction)
     align(box:AddChild(overlay), ALIGN_FILL, ALIGN_FILL)
     state.steamVoteBox = box
     state.steamVoteNoneWidget = none.widget
@@ -1654,12 +1643,8 @@ function SettingsUI.apply(candidate, source)
 end
 
 local function setStatus(message, failed)
-    if not P.isValid(state.statusText) then return end
-    pcall(function()
-        state.statusText:SetText(FText(tostring(message or "")))
-        state.statusText:SetColorAndOpacity(slateColor(
-            failed and COLORS.danger or COLORS.muted))
-    end)
+    state.statusMessage = tostring(message or ""):sub(1, 2048)
+    state.statusFailed = failed == true
 end
 
 currentStrings = function()
@@ -1749,441 +1734,25 @@ currentStrings = function()
     }
 end
 
-local FooterGuide = {
-    KEYBOARD_KEY_GUIDE = {
-        Up = "Up", Down = "Down", Left = "Left", Right = "Right",
-        Enter = "Enter", Escape = "Esc", Esc = "Esc",
-        SpaceBar = "Space", Space = "Space", Tab = "Tab",
-        LeftControl = "Ctrl", Ctrl = "Ctrl", RightControl = "Ctrl_R",
-        LeftShift = "shift", Shift = "shift", RightShift = "Shift_R",
-        LeftAlt = "Alt", Alt = "Alt", RightAlt = "Alt_R",
-    },
-    KEYBOARD_LEADING_PADDING = {
-        Enter = 3.0, Esc = 4.0, Space = 5.0, Tab = 5.0,
-        Ctrl = 5.0, Ctrl_R = 5.0, shift = 5.0, Shift_R = 5.0,
-        Alt = 5.0, Alt_R = 5.0,
-    },
-    MOUSE_KEY_GUIDE = {
-        LeftMouseButton = "T_MenuKeyGuide_MouseButtonLeft",
-        RightMouseButton = "T_MenuKeyGuide_MouseButtonRight",
-        MiddleMouseButton = "T_MenuKeyGuide_MouseWheelButton",
-        ThumbMouseButton = "T_MenuKeyGuide_MouseButton4",
-        ThumbMouseButton2 = "T_MenuKeyGuide_MouseButton5",
-        MouseScrollUp = "T_MenuKeyGuide_MouseSceollUp",
-        MouseScrollDown = "T_MenuKeyGuide_MouseSceollDown",
-        MouseWheelAxis = "T_MenuKeyGuide_MouseWheelAxis",
-    },
-    XINPUT_KEY_GUIDE = {
-        Gamepad_DPad_Up = "CrossU", Gamepad_DPad_Down = "CrossD",
-        Gamepad_DPad_Left = "CrossL", Gamepad_DPad_Right = "CrossR",
-        Gamepad_LeftStick_UD = "StickL_UD",
-        Gamepad_LeftStick_LR = "StickL_LR",
-        Gamepad_FaceButton_Bottom = "A",
-        Gamepad_FaceButton_Right = "B",
-        Gamepad_LeftShoulder = "L1", Gamepad_RightShoulder = "R1",
-    },
-    DUALSENSE_KEY_GUIDE = {
-        Gamepad_DPad_Up = "DirectionalU",
-        Gamepad_DPad_Down = "DirectionalD",
-        Gamepad_DPad_Left = "DirectionalL",
-        Gamepad_DPad_Right = "DirectionalR",
-        Gamepad_LeftStick_UD = "StickL_UD",
-        Gamepad_LeftStick_LR = "StickL_LR",
-        Gamepad_FaceButton_Bottom = "Cross",
-        Gamepad_FaceButton_Right = "Circle",
-        Gamepad_LeftShoulder = "L1", Gamepad_RightShoulder = "R1",
-    },
-    GAMEPAD_LEADING_PADDING = {
-        xinput = { CrossU = 2.0, CrossD = 2.0, CrossL = 5.0,
-            CrossR = 5.0 },
-        dualsense = {},
-    },
-}
-
-function FooterGuide.readGamepadFamily(force)
-    local current = state.gamepadKeyGuideFamily or "xinput"
-    if force ~= true then return current end
-    local controller = P.isValid(state.controller)
-        and state.controller or P.currentController()
-    local subsystemLibrary = staticObject(
-        "/Script/Engine.Default__SubsystemBlueprintLibrary")
-    local subsystemClass = staticObject(
-        "/Script/CommonInput.CommonInputSubsystem")
-    if not P.isValid(controller) or subsystemLibrary == nil
-        or subsystemClass == nil then return current end
-    local subsystem
-    pcall(function()
-        subsystem = subsystemLibrary:GetLocalPlayerSubsystemFromPlayerController(
-            controller, subsystemClass)
-    end)
-    if not P.isValid(subsystem) then return current end
-    local gamepadName
-    pcall(function() gamepadName = subsystem:GetCurrentGamepadName() end)
-    gamepadName = P.unwrap(gamepadName)
-    local normalized = tostring(gamepadName or ""):lower()
-    local family = (normalized:find("ps5", 1, true) ~= nil
-            or normalized:find("dualsense", 1, true) ~= nil
-            or normalized:find("playstation", 1, true) ~= nil)
-        and "dualsense" or "xinput"
-    state.gamepadKeyGuideFamily = family
-    return family
-end
-
-function FooterGuide.keyGuideTexturePath(device, value, gamepadFamily)
-    value = tostring(value or "")
-    local packagePath
-    if device == "gamepad" then
-        gamepadFamily = gamepadFamily
-            or state.gamepadKeyGuideFamily or "xinput"
-        local suffix = gamepadFamily == "dualsense"
-            and FooterGuide.DUALSENSE_KEY_GUIDE[value]
-            or FooterGuide.XINPUT_KEY_GUIDE[value]
-        if suffix ~= nil then
-            if gamepadFamily == "dualsense" then
-                packagePath = "/Game/Pal/Texture/UI/KeyGuide/DualSense/"
-                    .. "T_KeyGuide_DualSense_" .. suffix
-            else
-                packagePath = "/Game/Pal/Texture/UI/KeyGuide/T_KeyGuide_"
-                    .. suffix
-            end
-        end
-    else
-        local mouseAsset = FooterGuide.MOUSE_KEY_GUIDE[value]
-        if mouseAsset ~= nil then
-            packagePath = "/Game/Pal/Texture/UI/KeyGuide/mouse/" .. mouseAsset
-        else
-            local suffix = FooterGuide.KEYBOARD_KEY_GUIDE[value]
-            if suffix == nil and (value:match("^[A-Z]$")
-                or value:match("^[0-9]$") or value:match("^F%d%d?$")) then
-                suffix = value
-            end
-            if suffix ~= nil then
-                packagePath = "/Game/Pal/Texture/UI/KeyGuide/keyboard/"
-                    .. "T_KeyGuide_Keyboard_" .. suffix
-            end
-        end
-    end
-    if packagePath == nil then return nil end
-    local assetName = packagePath:match("([^/]+)$")
-    return packagePath .. "." .. tostring(assetName or "")
-end
-
-function FooterGuide.footerKeycapWidth(value, nativeTexture, inline)
-    if nativeTexture == true or inline ~= true then
-        return SIZE.footerKeyGuide
-    end
-    return math.max(SIZE.inlineShortcutMinWidth,
-        math.min(SIZE.inlineShortcutMaxWidth,
-            16.0 + (#tostring(value or "") * 7.0)))
-end
-
-function FooterGuide.refreshFooterKeycap(record, value, visible, device,
-        gamepadFamily)
-    if type(record) ~= "table" or not P.isValid(record.badge)
-        or not P.isValid(record.nativeSurface) then return false end
-    device = device or record.device or "keyboard"
-    local texturePath = FooterGuide.keyGuideTexturePath(
-        device, value, gamepadFamily)
-    local nativeTexture = false
-    if texturePath ~= nil then
-        local texture = staticObject(texturePath)
-        if texture == nil and type(LoadAsset) == "function" then
-            pcall(function() texture = LoadAsset(texturePath) end)
-            if P.isValid(texture) then staticObjects[texturePath] = texture end
-        end
-        if P.isValid(texture) then
-            nativeTexture = pcall(function()
-                record.nativeSurface:SetBrushFromTexture(texture)
-            end)
-        end
-    end
-    local requested = visible ~= false
-    local fallbackVisible = requested and not nativeTexture
-        and record.inline == true and P.isValid(record.fallbackSurface)
-        and P.isValid(record.text)
-    local width = FooterGuide.footerKeycapWidth(
-        value, nativeTexture, record.inline)
-    local updated = pcall(function()
-        record.nativeSurface:SetBrushColor(COLORS.white)
-        record.nativeSurface:SetPadding({ Left = 0, Top = 0, Right = 0, Bottom = 0 })
-        record.nativeSurface:SetVisibility(requested and nativeTexture
-            and VIS_VISIBLE or VIS_COLLAPSED)
-        if P.isValid(record.fallbackSurface) and P.isValid(record.text) then
-            record.fallbackSurface:SetBrushColor(COLORS.controlPressed)
-            record.fallbackSurface:SetPadding({ Left = 2, Top = 1,
-                Right = 2, Bottom = 1 })
-            record.text:SetText(FText(tostring(value or "")))
-            record.fallbackSurface:SetVisibility(fallbackVisible
-                and VIS_VISIBLE or VIS_COLLAPSED)
-        end
-        record.badge:SetWidthOverride(width)
-        record.badge:SetVisibility(requested
-            and (nativeTexture or fallbackVisible)
-            and VIS_VISIBLE or VIS_COLLAPSED)
-    end)
-    if updated then
-        record.device = device
-        record.texturePath = nativeTexture and texturePath or nil
-        record.nativeTexture = nativeTexture
-    end
-    return updated
-end
-
-function FooterGuide.makeFooterKeycap(tree, value, visible, device, inline,
-        gamepadFamily)
-    local box = construct(tree, "/Script/UMG.SizeBox")
-    local nativeSurface = construct(tree, "/Script/UMG.Border")
-    if box == nil or nativeSurface == nil then return nil end
-    local record = {
-        badge = box, nativeSurface = nativeSurface,
-        device = device, inline = inline == true,
-    }
-    local ok = pcall(function()
-        box:SetWidthOverride(SIZE.footerKeyGuide)
-        box:SetHeightOverride(SIZE.footerKeyGuide)
-        nativeSurface:SetVisibility(VIS_COLLAPSED)
-        if record.inline then
-            local overlay = construct(tree, "/Script/UMG.Overlay")
-            local fallbackSurface = construct(tree, "/Script/UMG.Border")
-            local label = makeText(tree, value or "", 13,
-                COLORS.text, TEXT_CENTER)
-            if overlay == nil or fallbackSurface == nil or label == nil then
-                error("footer keycap fallback is unavailable")
-            end
-            record.fallbackSurface = fallbackSurface
-            record.text = label
-            align(overlay:AddChildToOverlay(nativeSurface), ALIGN_FILL, ALIGN_FILL)
-            align(fallbackSurface:AddChild(label), ALIGN_CENTER, ALIGN_CENTER)
-            align(overlay:AddChildToOverlay(fallbackSurface),
-                ALIGN_FILL, ALIGN_FILL)
-            align(box:AddChild(overlay), ALIGN_FILL, ALIGN_FILL)
-        else
-            align(box:AddChild(nativeSurface), ALIGN_FILL, ALIGN_FILL)
-        end
-    end)
-    if not ok then return nil end
-    FooterGuide.refreshFooterKeycap(record, value, visible, device,
-        gamepadFamily)
-    return record
-end
-
-function FooterGuide.addFooterKeycap(tree, parent, value, visible, device,
-        leadingPadding, inline, gamepadFamily)
-    if not P.isValid(parent) then return nil end
-    local record = FooterGuide.makeFooterKeycap(tree, value, visible,
-        device, inline, gamepadFamily)
-    if record == nil then return nil end
-    local slot
-    pcall(function() slot = parent:AddChild(record.badge) end)
-    if slot == nil then return nil end
-    align(slot, ALIGN_FILL, ALIGN_CENTER)
-    setPadding(slot, tonumber(leadingPadding) or 0, 0, 0, 0)
-    record.slot = slot
-    return record
-end
-
-function FooterGuide.separatorAt(spec, device, index)
-    if type(spec) ~= "table" then return nil end
-    if spec.dynamic == true then return "+" end
-    local separators = spec[device .. "Separators"]
-    return type(separators) == "table" and separators[index] or nil
-end
-
-function FooterGuide.leadingPadding(device, value, gamepadFamily)
-    if device == "gamepad" then
-        gamepadFamily = gamepadFamily
-            or state.gamepadKeyGuideFamily or "xinput"
-        local suffixMap = gamepadFamily == "dualsense"
-            and FooterGuide.DUALSENSE_KEY_GUIDE
-            or FooterGuide.XINPUT_KEY_GUIDE
-        local suffix = suffixMap[tostring(value or "")]
-        local familyPadding = FooterGuide.GAMEPAD_LEADING_PADDING[gamepadFamily]
-            or FooterGuide.GAMEPAD_LEADING_PADDING.xinput
-        return tonumber(suffix ~= nil and familyPadding[suffix] or nil) or 0.0
-    end
-    local suffix = FooterGuide.KEYBOARD_KEY_GUIDE[tostring(value or "")]
-    return tonumber(suffix ~= nil
-        and FooterGuide.KEYBOARD_LEADING_PADDING[suffix] or nil) or 0.0
-end
-
-function FooterGuide.addGroup(tree, parent, spec, groupRecords, device,
-        rowIndex, pairIndex, gamepadFamily)
-    if not P.isValid(parent) or type(spec) ~= "table" then return nil end
-    device = device == "gamepad" and "gamepad" or "keyboard"
-    rowIndex = tonumber(rowIndex) or 0
-    pairIndex = tonumber(pairIndex) or 0
-    local titleColumn = pairIndex * 2
-    local valueColumn = titleColumn + 1
-    local keys = construct(tree, "/Script/UMG.HorizontalBox")
-    local actionLabel = makeText(tree, spec.action or "", 11,
-        COLORS.text, TEXT_LEFT)
-    if keys == nil or actionLabel == nil then return nil end
-    local actionSlot, keysSlot
-    local added = pcall(function()
-        actionLabel:SetAutoWrapText(false)
-        actionSlot = parent:AddChildToGrid(actionLabel, rowIndex, titleColumn)
-        keysSlot = parent:AddChildToGrid(keys, rowIndex, valueColumn)
-    end)
-    if not added or actionSlot == nil or keysSlot == nil then return nil end
-    align(actionSlot, ALIGN_LEFT, ALIGN_CENTER)
-    align(keysSlot, ALIGN_LEFT, ALIGN_CENTER)
-    local rowTop = rowIndex > 0 and SIZE.footerHelpRowGap or 0
-    setPadding(actionSlot,
-        pairIndex > 0 and SIZE.footerHelpGroupGap or 0,
-        rowTop, SIZE.footerHelpActionGap, 0)
-    setPadding(keysSlot, FooterGuide.leadingPadding(
-        device, (spec[device] or {})[1], gamepadFamily), rowTop, 0, 0)
-    local keycapCount = math.max(#(spec.keyboard or {}), #(spec.gamepad or {}))
-    if spec.dynamic == true then keycapCount = math.max(4, keycapCount) end
-    local groupRecord = {
-        id = spec.id, keycaps = {}, separatorRecords = {},
-        actionLabel = actionLabel, keys = keys, keysSlot = keysSlot,
-        rowIndex = rowIndex,
-    }
-    local values = spec[device] or {}
-    for index = 1, keycapCount do
-        local value = values[index]
-        local previousSeparator = index > 1
-            and FooterGuide.separatorAt(spec, device, index - 1) or nil
-        local keyGap = index > 1 and previousSeparator == nil
-            and SIZE.footerHelpKeyGap or 0
-        local keycap = FooterGuide.addFooterKeycap(tree, keys, value or "",
-            value ~= nil, device, keyGap, spec.dynamic == true, gamepadFamily)
-        if keycap == nil then return nil end
-        groupRecord.keycaps[index] = keycap
-        local keyboardSeparator = FooterGuide.separatorAt(
-            spec, "keyboard", index)
-        local gamepadSeparator = FooterGuide.separatorAt(
-            spec, "gamepad", index)
-        if index < keycapCount
-            and (keyboardSeparator ~= nil or gamepadSeparator ~= nil) then
-            local separatorGlyph = FooterGuide.separatorAt(spec, device, index)
-            local separator = makeText(tree, separatorGlyph or "", 13,
-                COLORS.muted, TEXT_CENTER)
-            if separator == nil then return nil end
-            separator:SetVisibility(separatorGlyph ~= nil
-                and values[index] ~= nil and values[index + 1] ~= nil
-                and VIS_VISIBLE or VIS_COLLAPSED)
-            local separatorSlot = keys:AddChild(separator)
-            align(separatorSlot, ALIGN_FILL, ALIGN_CENTER)
-            setPadding(separatorSlot, SIZE.footerHelpSeparatorGap, 0,
-                SIZE.footerHelpSeparatorGap, 0)
-            groupRecord.separatorRecords[index] = separator
-        end
-    end
-    groupRecords[#groupRecords + 1] = groupRecord
-    return actionSlot
-end
-
-function FooterGuide.footerHelpSpecs(strings)
-    strings = strings or currentStrings()
-    local hosted = (state.footerMode or state.mode) == "hosted"
-    return {
-        {
-            id = "navigation", action = strings.navigate,
-            keyboard = { "Up", "Down", "W", "S", "Tab" },
-            keyboardSeparators = { [2] = "/", [4] = "/" },
-            gamepad = { "Gamepad_DPad_Up", "Gamepad_DPad_Down",
-                "Gamepad_LeftStick_UD" },
-            gamepadSeparators = { [2] = "/" },
-        },
-        {
-            id = "switch-tabs", action = strings.switchTabs or "Switch tabs",
-            keyboard = { "Q", "E" },
-            keyboardSeparators = { [1] = "/" },
-            gamepad = { "Gamepad_LeftShoulder", "Gamepad_RightShoulder" },
-            gamepadSeparators = { [1] = "/" },
-        },
-        {
-            id = "adjust", action = strings.adjust,
-            keyboard = { "Left", "Right", "A", "D" },
-            keyboardSeparators = { [2] = "/" },
-            gamepad = { "Gamepad_DPad_Left", "Gamepad_DPad_Right",
-                "Gamepad_LeftStick_LR" },
-            gamepadSeparators = { [2] = "/" },
-        },
-        {
-            id = "confirm", action = strings.confirm,
-            keyboard = { "Enter", "SpaceBar" },
-            keyboardSeparators = { [1] = "/" },
-            gamepad = { "Gamepad_FaceButton_Bottom" },
-        },
-        {
-            id = "close", action = hosted
-                and strings.returnToPalInsight or strings.close,
-            keyboard = { "Escape" },
-            gamepad = { "Gamepad_FaceButton_Right" },
-        },
-        {
-            id = "toggle", action = hosted
-                and strings.closeAllSettings or strings.toggleSettings,
-            keyboard = { "F6" }, gamepad = {},
-        },
-    }
-end
+local FooterGuide = {}
 
 function FooterGuide.refreshFooterHelp(force)
-    local records = state.footerGuideRecords
-    if type(records) ~= "table" or type(records.groups) ~= "table" then
-        return false
+    if not state.open or type(state.footerBounds) ~= "table"
+        or type(state.publishHostedFooter) ~= "function" then return false end
+    local context = (state.activeChoice ~= nil or state.aboutOpen
+        or state.releaseNotesOpen or SettingsUI.closeBlocked()) and "hidden"
+        or state.numberEdit ~= nil and "number" or "normal"
+    local packet = table.concat({ state.footerBounds[1], state.footerBounds[2],
+        state.footerBounds[3], state.footerBounds[4],
+        state.lastInputDevice or "keyboard", context,
+        state.statusFailed and "1" or "0" }, ",")
+        .. "\n" .. (state.statusMessage or "")
+    if not force and state.footerGuideSignature == packet then return false end
+    if state.publishHostedFooter(packet) then
+        state.footerGuideSignature = packet
+        return true
     end
-    local displayDevice = state.lastInputDevice == "gamepad"
-        and "gamepad" or "keyboard"
-    local gamepadFamily = displayDevice == "gamepad"
-        and FooterGuide.readGamepadFamily(force)
-        or state.gamepadKeyGuideFamily or "xinput"
-    local signature = displayDevice .. "|" .. gamepadFamily .. "|"
-        .. tostring(state.footerMode or state.mode or "standalone")
-    if force ~= true and state.footerGuideSignature == signature then
-        return false
-    end
-    local strings = currentStrings()
-    local specs = FooterGuide.footerHelpSpecs(strings)
-    local changed = pcall(function()
-        local footerTitle = strings.inputHelpTitle or strings.footer or "Controls"
-        records.title:SetText(FText(footerTitle))
-        records.deviceLabel:SetText(FText(displayDevice == "gamepad"
-            and (strings.inputDeviceGamepad or "Controller")
-            or (strings.inputDeviceKeyboardMouse or "Keyboard / Mouse")))
-        for groupIndex, spec in ipairs(specs) do
-            local group = records.groups[groupIndex]
-            local values = spec[displayDevice] or {}
-            if type(group) == "table" then
-                local hasValues = #values > 0
-                group.actionLabel:SetText(FText(spec.action or ""))
-                group.actionLabel:SetVisibility(hasValues
-                    and VIS_VISIBLE or VIS_COLLAPSED)
-                group.keys:SetVisibility(hasValues
-                    and VIS_VISIBLE or VIS_COLLAPSED)
-                for index, keycap in ipairs(group.keycaps or {}) do
-                    local value = values[index]
-                    local previousSeparator = index > 1
-                        and FooterGuide.separatorAt(
-                            spec, displayDevice, index - 1) or nil
-                    setPadding(keycap.slot,
-                        index > 1 and previousSeparator == nil
-                            and SIZE.footerHelpKeyGap or 0, 0, 0, 0)
-                    FooterGuide.refreshFooterKeycap(keycap, value,
-                        value ~= nil, displayDevice, gamepadFamily)
-                end
-                for index, separator in pairs(
-                        group.separatorRecords or {}) do
-                    local glyph = FooterGuide.separatorAt(
-                        spec, displayDevice, index)
-                    separator:SetText(FText(glyph or ""))
-                    separator:SetVisibility(glyph ~= nil
-                        and values[index] ~= nil and values[index + 1] ~= nil
-                        and VIS_VISIBLE or VIS_COLLAPSED)
-                end
-                setPadding(group.keysSlot, FooterGuide.leadingPadding(
-                    displayDevice, values[1], gamepadFamily),
-                    (tonumber(group.rowIndex) or 0) > 0
-                        and SIZE.footerHelpRowGap or 0, 0, 0)
-            end
-        end
-    end)
-    if changed then state.footerGuideSignature = signature end
-    return changed
+    return false
 end
 
 function FooterGuide.markInputDevice(device)
@@ -2191,9 +1760,7 @@ function FooterGuide.markInputDevice(device)
         and device ~= "gamepad" then return false end
     if state.lastInputDevice == device then return false end
     state.lastInputDevice = device
-    if state.open then
-        FooterGuide.refreshFooterHelp(device == "gamepad")
-    end
+    FooterGuide.refreshFooterHelp(false)
     return true
 end
 
@@ -2515,6 +2082,7 @@ local function cancelNavigationRepeat(keyName)
 end
 
 local function startNavigationRepeat(keyName, device)
+    if state.hostManagedInput and device == "gamepad" then return end
     local axis, direction = state.navigationDirection(keyName)
     if axis == nil or not state.open or state.lifecycle ~= "open" then
         return false
@@ -2885,9 +2453,8 @@ local function selectorSelectedKeyHook(context, chordParam)
     local selector = P.unwrap(context)
     local control = shortcutControlForSelector(selector)
     if control == nil then return end
-    local selecting = false
-    pcall(function() selecting = selector:GetIsSelectingKey() == true end)
-    if not selecting and control.selecting ~= true then return end
+    state.hostCaptureUntil = os.clock() + 0.35
+    if type(state.publishHostedCloseBlocked) == "function" then state.publishHostedCloseBlocked(true) end
     local chord
     local ok = pcall(function() chord = chordParam:get() end)
     if not ok then chord = P.unwrap(chordParam) end
@@ -2933,7 +2500,7 @@ local function claimSynchronousNavigation(keyName, source)
     local ownedUntil = type(claim) == "table"
         and (tonumber(claim.untilAt) or 0.0) or tonumber(claim) or 0.0
     if source ~= "global" and source ~= "preview"
-        and source ~= "actor" then return false end
+        and source ~= "actor" and source ~= "host" then return false end
     if ownedUntil > now and (type(claim) ~= "table"
         or claim.source ~= source) then return true end
     state.synchronousNavigationUntil[keyName] = {
@@ -2945,6 +2512,9 @@ local function claimSynchronousNavigation(keyName, source)
 end
 
 local function handlePressed(keyName, device, source, shiftDown)
+    if state.hostManagedInput and source ~= "host" then return true end
+    if state.hostManagedInput and not selectorCapturing()
+        and os.clock() < (state.hostCaptureUntil or 0) then return true end
     if not state.open then return false end
     if state.lifecycle ~= "open" and state.lifecycle ~= "recovering" then return true end
     device = device or (tostring(keyName):find("^Gamepad_") and "gamepad" or "keyboard")
@@ -3185,7 +2755,8 @@ local function handlePressed(keyName, device, source, shiftDown)
     return true
 end
 
-local function handleReleased(keyName)
+local function handleReleased(keyName, source)
+    if state.hostManagedInput and source ~= "host" then return true end
     if not state.open then return false end
     if state.lifecycle ~= "open" and state.lifecycle ~= "recovering" then return true end
     if type(keyName) == "string" then
@@ -4218,8 +3789,26 @@ end
 
 local function pollControls()
     if not state.open then return end
+    FooterGuide.refreshFooterHelp(false)
     if drainPendingAboutPointerClose() then return end
+    local capturing = selectorCapturing()
+    if capturing or state.hostWasCapturing then state.hostCaptureUntil = os.clock() + 0.35 end
+    state.hostWasCapturing = capturing
+    local blocked = SettingsUI.closeBlocked()
+    if blocked ~= state.hostPublishedBlocked then
+        state.hostPublishedBlocked = blocked
+        if type(state.publishHostedCloseBlocked) == "function" then state.publishHostedCloseBlocked(blocked) end
+    end
     pollSteamVote()
+    if state.downvoteCheckedForOpen ~= true and not SteamVote.polling() then
+        local status = SteamVote.resolvedStatus() or SteamVote.status()
+        if status == SteamVote.statuses.down then
+            state.pendingDownvoteAcknowledgement = true
+            state.downvoteCheckedForOpen = true
+        elseif status == SteamVote.statuses.up or status == SteamVote.statuses.noVote then
+            state.downvoteCheckedForOpen = true
+        end
+    end
     if state.pendingDownvoteAcknowledgement == true
         and state.activeChoice == nil then
         if Deferred.openDownvoteAcknowledgement() then
@@ -4437,6 +4026,34 @@ state.pollNativeController = function()
 end
 
 local function pollStandaloneController()
+    if state.hostManagedInput then
+        local packet, epoch = state.readHostedInputEvents()
+        if epoch ~= state.hostInputEpoch then
+            state.hostInputEpoch = epoch
+            state.gamepadAcceptDown = false
+            state.gamepadBackDown = false
+            cancelNavigationRepeat()
+        end
+        for sequence, edge, key, eventEpoch in tostring(packet or ""):gmatch("(%d+),([%a]+),([%w_]+),(%d+)") do
+            sequence = tonumber(sequence)
+            if sequence > state.hostInputSequence then
+                if sequence ~= state.hostInputSequence + 1 then
+                    SettingsUI.close("host-input-overflow")
+                    return
+                end
+                state.hostInputSequence = sequence
+                if tonumber(eventEpoch) == epoch then
+                    if edge == "pressed" then
+                        handlePressed(key == "BackTab" and "Tab" or key, nil, "host", key == "BackTab")
+                    elseif edge == "released" then
+                        handleReleased(key, "host")
+                    end
+                end
+                if not state.open or select(2, state.readHostedInputEvents()) ~= epoch then return end
+            end
+        end
+        return
+    end
     if pollHostedController() then return end
     if state.pollNativeController() then return end
     if InputOwner.cookedInputActive() then
@@ -7306,12 +6923,9 @@ local function clearWindowReferences()
     state.triggerSurfaces = {}
     state.directActionButtons = {}
     state.headerActionVisuals = {}
-    state.statusText = nil
     state.modeText = nil
-    state.footerHelp = nil
-    state.footerGuideRecords = nil
+    state.footerBounds = nil
     state.footerGuideSignature = nil
-    state.footerMode = nil
     state.shortcutWarningText = nil
     state.shortcutControl = nil
     state.headerActionHint = nil
@@ -7473,7 +7087,6 @@ local function prepareWindowForOpen(mode)
             state.modeText:SetText(FText(strings.creator or "by cratexnet"))
         end)
     end
-    state.footerMode = mode
     state.footerGuideSignature = nil
     FooterGuide.refreshFooterHelp(true)
     for _, record in ipairs(state.triggerSurfaces or {}) do
@@ -7651,14 +7264,10 @@ local function buildSettingsWindow(controller, mode)
             11, COLORS.textMuted, TEXT_LEFT)
         local voteBox = makeSteamVoteControl(tree, strings)
         local releaseStrings = SettingsUI.releaseNotes.current()
-        local aboutAction = makeIconTrigger(
-            tree, "ⓘ", strings.about, "about", true)
         local resetAction = makeIconTrigger(
             tree, "↻", strings.reset, "reset", true)
         local closeAction = makeIconTrigger(
             tree, "×", strings.close, "close", true)
-        local aboutCell = aboutAction ~= nil
-            and makeHeaderActionCell(tree, aboutAction.box) or nil
         local resetCell = resetAction ~= nil
             and makeHeaderActionCell(tree, resetAction.box) or nil
         local closeCell = closeAction ~= nil
@@ -7670,8 +7279,7 @@ local function buildSettingsWindow(controller, mode)
             or modeText == nil or headerActionArea == nil
             or headerActionStack == nil or headerActionRow == nil
             or headerActionHintBox == nil or headerActionHint == nil
-            or aboutAction == nil or resetAction == nil or closeAction == nil
-            or aboutCell == nil
+            or resetAction == nil or closeAction == nil
             or resetCell == nil or closeCell == nil then
             error("settings header is unavailable")
         end
@@ -7718,13 +7326,8 @@ local function buildSettingsWindow(controller, mode)
             align(voteSlot, ALIGN_CENTER, ALIGN_LEFT)
         end
         headerActionArea:SetWidthOverride(
-            SIZE.headerAction * 3.0 + SIZE.headerActionGap * 2.0)
+            SIZE.headerAction * 2.0 + SIZE.headerActionGap)
         headerActionArea:SetHeightOverride(52.0)
-        local aboutSlot = headerActionRow:AddChild(aboutCell)
-        align(aboutSlot, ALIGN_CENTER, ALIGN_CENTER)
-        if not addHeaderActionGap(tree, headerActionRow) then
-            error("settings header About gap is unavailable")
-        end
         local resetSlot = headerActionRow:AddChild(resetCell)
         align(resetSlot, ALIGN_CENTER, ALIGN_CENTER)
         if not addHeaderActionGap(tree, headerActionRow) then
@@ -7947,9 +7550,6 @@ local function buildSettingsWindow(controller, mode)
             kind = "releaseNotes", widget = versionButton,
             tooltip = releaseStrings.title,
         }
-        local aboutControl = {
-            kind = "about", widget = aboutAction.widget, tooltip = strings.about,
-        }
         local resetControl = {
             kind = "reset", widget = resetAction.widget, tooltip = strings.reset,
         }
@@ -7962,80 +7562,23 @@ local function buildSettingsWindow(controller, mode)
             registerFocusable(state.steamVoteControl, voteBox)
             state.controls[#state.controls + 1] = state.steamVoteControl
         end
-        registerFocusable(aboutControl, aboutAction.box, aboutAction)
         registerFocusable(resetControl, resetAction.box, resetAction)
         registerFocusable(closeControl, closeAction.box, closeAction)
-        state.controls[#state.controls + 1] = aboutControl
         state.controls[#state.controls + 1] = resetControl
         state.controls[#state.controls + 1] = closeControl
         state.rebuildSettingsFocusEntries()
 
+        -- 留出同一底栏的位置；控件、按键图标和翻译由 Insight 绘制。
         local footerSize = construct(tree, "/Script/UMG.SizeBox")
-        local footer = construct(tree, "/Script/UMG.Border")
-        local footerStack = construct(tree, "/Script/UMG.VerticalBox")
-        local footerHeaderSize = construct(tree, "/Script/UMG.SizeBox")
-        local footerHeader = construct(tree, "/Script/UMG.HorizontalBox")
-        local footerGrid = construct(tree, "/Script/UMG.GridPanel")
-        local footerTitleCopy = strings.inputHelpTitle
-            or (mode == "hosted" and strings.footerHosted or strings.footer)
-            or "Controls"
-        local footerTitle = makeText(tree, footerTitleCopy, 12, COLORS.text)
-        local footerDevice = makeText(tree,
-            strings.inputDeviceKeyboardMouse or "Keyboard / Mouse",
-            11, COLORS.accent)
-        local footerSpacer = construct(tree, "/Script/UMG.SizeBox")
-        state.statusText = makeText(tree, "", 11, COLORS.muted, TEXT_RIGHT)
-        state.modeText = modeText
-        state.footerHelp = nil
-        state.footerMode = mode
-        if footerSize == nil or footer == nil or footerStack == nil
-            or footerHeaderSize == nil or footerHeader == nil
-            or footerGrid == nil or footerTitle == nil
-            or footerDevice == nil or footerSpacer == nil
-            or state.statusText == nil then
-            error("settings footer is unavailable")
-        end
+        if footerSize == nil then error("settings footer slot is unavailable") end
         footerSize:SetHeightOverride(SIZE.footer)
-        footerHeaderSize:SetHeightOverride(SIZE.footerHelpHeader)
-        footer:SetBrushColor(COLORS.chrome)
-        footer:SetPadding({ Left = 12, Top = 8, Right = 12, Bottom = 8 })
-        align(footerHeader:AddChild(footerTitle), ALIGN_LEFT, ALIGN_CENTER)
-        local deviceSlot = footerHeader:AddChild(footerDevice)
-        setPadding(deviceSlot, 8, 0, 0, 0)
-        align(deviceSlot, ALIGN_LEFT, ALIGN_CENTER)
-        local spacerSlot = footerHeader:AddChild(footerSpacer)
-        setFill(spacerSlot)
-        align(spacerSlot, ALIGN_FILL, ALIGN_FILL)
-        align(footerHeader:AddChild(state.statusText), ALIGN_RIGHT, ALIGN_CENTER)
-        align(footerHeaderSize:AddChild(footerHeader), ALIGN_FILL, ALIGN_FILL)
-        align(footerStack:AddChild(footerHeaderSize), ALIGN_FILL, ALIGN_FILL)
-        for valueColumn = 1, 5, 2 do
-            footerGrid:SetColumnFill(valueColumn, 1.0)
-        end
-        local gridSlot = footerStack:AddChild(footerGrid)
-        align(gridSlot, ALIGN_FILL, ALIGN_FILL)
-        setPadding(gridSlot, 0, 4, 0, 0)
-        local footerStackSlot = footer:AddChild(footerStack)
-        align(footerStackSlot, ALIGN_FILL, ALIGN_FILL)
-        align(footerSize:AddChild(footer), ALIGN_FILL, ALIGN_FILL)
-        local footerSpecs = FooterGuide.footerHelpSpecs(strings)
-        local footerGroups = {}
-        for index, spec in ipairs(footerSpecs) do
-            local rowIndex = index > 3 and 1 or 0
-            local pairIndex = (index - 1) % 3
-            if FooterGuide.addGroup(tree, footerGrid, spec, footerGroups,
-                    "keyboard", rowIndex, pairIndex,
-                    state.gamepadKeyGuideFamily) == nil then
-                error("settings footer group is unavailable")
-            end
-        end
-        state.footerGuideRecords = {
-            groups = footerGroups,
-            title = footerTitle,
-            deviceLabel = footerDevice,
+        state.footerBounds = {
+            math.floor((viewportWidth - width) * 0.5 + SIZE.windowOutline + 16),
+            math.floor((viewportHeight - height) * 0.5) + math.floor(height - SIZE.windowOutline - 12 - SIZE.footer),
+            math.floor(width - 2 * SIZE.windowOutline - 32), math.floor(SIZE.footer),
         }
+        state.modeText = modeText
         state.footerGuideSignature = nil
-        FooterGuide.refreshFooterHelp(true)
         local footerSlot = layout:AddChild(footerSize)
         align(footerSlot, ALIGN_FILL, ALIGN_FILL)
         setPadding(footerSlot, 0, 8, 0, 0)
@@ -8109,8 +7652,10 @@ function SettingsUI.configure(options)
     state.registerShortcut = options.registerShortcut
     state.shortcutConflict = options.shortcutConflict
     state.readHostedControllerSnapshot = options.readHostedControllerSnapshot
+    state.readHostedInputEvents = options.readHostedInputEvents
     state.ackHostedControllerSnapshot = options.ackHostedControllerSnapshot
     state.publishHostedCloseBlocked = options.publishHostedCloseBlocked
+    state.publishHostedFooter = options.publishHostedFooter
     state.log = options.log
     state.onApplied = options.onApplied
     state.onClosed = options.onClosed
@@ -8206,8 +7751,7 @@ function SettingsUI.open(mode, options)
     local prepareFinished = openStarted
     mode = "hosted"
     local hostedInputRoute = mode == "hosted" and options.hostedInputRoute or nil
-    if mode == "hosted" and hostedInputRoute ~= "host-native"
-        and hostedInputRoute ~= "extension-cooked" then
+    if mode == "hosted" and hostedInputRoute ~= "host-managed" then
         return false, "hosted input route is unavailable"
     end
     local initialInputDevice = options.initialInputDevice
@@ -8225,11 +7769,6 @@ function SettingsUI.open(mode, options)
     if not P.isValid(controller) then
         return false, "local gameplay context is unavailable"
     end
-    local resolvedSteamVote = SteamVote.resolvedStatus()
-    local steamVoteReady = SteamVote.initialize()
-    local steamVoteStatus = steamVoteReady and SteamVote.poll() or nil
-    local steamVotePending = steamVoteReady and SteamVote.polling()
-    local stableSteamVote = steamVoteStatus or resolvedSteamVote
     if not installPreviewKeyHook() or not installKeyUpHook()
         or not installSelectorSelectedKeyHook() then
         return false, "focus-scoped settings input is unavailable"
@@ -8259,6 +7798,11 @@ function SettingsUI.open(mode, options)
     state.windowSession = state.windowSession + 1
     state.generation = state.generation + 1
     state.mode = mode
+    state.hostManagedInput = hostedInputRoute == "host-managed"
+    state.hostInputSequence = 0
+    state.hostCaptureUntil = os.clock() + 0.2
+    state.hostWasCapturing = false
+    state.hostPublishedBlocked = nil
     state.open = true
     state.closeRecoveryDeadline = 0.0
     state.closeRecoveryRetryAt = 0.0
@@ -8341,22 +7885,9 @@ function SettingsUI.open(mode, options)
     for _, keyName in ipairs(state.controllerKeys) do
         state.controllerDown[keyName] = inputKeyDown(controller, keyName) == true
     end
-    local downvoteAcknowledgementOpen = false
-    local steamVoteCheckingOpen = false
     state.pendingDownvoteAcknowledgement = false
-    if steamVoteReady and type(state.steamVoteControl) == "table" then
-        applySteamVoteVisual(stableSteamVote or SteamVote.status(), true)
-        if stableSteamVote == SteamVote.statuses.down then
-            downvoteAcknowledgementOpen =
-                Deferred.openDownvoteAcknowledgement() == true
-            state.pendingDownvoteAcknowledgement = not downvoteAcknowledgementOpen
-        elseif steamVotePending then
-            steamVoteCheckingOpen = Deferred.openSteamVoteChecking() == true
-        end
-    end
-    if not downvoteAcknowledgementOpen and not steamVoteCheckingOpen then
-        focusEntry(1, initialInputDevice, true)
-    end
+    state.downvoteCheckedForOpen = false
+    focusEntry(1, initialInputDevice, true)
     state.lifecycle = "open"
     pcall(function() state.widget:SetRenderOpacity(1.0) end)
     refreshInputFocusVisuals()
@@ -8441,6 +7972,7 @@ end
 function SettingsUI.close(reason)
     if SettingsUI.closeBlocked() then
         local internalClose = reason == "native-controller-failure"
+            or reason == "host-input-overflow"
             or reason == "recovery-retry" or reason == "context-changed"
             or reason == "host-takeover" or reason == "runtime-superseded"
             or reason == "host-unavailable"
@@ -8502,7 +8034,9 @@ function SettingsUI.toggle(mode)
 end
 
 function SettingsUI.closeBlocked()
-    return type(state.activeChoice) == "table"
+    return state.open and (selectorCapturing()
+        or os.clock() < (state.hostCaptureUntil or 0))
+        or type(state.activeChoice) == "table"
         and (state.activeChoice.kind == "downvoteAcknowledgement"
             or state.activeChoice.kind == "steamVoteChecking")
 end

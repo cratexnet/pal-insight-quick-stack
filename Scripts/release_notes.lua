@@ -6,6 +6,10 @@ local ReleaseNotes = {}
 -- timestamp when its version number is upgraded. Update it later only when
 -- necessary, preserving source precision rather than inventing seconds.
 ReleaseNotes.versions = {
+    { version = "1.4.0", dateUtc = "2026-09-06 19:40:44", groups = {
+        { kind = "changed", items = { 26, 27, 28 } },
+        { kind = "fixed", items = { 29 } },
+    } },
     { version = "1.3.1", dateUtc = "2026-09-05 22:09:10", groups = {
         { kind = "added", items = { 21 } },
         { kind = "changed", items = { 22 } },
@@ -444,6 +448,27 @@ local PATCH_131 = {
     vi = { [21] = "Đã thêm tùy chọn bật mặc định để giữ vật phẩm cần bán trong túi khi không tìm thấy thương nhân. Tắt tùy chọn này để áp dụng quy tắc cất đồ thông thường.", [22] = "Kết quả F5 giờ dùng tiêu đề theo trạng thái, mỗi nhóm xử lý một dòng và nêu rõ vật phẩm chưa bán. Chế độ Tự động mở kết quả chi tiết khi dùng F5 từ túi đồ và hiển thị thông báo chữ ở nơi khác.", [23] = "Đã sửa tự động bán vật phẩm giá trị, đạn, Cầu Pal và mồi câu đã cấu hình. F5 tìm thương nhân khả dụng và áp dụng nội tại Cao Quý và Dòng Dõi Cao Quý của Pal trong đội vào giá bán.", [24] = "Đã sửa tuyến cất thức ăn riêng: 5 loại bánh ưu tiên Trại phối giống, thức ăn khác ưu tiên Hòm thức ăn, sau đó đến kho lạnh và kho thường.", [25] = "Đã sửa lỗi có thể khiến trò chơi bị sập khi đóng cài đặt Quick Stack bằng Esc hoặc nút Quay lại trên tay cầm, kể cả khi mở từ Pal Insight." },
 }
 
+local PATCH_140 = {
+    en = {
+        [26] = "Quick Stack continues to work independently with F5. With Pal Insight installed, settings are under F6 → Extensions. Without it, saved or default settings still apply but cannot be changed in game.",
+        [27] = "Removed About while keeping version updates, restore defaults, and close in the Quick Stack panel. On Steam, the compact Like action now appears beside Settings in Pal Insight. Using Pal Insight as the single settings entry avoids duplicate input systems and reduces conflicts and maintenance.",
+        [28] = "Standardized result colors: green for success, yellow for warnings, red for errors, blue for processing, and neutral white when there is nothing to store.",
+        [29] = "Fixed a handshake failure that could prevent the Quick Stack settings panel from opening through Pal Insight.",
+    },
+    ["zh-hans"] = {
+        [26] = "Quick Stack 仍可独立通过 F5 使用。安装 Pal Insight 后，可从“F6 → 扩展”打开设置；未安装时仍会使用已保存或默认设置，但无法在游戏内修改。",
+        [27] = "移除“关于”，Quick Stack 面板仍保留版本更新、恢复默认和关闭。Steam 点赞改为显示在 Pal Insight 中该扩展的“设置”按钮旁。统一由 Pal Insight 提供设置入口，可避免重复的输入系统并减少冲突和维护成本。",
+        [28] = "统一结果颜色：成功为绿色、警告为黄色、错误为红色、处理中为蓝色，没有可收纳物品时使用中性白色。",
+        [29] = "修复通过 Pal Insight 打开 Quick Stack 设置时可能发生的握手失败。",
+    },
+    ["zh-hant"] = {
+        [26] = "Quick Stack 仍可獨立透過 F5 使用。安裝 Pal Insight 後，可從「F6 → 擴充」開啟設定；未安裝時仍會使用已儲存或預設設定，但無法在遊戲內修改。",
+        [27] = "移除「關於」，Quick Stack 面板仍保留版本更新、恢復預設和關閉。Steam 按讚改為顯示在 Pal Insight 中該擴充的「設定」按鈕旁。統一由 Pal Insight 提供設定入口，可避免重複的輸入系統並減少衝突和維護成本。",
+        [28] = "統一結果顏色：成功為綠色、警告為黃色、錯誤為紅色、處理中為藍色，沒有可收納物品時使用中性白色。",
+        [29] = "修正透過 Pal Insight 開啟 Quick Stack 設定時可能發生的交接失敗。",
+    },
+}
+
 for locale, copy in pairs(COMPACT) do
     local row = UI[locale]
     for index, value in pairs(copy) do row[index] = value end
@@ -464,6 +489,12 @@ for locale, patch in pairs(PATCH_131) do
     if type(row) == "table" then
         for key, value in pairs(patch) do row[key] = value end
     end
+end
+
+
+for locale, row in pairs(TEXT) do
+    local patch = PATCH_140[locale] or PATCH_140.en
+    for key, value in pairs(patch) do row[key] = value end
 end
 
 function ReleaseNotes.current(requestedLocale)

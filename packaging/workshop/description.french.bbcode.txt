@@ -6,13 +6,16 @@ Dans votre base actuelle, appuyez sur [b]F5[/b]. Quick Stack vend les objets con
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Nouveautés de la version 1.3.0[/h2]
+[h2]Nouveautés de la version 1.4.0[/h2]
 
 [list]
-[*][b]Armoires à pharmacie :[/b] priorité facultative pour les 3 médicaments actuels. Sans place utilisable, les objets vont au stockage normal. Désactivée par défaut.
-[*][b]Routes alimentaires :[/b] les 5 gâteaux vont d’abord aux Fermes d’élevage et les autres aliments aux Mangeoires, puis au stockage réfrigéré et normal. Les gâteaux ne vont jamais aux Mangeoires. Activées par défaut.
-[*][b]Paramètres par onglets :[/b] Général, Vente automatique et Objets spéciaux prennent en charge souris, clavier, manette et flèches latérales. Les petits incubateurs et la quantité d’Eau sacrée sont des sous-options de leur route.
+[*][b]Vente automatique corrigée :[/b] F5 trouve un marchand disponible dans la base actuelle, vend les objets de valeur, munitions, Sphères de Pal et appâts configurés, et applique Noble et Belle Fourrure des Pals de l’équipe au prix.
+[*][b]Solution sûre :[/b] une nouvelle option activée par défaut garde les objets à vendre dans le sac si aucun marchand n’est trouvé. Désactivez-la pour appliquer les règles de rangement normales.
+[*][b]Résultats plus clairs :[/b] titres adaptés à l’état et une ligne par catégorie. Automatique ouvre les détails depuis l’inventaire et affiche du texte ailleurs.
+[*][b]Routes et stabilité :[/b] correction des priorités des gâteaux et aliments, ainsi que d’un plantage en fermant les paramètres avec Échap ou Retour de la manette, y compris depuis Pal Insight.
 [/list]
+
+La version 1.3.0 a ajouté la priorité aux armoires à pharmacie, les routes alimentaires dédiées et les paramètres à trois onglets.
 
 [h2]Fonctionnalités[/h2]
 
@@ -22,13 +25,16 @@ Dans votre base actuelle, appuyez sur [b]F5[/b]. Quick Stack vend les objets con
 [*]Activez séparément objets de valeur, munitions, Sphères de Pal et appâts
 [*]Choisissez les objets à conserver grâce aux icônes, avec souris, clavier ou manette
 [*]Les objets exclus dans le sac avec [b]Tab > R[/b] ne sont jamais vendus
+[*]Trouvez un marchand dans la base actuelle et appliquez Noble et Belle Fourrure des Pals de l’équipe au prix
+[*]Sans marchand, gardez par défaut les objets à vendre ou appliquez le rangement normal
 [/list]
+
+Toutes les catégories sont désactivées par défaut. Les 9 objets de valeur sont vendables ; les autres catégories conservent tout initialement.
 
 [b]Rangement rapide[/b]
 
 [list]
-[*]Traite uniquement le sac normal et la base actuelle
-[*]Ignore équipement, emplacements de nourriture, objets clés et zones non prises en charge
+[*]Traite uniquement le sac normal et la base actuelle ; ignore équipement, emplacements de nourriture et objets clés
 [*]Respecte par défaut les exclusions [b]Tab > R[/b]
 [*]Peut ranger les objets exclus sans modifier la liste de Palworld
 [*]Peut placer de nouveaux types d’objets dans les emplacements compatibles libres
@@ -51,8 +57,8 @@ Dans votre base actuelle, appuyez sur [b]F5[/b]. Quick Stack vend les objets con
 [b]Résultats[/b]
 
 [list]
-[*]Choisissez Automatique, Texte uniquement ou Fenêtre de résultats
-[*]Consultez les objets vendus, rangés, exclus et non rangés
+[*]Automatique ouvre les détails avec F5 depuis l’inventaire et affiche du texte ailleurs ; Texte uniquement et Fenêtre de résultats imposent leur mode
+[*]Les titres et lignes par catégorie montrent ventes, rangement, exclusions et objets non traités
 [*]La vue détaillée utilise les icônes et noms localisés de Palworld
 [*]Retour au texte si la fenêtre détaillée ne peut pas s’ouvrir
 [/list]
@@ -64,7 +70,7 @@ Dans votre base actuelle, appuyez sur [b]F5[/b]. Quick Stack vend les objets con
 [*][b]F6[/b] – ouvrir les paramètres Quick Stack en mode autonome
 [/list]
 
-Les paramètres sont enregistrés hors du dossier du mod, survivent aux mises à jour Workshop et importent les réglages 0.1.x existants.
+Les trois onglets gèrent souris, clavier, manette et flèches latérales. Petits incubateurs et quantité d’Eau sacrée sont des sous-options. Les paramètres survivent à Workshop et importent les réglages 0.1.x.
 
 Avec [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 ou version ultérieure[/b][/url], ouvrez les mêmes paramètres ici :
 
@@ -75,14 +81,10 @@ Avec [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]P
 [h2]Langues, sécurité et performances[/h2]
 
 [list]
-[*]Prend en charge les 17 langues actuelles de l’interface de Palworld
-[*]Utilise les icônes natives et les noms localisés de Palworld
-[*]Recherche uniquement dans la base actuelle
-[*]Découpe le travail en étapes limitées sur le thread du jeu
-[*]Envoie une seule demande de destination à la fois
-[*]Revérifie joueur, base, source, destination, filtres, droits et capacité
-[*]S’arrête si l’état requis change ou ne peut pas être confirmé
-[*]Fonctionne uniquement côté client
+[*]Prend en charge 17 langues avec les icônes et noms localisés de Palworld
+[*]Recherche uniquement dans la base actuelle et fonctionne côté client
+[*]Travaille par étapes limitées sur le thread du jeu et envoie une destination à la fois
+[*]Revérifie joueur, base, objets, destination, filtres, droits et capacité ; s’arrête en cas de changement
 [/list]
 
 [h2]Installation[/h2]
@@ -111,7 +113,7 @@ Avec [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]P
 
 [b]F5 ne répond pas :[/b] vérifiez que vous êtes dans une base, que UE4SS et Quick Stack sont activés, que le raccourci est correct et qu’une seule copie est installée.
 
-[b]Objet non vendu ou non rangé :[/b] vérifiez vente, listes de conservation, [b]Tab > R[/b], routes, filtres, droits et capacité.
+[b]Objet non vendu ou non rangé :[/b] vérifiez vente, listes de conservation, [b]Tab > R[/b], marchand de la base actuelle, routes, filtres, droits et capacité.
 
 Indiquez plateforme, versions, réglages, étapes, résultat attendu et obtenu, journal UE4SS complet et fichiers de crash.
 

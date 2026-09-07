@@ -157,13 +157,18 @@ node .\build_release.js
 取得 Nexus 最终提交许可后分别处理：
 
 1. 先完成并取得 Nexus Description 与 Sticky Post 两份完整 BBCode 的审核确认。
-2. Steam/Win64 包更新现有 Main 文件，显示名和文件版本使用新版本；旧 Main 归档。
-3. Game Pass/WinGDK 包更新现有 Optional 文件，旧 Game Pass 文件归档。
-4. Main 文件负责更新项目版本；Optional 文件不能意外把项目版本改回旧值。
-5. 两个文件都使用已审核的 Nexus 单行 Changelog，不临场改写。
-6. 保存后核对公开文件列表中的名称、类别、版本、上传时间和可下载/扫描状态。
-7. 按获批全文更新 Description 与 Sticky Post，并读取公开页验证结果。
-8. 记录 Nexus 文件 ID；能取得公开哈希时与本地包核对。
+2. Steam/Win64 包更新现有 Main 文件，文件显示名固定为
+   `Pal Insight: Quick Stack`；Game Pass Optional 文件显示名固定为
+   `Game Pass Experimental (WinGDK)`。不得在显示名后附加版本号。
+3. 版本号只填写到 Nexus Version field。版本化的本地 ZIP 文件名保持不变；
+   versioned ZIP filename 表示构建产物身份，不是 Nexus 文件显示名。
+4. Steam/Win64 和 Game Pass/WinGDK 都更新现有的同渠道文件；确认替代文件可用后，
+   再归档旧文件。
+5. Main 文件负责更新项目版本；Optional 文件不能意外把项目版本改回旧值。
+6. 两个文件都使用已审核的 Nexus 单行 Changelog，不临场改写。
+7. 保存后核对公开文件列表中的名称、类别、版本、上传时间和可下载/扫描状态。
+8. 按获批全文更新 Description 与 Sticky Post，并读取公开页验证结果。
+9. 记录 Nexus 文件 ID；能取得公开哈希时与本地包核对。
 
 旧文件默认归档而不是删除。错误草稿或错误包的删除必须明确指出目标，并取得删除
 确认。

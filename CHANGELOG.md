@@ -16,8 +16,7 @@
   keeping the interface clear and focused. Returning from Quick Stack restores
   the previous Pal Insight page.
 - Removed the separate About page while keeping release notes, restore defaults,
-  and close controls. On Steam, a compact Like action appears in the settings
-  header and disappears after a successful recommendation.
+  and close controls.
 - Standardized result colors: green for success, yellow for warnings, red for
   errors, blue for processing, and neutral white when no action is needed.
 

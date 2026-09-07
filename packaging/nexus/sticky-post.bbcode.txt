@@ -1,20 +1,21 @@
-[b][color=#00ff00][size=5]PAL INSIGHT: QUICK STACK 1.3.0 — START HERE[/size][/color][/b]
+[b][color=#00ff00][size=5]PAL INSIGHT: QUICK STACK 1.4.0 — START HERE[/size][/color][/b]
 
 Press [b]F5[/b] inside your current base to sell configured items, then store eligible normal-backpack items.
 
 Quick Stack is a standalone client-side UE4SS Lua mod. Pal Insight is optional.
 
-[b]WHAT'S NEW IN 1.3.0[/b]
+[b]WHAT'S NEW IN 1.4.0[/b]
 
 [list]
-[*]Optional Medicine Rack priority for the 3 current medical supplies. It is off by default; unavailable or full racks fall back to ordinary storage.
-[*]Default-on food routing: the 5 cakes use Breeding Farms first, while other food uses Pal Food Boxes first. Both continue through cold storage and ordinary storage. Cakes never enter Pal Food Boxes, and [b]Tab > R[/b] exclusions remain protected.
-[*]Settings now use General, Automatic Sale, and Special Items tabs with mouse, keyboard, controller, and arrow navigation. Small-Incubator use and Holy Water quantity appear under their routing options.
+[*]Automatic selling now finds an available current-base merchant and applies Noble and Fine Furs passives from party Pals to sale prices.
+[*]A default-on fallback keeps sale items in the backpack when no merchant is found; disable it to use normal storage rules.
+[*]F5 results now use status titles and one line per category. Automatic mode opens detailed results from the inventory and shows text elsewhere.
+[*]Fixed cake and food destination priorities and a crash when closing Quick Stack settings with Esc or controller Back.
 [/list]
 
-Version 1.2.0 added optional selling for 9 high-value items, 32 ammunition types, 10 Pal Spheres, and 4 fishing baits, plus icon keep lists and release history.
+Version 1.3.0 added Medicine Rack priority, dedicated food routing, and tabbed settings.
 
-Version 1.1.0 added default-off Guild Chest and small-Incubator support.
+Version 1.2.0 added optional selling for 9 high-value items, 32 ammunition types, 10 Pal Spheres, and 4 fishing baits, plus icon keep lists and release history.
 
 [b]QUICK START[/b]
 
@@ -35,6 +36,8 @@ All four categories are off by default. Checked keep-list items and Inventory [b
 
 Selling runs before storage. Allowing ignored items in storage never allows them to be sold.
 
+F5 searches the current base for an available merchant and applies Noble and Fine Furs passives from party Pals to sale prices. If no merchant is found, sale items stay in the backpack by default; F6 Settings can allow them to follow normal storage rules instead.
+
 [b]DEFAULT STORAGE RULES[/b]
 
 [list]
@@ -51,7 +54,7 @@ F6 Settings can change these rules. Medicine Rack priority covers 3 current medi
 
 [b]RESULTS AND PAL INSIGHT[/b]
 
-Choose [b]Automatic[/b], [b]Text only[/b], or [b]Result window[/b]. Standalone Quick Stack uses text. [url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight 2.0.0 or later[/url] can show detailed sold, stored, excluded, and unstored results; otherwise Quick Stack falls back to text.
+Choose [b]Automatic[/b], [b]Text only[/b], or [b]Result window[/b]. Automatic opens detailed results when F5 is used from the inventory and shows text elsewhere. [url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight 2.0.0 or later[/url] can host the same panel.
 
 Quick Stack alone, or with Pal Insight disabled, uses its own F6 Settings. With both active, Pal Insight owns F6. F5 always runs Quick Stack.
 
@@ -65,7 +68,7 @@ Steam single-player, all 17 interface languages, and Pal Insight 2.0.0 integrati
 
 If F5 does nothing, confirm that you are inside a base, verify the shortcut and package, install only one copy, and inspect [b]UE4SS.log[/b].
 
-If an item was not sold or stored, check its sale toggle, keep list, [b]Tab > R[/b], routing, filters, permissions, capacity, and backpack location.
+If an item was not sold or stored, check its sale toggle, keep list, [b]Tab > R[/b], available current-base merchant, routing, filters, permissions, capacity, and backpack location.
 
 [b]REPORTING A PROBLEM[/b]
 

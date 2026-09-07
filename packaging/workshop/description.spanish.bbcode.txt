@@ -6,13 +6,16 @@ En tu base actual, pulsa [b]F5[/b]. Quick Stack vende los objetos configurados y
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Novedades de la versión 1.3.0[/h2]
+[h2]Novedades de la versión 1.4.0[/h2]
 
 [list]
-[*][b]Botiquines:[/b] prioridad opcional para los 3 medicamentos actuales. Si no queda espacio utilizable, los objetos pasan al almacenamiento normal. Desactivada de forma predeterminada.
-[*][b]Rutas de comida:[/b] los 5 pasteles van primero a Criaderos y el resto a comederos; después usan almacenamiento refrigerado y normal. Los pasteles nunca entran en comederos. Activadas de forma predeterminada.
-[*][b]Ajustes por pestañas:[/b] General, Venta automática y Objetos especiales admiten ratón, teclado, mando y flechas laterales. Las incubadoras pequeñas y la cantidad de Agua sagrada son subopciones de su ruta.
+[*][b]Venta automática corregida:[/b] F5 encuentra un mercader disponible en la base actual, vende objetos de valor, munición, Esferas Pal y cebos configurados, y aplica Nobleza y Linaje superior de los Pals del equipo al precio.
+[*][b]Alternativa segura:[/b] una nueva opción activada por defecto conserva en la mochila los objetos de venta si no encuentra un mercader. Desactívala para usar las reglas de almacenamiento normales.
+[*][b]Resultados más claros:[/b] títulos según el estado y una línea por categoría. Automático abre los detalles desde el inventario y muestra texto en otras situaciones.
+[*][b]Rutas y estabilidad:[/b] corregidas las prioridades de pasteles y comida, y un cierre inesperado al cerrar Ajustes con Esc o Atrás del mando, incluso desde Pal Insight.
 [/list]
+
+La versión 1.3.0 añadió prioridad para botiquines, rutas dedicadas de comida y Ajustes con tres pestañas.
 
 [h2]Funciones[/h2]
 
@@ -22,13 +25,16 @@ En tu base actual, pulsa [b]F5[/b]. Quick Stack vende los objetos configurados y
 [*]Activa por separado objetos de valor, munición, Esferas Pal y cebos
 [*]Elige con iconos qué conservar usando ratón, teclado o mando
 [*]Los objetos excluidos en la mochila con [b]Tab > R[/b] nunca se venden
+[*]Busca un mercader en la base actual y aplica Nobleza y Linaje superior de los Pals del equipo al precio
+[*]Sin mercader, conserva por defecto los objetos de venta o aplica el almacenamiento normal
 [/list]
+
+Todas las categorías empiezan desactivadas. Los 9 objetos de valor se pueden vender; las demás categorías conservan todo inicialmente.
 
 [b]Almacenamiento rápido[/b]
 
 [list]
-[*]Procesa solo la mochila normal y la base actual
-[*]No toca equipo, espacios de comida, objetos clave ni zonas no compatibles
+[*]Procesa solo la mochila normal y la base actual; no toca equipo, espacios de comida ni objetos clave
 [*]Respeta de forma predeterminada las exclusiones [b]Tab > R[/b]
 [*]Puede almacenar objetos excluidos sin cambiar la lista de Palworld
 [*]Puede colocar nuevos tipos en espacios libres compatibles
@@ -51,8 +57,8 @@ En tu base actual, pulsa [b]F5[/b]. Quick Stack vende los objetos configurados y
 [b]Resultados[/b]
 
 [list]
-[*]Elige Automático, Solo texto o Ventana de resultados
-[*]Consulta objetos vendidos, almacenados, excluidos y no almacenados
+[*]Automático abre detalles con F5 desde el inventario y muestra texto en otros casos; Solo texto y Ventana de resultados fuerzan esos modos
+[*]Los títulos y las líneas por categoría muestran ventas, almacenamiento, exclusiones y objetos no procesados
 [*]Los detalles usan iconos nativos y nombres localizados de Palworld
 [*]Pasa a texto si no puede abrirse la ventana detallada
 [/list]
@@ -64,7 +70,7 @@ En tu base actual, pulsa [b]F5[/b]. Quick Stack vende los objetos configurados y
 [*][b]F6[/b] – abrir los ajustes de Quick Stack en modo independiente
 [/list]
 
-Los ajustes se guardan fuera de la carpeta del mod, sobreviven a las actualizaciones de Workshop e importan los datos 0.1.x existentes.
+Las tres pestañas admiten ratón, teclado, mando y flechas laterales. Incubadoras pequeñas y cantidad de Agua sagrada son subopciones. Los ajustes sobreviven a Workshop e importan datos 0.1.x.
 
 Con [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 o posterior[/b][/url], abre los mismos ajustes aquí:
 
@@ -75,14 +81,10 @@ Con [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pa
 [h2]Idiomas, seguridad y rendimiento[/h2]
 
 [list]
-[*]Admite los 17 idiomas actuales de la interfaz de Palworld
-[*]Usa iconos nativos y nombres localizados de Palworld
-[*]Busca solo en la base actual
-[*]Divide el trabajo en pasos limitados del hilo del juego
-[*]Envía una solicitud de destino cada vez
-[*]Vuelve a comprobar jugador, base, origen, destino, filtros, permisos y capacidad
-[*]Se detiene si cambia el estado necesario o no puede confirmarlo
-[*]Funciona solo en el cliente
+[*]Admite 17 idiomas con iconos nativos y nombres localizados de Palworld
+[*]Busca solo en la base actual y funciona en el cliente
+[*]Usa pasos limitados del hilo del juego y envía un destino cada vez
+[*]Revalida jugador, base, objetos, destino, filtros, permisos y capacidad; se detiene ante cambios
 [/list]
 
 [h2]Instalación[/h2]
@@ -111,7 +113,7 @@ Con [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pa
 
 [b]F5 no responde:[/b] comprueba que estás en una base, UE4SS y Quick Stack están activos, el atajo es correcto y solo hay una copia instalada.
 
-[b]Un objeto no se vende o almacena:[/b] comprueba venta, listas de conservación, [b]Tab > R[/b], rutas, filtros, permisos y capacidad.
+[b]Un objeto no se vende o almacena:[/b] comprueba venta, listas de conservación, [b]Tab > R[/b], mercader de la base actual, rutas, filtros, permisos y capacidad.
 
 Incluye plataforma, versiones, ajustes, pasos, resultado esperado y real, registro UE4SS completo y archivos de cierre inesperado.
 
