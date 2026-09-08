@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.1 - 2026-09-08
+
+### Changed
+
+- Result windows and compact notifications now use consistent category colors
+  and clearer separate lines for sold, stored, excluded, and unfinished items.
+
+### Fixed
+
+- Fixed Esc closing the result window while also opening the system menu or
+  affecting the underlying inventory screen.
+
 ## 1.4.0 - 2026-09-07
 
 ### Changed

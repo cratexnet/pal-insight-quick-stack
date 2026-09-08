@@ -1,0 +1,11 @@
+[h1]Pal Insight: Quick Stack 1.4.1[/h1]
+
+[h2]Changed[/h2]
+[list]
+[*]Result windows and compact notifications now use consistent category colors and clearer separate lines for sold, stored, excluded, and unfinished items.
+[/list]
+
+[h2]Fixed[/h2]
+[list]
+[*]Fixed Esc closing the result window while also opening the system menu or affecting the underlying inventory screen.
+[/list]

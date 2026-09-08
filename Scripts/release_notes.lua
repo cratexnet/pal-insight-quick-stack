@@ -6,6 +6,10 @@ local ReleaseNotes = {}
 -- timestamp when its version number is upgraded. Update it later only when
 -- necessary, preserving source precision rather than inventing seconds.
 ReleaseNotes.versions = {
+    { version = "1.4.1", dateUtc = "2026-09-08 01:52:24", groups = {
+        { kind = "changed", items = { 30 } },
+        { kind = "fixed", items = { 31 } },
+    } },
     { version = "1.4.0", dateUtc = "2026-09-06 19:40:44", groups = {
         { kind = "changed", items = { 26, 27, 28 } },
         { kind = "fixed", items = { 29 } },
@@ -469,6 +473,77 @@ local PATCH_140 = {
     },
 }
 
+local PATCH_141 = {
+    en = {
+        [30] = "Result windows and compact notifications now use consistent category colors and clearer separate lines for sold, stored, excluded, and unfinished items.",
+        [31] = "Fixed Esc closing the result window while also opening the system menu or affecting the underlying inventory screen.",
+    },
+    ["zh-hans"] = {
+        [30] = "结果窗口和简洁通知现在使用统一的分类颜色，并通过独立行更清楚地区分已出售、已收纳、已排除和未完成项目。",
+        [31] = "修复按 Esc 关闭结果窗口时，同时打开系统菜单或影响底层背包页面的问题。",
+    },
+    ["zh-hant"] = {
+        [30] = "結果視窗和簡潔通知現在使用統一的分類顏色，並透過獨立行更清楚地區分已出售、已收納、已排除和未完成項目。",
+        [31] = "修正按 Esc 關閉結果視窗時，同時開啟系統選單或影響底層背包頁面的問題。",
+    },
+    ja = {
+        [30] = "結果ウィンドウと簡易通知でカテゴリごとの色を統一し、売却済み、収納済み、除外、未完了の項目を分かりやすく個別の行に表示します。",
+        [31] = "Esc で結果ウィンドウを閉じた際に、同時にシステムメニューが開いたり背後のインベントリ画面に影響したりする問題を修正しました。",
+    },
+    ko = {
+        [30] = "결과 창과 간단 알림에 일관된 범주 색상을 적용하고 판매, 보관, 제외 및 미완료 항목을 더 명확한 개별 줄로 표시합니다.",
+        [31] = "Esc로 결과 창을 닫을 때 시스템 메뉴가 함께 열리거나 뒤의 인벤토리 화면에 영향을 주던 문제를 수정했습니다.",
+    },
+    de = {
+        [30] = "Ergebnisfenster und kompakte Meldungen verwenden nun einheitliche Kategoriefarben und klar getrennte Zeilen für verkaufte, eingelagerte, ausgeschlossene und nicht abgeschlossene Gegenstände.",
+        [31] = "Es wurde behoben, dass Esc beim Schließen des Ergebnisfensters zugleich das Systemmenü öffnen oder den dahinterliegenden Inventarbildschirm beeinflussen konnte.",
+    },
+    fr = {
+        [30] = "Les fenêtres de résultats et les notifications compactes utilisent désormais des couleurs de catégorie cohérentes et des lignes séparées plus claires pour les objets vendus, rangés, exclus et non traités.",
+        [31] = "Correction d’un problème où Échap pouvait fermer la fenêtre de résultats tout en ouvrant le menu système ou en affectant l’écran d’inventaire situé derrière.",
+    },
+    it = {
+        [30] = "Le finestre dei risultati e le notifiche compatte ora usano colori di categoria coerenti e righe separate più chiare per gli oggetti venduti, depositati, esclusi e non completati.",
+        [31] = "Corretto un problema per cui Esc, chiudendo la finestra dei risultati, poteva anche aprire il menu di sistema o influire sulla schermata dell’inventario sottostante.",
+    },
+    es = {
+        [30] = "Las ventanas de resultados y las notificaciones compactas ahora usan colores de categoría coherentes y líneas separadas más claras para los objetos vendidos, guardados, excluidos y pendientes.",
+        [31] = "Se corrigió un problema por el que Esc podía cerrar la ventana de resultados y, al mismo tiempo, abrir el menú del sistema o afectar a la pantalla de inventario situada debajo.",
+    },
+    ["pt-br"] = {
+        [30] = "As janelas de resultados e as notificações compactas agora usam cores de categoria consistentes e linhas separadas mais claras para itens vendidos, armazenados, excluídos e não concluídos.",
+        [31] = "Corrigido um problema em que Esc fechava a janela de resultados e também abria o menu do sistema ou afetava a tela de inventário por trás dela.",
+    },
+    ru = {
+        [30] = "Окна результатов и компактные уведомления теперь используют единые цвета категорий и более наглядные отдельные строки для проданных, размещённых, исключённых и необработанных предметов.",
+        [31] = "Исправлена ошибка, из-за которой Esc при закрытии окна результатов также мог открыть системное меню или повлиять на находящийся под ним экран инвентаря.",
+    },
+    tr = {
+        [30] = "Sonuç pencereleri ve kısa bildirimler artık satılan, depolanan, hariç tutulan ve tamamlanmayan eşyalar için tutarlı kategori renkleri ve daha anlaşılır ayrı satırlar kullanıyor.",
+        [31] = "Esc ile sonuç penceresi kapatılırken sistem menüsünün de açılmasına veya arkadaki envanter ekranının etkilenmesine neden olan sorun düzeltildi.",
+    },
+    pl = {
+        [30] = "Okna wyników i krótkie powiadomienia używają teraz spójnych kolorów kategorii oraz czytelniejszych osobnych wierszy dla przedmiotów sprzedanych, odłożonych, wykluczonych i nieprzetworzonych.",
+        [31] = "Naprawiono problem, przez który klawisz Esc podczas zamykania okna wyników mógł jednocześnie otworzyć menu systemowe lub wpłynąć na ekran ekwipunku w tle.",
+    },
+    id = {
+        [30] = "Jendela hasil dan notifikasi ringkas kini memakai warna kategori yang konsisten serta baris terpisah yang lebih jelas untuk item terjual, tersimpan, dikecualikan, dan belum selesai.",
+        [31] = "Memperbaiki masalah saat Esc menutup jendela hasil tetapi juga membuka menu sistem atau memengaruhi layar inventaris di belakangnya.",
+    },
+    ["es-419"] = {
+        [30] = "Las ventanas de resultados y las notificaciones compactas ahora usan colores de categoría coherentes y líneas separadas más claras para los objetos vendidos, guardados, excluidos y pendientes.",
+        [31] = "Se corrigió un problema por el que Esc podía cerrar la ventana de resultados y, al mismo tiempo, abrir el menú del sistema o afectar la pantalla de inventario situada debajo.",
+    },
+    th = {
+        [30] = "หน้าต่างผลลัพธ์และการแจ้งเตือนแบบย่อใช้สีหมวดหมู่ที่สอดคล้องกัน และแยกบรรทัดให้ชัดเจนขึ้นสำหรับไอเท็มที่ขายแล้ว จัดเก็บแล้ว ถูกยกเว้น และยังดำเนินการไม่เสร็จ",
+        [31] = "แก้ไขปัญหาที่การกด Esc เพื่อปิดหน้าต่างผลลัพธ์อาจเปิดเมนูระบบพร้อมกันหรือส่งผลต่อหน้ากระเป๋าที่อยู่ด้านหลัง",
+    },
+    vi = {
+        [30] = "Cửa sổ kết quả và thông báo gọn giờ dùng màu danh mục nhất quán cùng các dòng riêng rõ ràng hơn cho vật phẩm đã bán, đã cất, bị loại trừ và chưa hoàn tất.",
+        [31] = "Đã sửa lỗi Esc đóng cửa sổ kết quả nhưng đồng thời mở menu hệ thống hoặc tác động đến màn hình túi đồ phía sau.",
+    },
+}
+
 for locale, copy in pairs(COMPACT) do
     local row = UI[locale]
     for index, value in pairs(copy) do row[index] = value end
@@ -494,6 +569,11 @@ end
 
 for locale, row in pairs(TEXT) do
     local patch = PATCH_140[locale] or PATCH_140.en
+    for key, value in pairs(patch) do row[key] = value end
+end
+
+for locale, row in pairs(TEXT) do
+    local patch = PATCH_141[locale] or PATCH_141.en
     for key, value in pairs(patch) do row[key] = value end
 end
 
