@@ -421,14 +421,34 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
   quantity badges. Under height pressure, only Content may scroll; Header and
   Footer remain fixed. A card whose complete content fits does not show a
   scrollbar merely because of font or overflow-label desired-height rounding.
+- Detailed and compact results share semantic category colors: sold is green,
+  stored is cyan-blue, not sold/not stored/pending confirmation is amber, and
+  excluded items remain neutral gray. Color supplements explicit localized
+  labels; it never replaces them. Section headings and summary counts use the
+  category color, while item names, icons, and explanatory text retain their
+  existing presentation. The overall title and outer outline reflect the whole
+  outcome; the detailed outline keeps its existing thin, low-opacity style.
+- Compact results show each category on its own colored line, with warnings
+  before successful outcomes. Stored and not-stored counts are separate even
+  for partial results; storage guidance stays on a neutral secondary line.
 - Excluded items never count as success and never trigger the detailed card by
   themselves. Gameplay-triggered jobs, no eligible item, submitted-only, and
   aborted outcomes keep the compact two-second message.
 - The detailed card does not auto-close. Its fixed Footer contains one centered,
-  focusable `OK` button with a wider target. Mouse click, Enter, Space, Escape,
+  focusable `OK` button with a wider target. The button uses a dark neutral
+  normal surface, a distinctly brighter blue-gray hover surface, a darker
+  pressed surface, and light text throughout. Its dimensions and content
+  padding stay fixed between states; native focus behavior is preserved.
+  Mouse click, Enter, Space, Escape,
   controller Confirm, and controller Cancel close only the result card; they
   never start, cancel, or change an inventory job. Compact outcomes remain
   non-interactive.
+- Result-card dismissal is deferred beyond the active input callback and
+  scoped to the modal generation. Escape arms the existing native-menu guard
+  before dismissal; successful closure retains that guard through the trailing
+  Escape event, while a failed dismissal cancels it and retains the usable card.
+  The same physical Escape must not also open the system menu or close an
+  underlying inventory page.
 - The compact unstored-item outcome is authored as two explicit lines: the
   result count first, followed by storage-space/settings guidance. It does not
   depend on incidental word wrapping.

@@ -396,6 +396,26 @@ Runtime contract proof
 - [x] Defer input-hook Escape/controller-Back close work until the active
   callback has returned, so hiding the hosted panel cannot invalidate UE4SS's
   reflected parameters or return value.
+- [x] Route detailed-result dismissal through the generation-scoped deferred
+  close request; arm the native Escape guard before scheduling, retain it after
+  successful closure, and cancel it on dispatch or input-release failure.
+- [x] Verify the result-close changes with Lua syntax parsing and the existing
+  detached-window lifecycle contract; these checks do not prove UE input timing.
+- [x] Share semantic category colors between detailed and compact results;
+  color headings/counts, split stored/not-stored compact lines, retain neutral
+  guidance and native item visuals, and tint only the existing thin outer edge.
+- [x] Reuse all 17 existing localized outcome strings without rewriting them;
+  Lua syntax and the existing detached-window lifecycle contract pass.
+- [x] Replace the result OK button's solid cyan fill and dark label with dark
+  neutral/light text styling, a brighter blue-gray hover, and a darker press;
+  preserve its dimensions, padding, native focus, and dismissal route.
+- [ ] Verify the result colors, compact wrapping, and readability in game.
+- [x] On 2026-09-08, the maintainer confirmed the reported Escape/system-menu
+  leak was resolved after syncing the active UE4SS runtime Scripts directory;
+  the workspace, Workshop download, and loaded-mod source copies match.
+- [ ] Confirm in game that tapping/holding Escape closes only the result card,
+  leaves the underlying inventory/system menu unchanged, and permits the next
+  independent Escape after release; also check reopening and controller close.
 
 ## Risks and Mitigations
 

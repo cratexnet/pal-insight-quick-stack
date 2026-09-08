@@ -73,14 +73,22 @@ local COLORS = {
     surfaceNavigation = { R = 0.040, G = 0.048, B = 0.058, A = 0.76 },
     surfaceSection = { R = 0.059, G = 0.071, B = 0.082, A = 0.90 },
     transparent = { R = 0.0, G = 0.0, B = 0.0, A = 0.0 },
-    primaryHover = { R = 0.288, G = 0.580, B = 0.699, A = 1.00 },
-    primaryPressed = { R = 0.184, G = 0.469, B = 0.585, A = 1.00 },
+    actionNormal = { R = 0.059, G = 0.071, B = 0.082, A = 1.00 },
+    actionHover = { R = 0.147, G = 0.175, B = 0.198, A = 1.00 },
+    actionPressed = { R = 0.031, G = 0.037, B = 0.045, A = 1.00 },
     surfaceDisabled = { R = 0.047, G = 0.054, B = 0.063, A = 0.64 },
-    windowOutline = { R = 0.716, G = 0.807, B = 0.855, A = 0.15 },
     text = { R = 0.930, G = 0.947, B = 0.956, A = 1.00 },
-    textOnAccent = { R = 0.004, G = 0.009, B = 0.012, A = 1.00 },
     muted = { R = 0.631, G = 0.680, B = 0.708, A = 1.00 },
     subtle = { R = 0.361, G = 0.407, B = 0.440, A = 1.00 },
+}
+
+local RESULT_COLORS = {
+    sold = COLORS.success,
+    moved = COLORS.primary,
+    saleSkipped = COLORS.warning,
+    full = COLORS.warning,
+    pending = COLORS.warning,
+    excluded = COLORS.muted,
 }
 
 local state = {
@@ -211,13 +219,13 @@ end
 
 local function styleActionButton(button)
     local style = button.WidgetStyle
-    style.Normal = tintBrush(style.Normal, COLORS.primary)
-    style.Hovered = tintBrush(style.Hovered, COLORS.primaryHover)
-    style.Pressed = tintBrush(style.Pressed, COLORS.primaryPressed)
+    style.Normal = tintBrush(style.Normal, COLORS.actionNormal)
+    style.Hovered = tintBrush(style.Hovered, COLORS.actionHover)
+    style.Pressed = tintBrush(style.Pressed, COLORS.actionPressed)
     style.Disabled = tintBrush(style.Disabled, COLORS.surfaceDisabled)
-    style.NormalForeground = slateColor(COLORS.textOnAccent)
-    style.HoveredForeground = slateColor(COLORS.textOnAccent)
-    style.PressedForeground = slateColor(COLORS.textOnAccent)
+    style.NormalForeground = slateColor(COLORS.text)
+    style.HoveredForeground = slateColor(COLORS.text)
+    style.PressedForeground = slateColor(COLORS.text)
     style.DisabledForeground = slateColor(COLORS.subtle)
     style.NormalPadding = { Left = 12, Top = 4, Right = 12, Bottom = 4 }
     style.PressedPadding = { Left = 12, Top = 4, Right = 12, Bottom = 4 }
@@ -401,7 +409,7 @@ local function detailedMetrics(controller)
     }
 end
 
-local function mountDetailedFrame(widget, tree, content, width, height)
+local function mountDetailedFrame(widget, tree, content, width, height, color)
     local root = construct(tree, "/Script/UMG.CanvasPanel")
     local inputShield = construct(tree, "/Script/UMG.Border")
     local sizeBox = construct(tree, "/Script/UMG.SizeBox")
@@ -418,7 +426,7 @@ local function mountDetailedFrame(widget, tree, content, width, height)
         inputShield:SetIsEnabled(true)
         sizeBox:SetWidthOverride(width)
         sizeBox:SetHeightOverride(height)
-        outline:SetBrushColor(COLORS.windowOutline)
+        outline:SetBrushColor({ R = color.R, G = color.G, B = color.B, A = 0.15 })
         outline:SetPadding({ Left = 1, Top = 1, Right = 1, Bottom = 1 })
         surface:SetBrushColor(COLORS.surfaceWindow)
 
@@ -696,7 +704,7 @@ local function createResultSectionFrame(tree, spec, metrics)
     local header = construct(tree, "/Script/UMG.HorizontalBox")
     local title = makeText(tree, spec.label, 13, spec.color, 0, true)
     local summary = makeText(tree, spec.summary,
-        11, COLORS.muted, TEXT_JUSTIFY_RIGHT, true)
+        11, spec.color, TEXT_JUSTIFY_RIGHT, true)
     if stack == nil or headerBox == nil or headerSurface == nil
         or header == nil or title == nil or summary == nil then return nil end
 
@@ -776,7 +784,7 @@ local function createResultFooter(tree, strings)
         local buttonBox = construct(tree, "/Script/UMG.SizeBox")
         button = construct(tree, "/Script/UMG.Button")
         local buttonLabel = makeText(tree,
-            strings.confirm, 13, COLORS.textOnAccent,
+            strings.confirm, 13, COLORS.text,
             TEXT_JUSTIFY_CENTER, true)
         if buttonBox == nil or button == nil or buttonLabel == nil then
             error("result close-button controls are unavailable")
@@ -801,26 +809,35 @@ local function createResultFooter(tree, strings)
     return footerBox, button
 end
 
-local function showCompact(controller, title, message, color)
+local function showCompact(controller, title, lines, color)
     if not clear() then return nil end
     local widget, tree, _, _, createError = createOwnerWidget(controller)
     if widget == nil then warnOnce(createError); return nil end
     local layout = construct(tree, "/Script/UMG.VerticalBox")
     local titleText = makeText(tree, title, 14, color or COLORS.primary,
         TEXT_JUSTIFY_CENTER, true)
-    local valueText = makeText(tree, message, 13, COLORS.text,
-        TEXT_JUSTIFY_CENTER)
     local gap = createSpacer(tree, 1.0, 4.0)
-    if layout == nil or titleText == nil or valueText == nil or gap == nil then
+    if layout == nil or titleText == nil or gap == nil then
         pcall(function() widget:RemoveFromParent() end)
         warnOnce("status text cannot be created")
         return nil
     end
     addVertical(layout, titleText)
     addVertical(layout, gap)
-    addVertical(layout, valueText)
+    local textWidgets = { titleText }
+    for _, line in ipairs(lines) do
+        local valueText = makeText(tree, line.text, line.secondary and 11 or 13,
+            line.color, TEXT_JUSTIFY_CENTER)
+        if valueText == nil then
+            pcall(function() widget:RemoveFromParent() end)
+            warnOnce("status text cannot be created")
+            return nil
+        end
+        addVertical(layout, valueText)
+        textWidgets[#textWidgets + 1] = valueText
+    end
     local framed, frameError = mountCompactFrame(
-        widget, tree, layout, { titleText, valueText }, controller, color)
+        widget, tree, layout, textWidgets, controller, color)
     if not framed then
         pcall(function() widget:RemoveFromParent() end)
         warnOnce(frameError)
@@ -860,7 +877,7 @@ local function detailedSectionSpecs(details, strings)
     if saleSkippedTotal > 0 and #saleSkipped > 0 then
         specs[#specs + 1] = {
             label = strings.saleSkippedSection,
-            color = COLORS.warning,
+            color = RESULT_COLORS.saleSkipped,
             summary = Localization.format(strings, "countSummary",
                 #saleSkipped, saleSkippedTotal),
             items = saleSkipped,
@@ -869,7 +886,7 @@ local function detailedSectionSpecs(details, strings)
     if fullTotal > 0 and #full > 0 then
         specs[#specs + 1] = {
             label = strings.fullSection,
-            color = COLORS.warning,
+            color = RESULT_COLORS.full,
             summary = Localization.format(strings, "fullSummary",
                 #full, fullTotal),
             items = full,
@@ -878,7 +895,7 @@ local function detailedSectionSpecs(details, strings)
     if movedTotal > 0 and #moved > 0 then
         specs[#specs + 1] = {
             label = strings.movedSection,
-            color = COLORS.primary,
+            color = RESULT_COLORS.moved,
             summary = Localization.format(strings, "countSummary",
                 #moved, movedTotal),
             items = moved,
@@ -887,7 +904,7 @@ local function detailedSectionSpecs(details, strings)
     if soldTotal > 0 and #sold > 0 then
         specs[#specs + 1] = {
             label = strings.soldSection,
-            color = COLORS.primary,
+            color = RESULT_COLORS.sold,
             summary = Localization.format(strings, "countSummary",
                 #sold, soldTotal),
             items = sold,
@@ -896,7 +913,7 @@ local function detailedSectionSpecs(details, strings)
     if excludedTotal > 0 and #excluded > 0 then
         specs[#specs + 1] = {
             label = strings.excludedSection,
-            color = COLORS.muted,
+            color = RESULT_COLORS.excluded,
             summary = Localization.format(strings, "countSummary", #excluded,
                 excludedTotal),
             items = excluded,
@@ -932,31 +949,45 @@ local function resultTitle(outcome, details, strings)
     return strings.successTitle, COLORS.success
 end
 
-local function detailedFallbackMessage(outcome, details, strings)
-    local messages = {}
-    if (details.soldTotal or 0) > 0 then
-        messages[#messages + 1] = Localization.format(
-            strings, "soldCompact", details.soldTotal)
-    end
+local function compactResultLines(outcome, details, strings)
+    local lines = {}
     if details.saleConfirmationPending then
-        messages[#messages + 1] = Localization.format(
-            strings, "saleSubmittedCompact", details.salePendingTotal or 0)
+        lines[#lines + 1] = {
+            text = Localization.format(
+                strings, "saleSubmittedCompact", details.salePendingTotal or 0),
+            color = RESULT_COLORS.pending,
+        }
     end
     local saleSkipped = saleSkippedMessage(details, strings)
-    if saleSkipped ~= nil then messages[#messages + 1] = saleSkipped end
-    if (details.movedTotal or 0) > 0 and (details.fullTotal or 0) > 0 then
-        messages[#messages + 1] = Localization.format(strings, "partialCompact",
-            details.movedTotal, details.fullTotal)
-    elseif (details.movedTotal or 0) > 0 then
-        messages[#messages + 1] = Localization.format(
-            strings, "completeCompact", details.movedTotal)
-    elseif (details.fullTotal or 0) > 0 then
-        messages[#messages + 1] = Localization.format(
-            strings, "fullCompact", details.fullTotal)
+    if saleSkipped ~= nil then
+        lines[#lines + 1] = { text = saleSkipped, color = RESULT_COLORS.saleSkipped }
     end
-    if #messages > 0 then return table.concat(messages, "\n") end
-    if outcome == "submitted" then return strings.submittedCompact end
-    return strings.noop
+    if (details.fullTotal or 0) > 0 then
+        local message = Localization.format(
+            strings, "fullCompact", details.fullTotal)
+        local summary, helper = message:match("^([^\n]+)\n(.+)$")
+        lines[#lines + 1] = { text = summary or message, color = RESULT_COLORS.full }
+        if helper ~= nil then
+            lines[#lines + 1] = { text = helper, color = COLORS.muted, secondary = true }
+        end
+    end
+    if (details.movedTotal or 0) > 0 then
+        lines[#lines + 1] = {
+            text = Localization.format(strings, "completeCompact", details.movedTotal),
+            color = RESULT_COLORS.moved,
+        }
+    end
+    if (details.soldTotal or 0) > 0 then
+        lines[#lines + 1] = {
+            text = Localization.format(strings, "soldCompact", details.soldTotal),
+            color = RESULT_COLORS.sold,
+        }
+    end
+    if #lines > 0 then return lines end
+    if outcome == "submitted" then
+        return { { text = strings.submittedCompact, color = RESULT_COLORS.pending } }
+    end
+    return { { text = strings.noop, color = COLORS.text } }
 end
 
 local function scheduleClear(token, durationMs)
@@ -1022,7 +1053,7 @@ local function showDetailedBuildFallback(build, reason, expected)
     local token = showCompact(
         build.controller,
         title,
-        detailedFallbackMessage(build.outcome, build.details, build.strings),
+        compactResultLines(build.outcome, build.details, build.strings),
         statusColor)
     if token ~= nil then scheduleClear(token, COMPACT_DURATION_MS) end
 end
@@ -1053,6 +1084,7 @@ local function setupDetailedBuild(build)
 
     local titleValue, titleColor = resultTitle(
         build.outcome, build.details, build.strings)
+    build.statusColor = titleColor
     local saleSkipped = saleSkippedMessage(build.details, build.strings)
     local headerHelper = saleSkipped
     if headerHelper == nil and (build.details.fullTotal or 0) > 0 then
@@ -1134,7 +1166,7 @@ local function mountDetailedBuild(build)
     state.buildWidget = nil
     local framed, frameError = mountDetailedFrame(
         build.widget, build.tree, build.layout,
-        build.metrics.width, build.height)
+        build.metrics.width, build.height, build.statusColor)
     if not framed then error(frameError) end
     if not clear() then
         error("existing result input ownership cannot be released")
@@ -1144,8 +1176,17 @@ local function mountDetailedBuild(build)
     state.closeButton = build.closeButton
     local dialogToken = state.token
     local acquired, acquireError, retainedTransaction = ResultDialogBridge.acquire(
-        build.controller, build.widget, function()
-            if state.token == dialogToken and state.detailVisible then clear() end
+        build.controller, build.widget, function(reason)
+            if state.token ~= dialogToken or not state.detailVisible then return false end
+            local closed = clear()
+            if reason == "Escape" then
+                if closed then
+                    ResultDialogBridge.noteEscapeWindowClosed()
+                else
+                    ResultDialogBridge.cancelEscapeClose()
+                end
+            end
+            return closed
         end)
     state.inputOwned = acquired == true or retainedTransaction == true
     local closeBound = acquired
@@ -1288,7 +1329,8 @@ end
 function Notifications.started(controller)
     local strings = Localization.current()
     local token = showCompact(
-        controller, strings.processingTitle, strings.started, COLORS.primary)
+        controller, strings.processingTitle,
+        { { text = strings.started, color = COLORS.primary } }, COLORS.primary)
     return token
 end
 
@@ -1319,23 +1361,27 @@ function Notifications.finished(controller, _startToken, outcome,
         if not detailed then
             token = showCompact(controller,
                 title,
-                detailedFallbackMessage(outcome, details, strings),
+                compactResultLines(outcome, details, strings),
                 statusColor)
         end
     elseif hasDetailedResult then
         token = showCompact(controller,
             title,
-            detailedFallbackMessage(outcome, details, strings),
+            compactResultLines(outcome, details, strings),
             statusColor)
     else
         local message
+        local messageColor = COLORS.text
         local saleSkipped = saleSkippedMessage(details, strings)
         if saleSkipped ~= nil then
             message = saleSkipped
+            messageColor = RESULT_COLORS.saleSkipped
         elseif outcome == "complete" then
             message = Localization.format(strings, "completeContainers",
                 itemCount or 0, requestCount or 0)
+            messageColor = RESULT_COLORS.moved
         elseif outcome == "submitted" then
+            messageColor = RESULT_COLORS.pending
             if details.saleConfirmationPending then
                 message = Localization.format(strings, "saleSubmittedCompact",
                     details.salePendingTotal or 0)
@@ -1346,8 +1392,10 @@ function Notifications.finished(controller, _startToken, outcome,
             message = strings.noop
         else
             message = strings.stopped
+            messageColor = COLORS.danger
         end
-        token = showCompact(controller, title, message, statusColor)
+        token = showCompact(controller, title,
+            { { text = message, color = messageColor } }, statusColor)
     end
     if token ~= nil then
         scheduleClear(token, COMPACT_DURATION_MS)

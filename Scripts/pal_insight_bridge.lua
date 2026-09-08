@@ -222,18 +222,27 @@ local function requestClose(source)
     if type(handlers) ~= "table" or type(handlers.onClose) ~= "function" then
         return false
     end
+    local escapeClose = source == "Escape"
+    if escapeClose then Bridge.armEscapeClose(source) end
     state.closePending = true
     local generation = state.generation
     state.closeDispatchCallback = function()
-        state.closeDispatchCallback = nil
         if state.active ~= true or state.generation ~= generation then return end
+        state.closeDispatchCallback = nil
         state.closePending = false
-        dispatchEvent("onClose", source)
+        if not dispatchEvent("onClose", source) and escapeClose then
+            Bridge.cancelEscapeClose()
+        end
     end
-    local scheduled = pcall(ExecuteInGameThread, state.closeDispatchCallback)
+    -- 先退出输入回调，再释放输入组件和窗口，避免尾部事件穿透。
+    local scheduled = type(ExecuteInGameThreadWithDelay) == "function"
+        and pcall(ExecuteInGameThreadWithDelay, 0, state.closeDispatchCallback)
+        or false
     if not scheduled then
         state.closePending = false
         state.closeDispatchCallback = nil
+        if escapeClose then Bridge.cancelEscapeClose() end
+        log("cannot defer modal close: " .. tostring(source))
     end
     return scheduled == true
 end
@@ -861,13 +870,13 @@ local function handlersFor(options)
         return {
             onPressed = function(keyName)
                 if keyName == "Enter" or keyName == "SpaceBar"
-                    or keyName == "Escape" then close(keyName) end
+                    or keyName == "Escape" then requestClose(keyName) end
             end,
             onReleased = function(keyName)
                 if keyName == "Gamepad_FaceButton_Bottom"
-                    or keyName == "Gamepad_FaceButton_Right" then close(keyName) end
+                    or keyName == "Gamepad_FaceButton_Right" then requestClose(keyName) end
             end,
-            onClicked = function() close("mouse") end,
+            onClicked = function() requestClose("mouse") end,
             onClose = close,
         }, false
     end
@@ -1035,7 +1044,8 @@ function Bridge.armEscapeClose(source)
     if state.active ~= true then return false end
     escapeCloseGuardBlocksNativeUI()
     local existing = state.escapeCloseGuard
-    if type(existing) == "table" then return true end
+    if type(existing) == "table"
+        and existing.generation == state.generation then return true end
     state.escapeCloseSequence = state.escapeCloseSequence + 1
     state.escapeCloseGuard = {
         id = state.escapeCloseSequence,
