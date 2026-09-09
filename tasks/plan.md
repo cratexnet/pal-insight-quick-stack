@@ -136,6 +136,17 @@ Runtime contract proof
   report instead of saying dedicated servers are untested; co-op, the exact
   game build, and the distribution platform remain unverified.
 
+### Dedicated-client base aggregate refresh (2026-09-09)
+
+- [x] Correlate the report with same-class remote-container/relevancy failures
+  in other Palworld storage mods and record primary-source evidence.
+- [x] Start one current-base item-stack replication lease for each network-
+  client F5 job and wait for a readable aggregate snapshot before routing.
+- [x] Require both source-slot replication and a matching aggregate increase
+  after submission; release the lease exactly once on every terminal path.
+- [x] Run the narrow existing Lua/static checks. Dedicated-client, co-op, and
+  single-player runtime acceptance remain required before release.
+
 ### Checkpoint: Standalone candidate
 
 - [ ] Reference and candidate final placement match for the agreed matrix.

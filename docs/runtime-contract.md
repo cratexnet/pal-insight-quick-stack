@@ -75,6 +75,34 @@ and scan work); the existing job deadline also applies. Only complete snapshots
 enter indexes. Existing server submission and source/destination rechecks stay
 unchanged. These are static implementation facts, not a reproduced network fix.
 
+## Dedicated-client Base Aggregate Refresh (2026-09-09)
+
+The current 1.0 SDK and the extracted current-build Inventory Blueprint expose
+the same owning route for the workbench/base material aggregate:
+`RequestStartReplicateLocalPlayerBaseCampItemStackInfo`, the replicated
+`PalBaseCampModuleItemStackInfo.ItemStackRepInfoArray`, and the matching end
+request. Same-class third-party reports also show that a dedicated client may
+observe a completed item move only after approaching or opening the remote
+container; the evidence is recorded in
+`docs/research/similar-quick-stack-sync.md`.
+
+Production therefore acquires one item-stack replication lease only when
+`PalUtility.IsInClientConnection` is true. It waits up to fifteen 100 ms polls
+for exactly one readable item-stack module in the frozen current-base
+`ModuleArray`, then snapshots aggregate counts before routing. After direct
+destination RPC submission, completion requires both the existing common-
+inventory source reduction and an aggregate increase of at least the submitted
+amount for every moved static item ID. Success, failure, timeout, and stale
+identity all end the lease exactly once.
+
+The native UI uses ready/updated delegates to schedule its own presentation.
+Quick Stack does not need that presentation callback: it observes the same
+replicated fast array directly in its existing bounded job loop. This avoids a
+new cooked callback bridge and avoids fixed-delay completion guesses. The
+reflected fields and lifecycle are source-supported, but their behavior on a
+remote dedicated client remains runtime-unverified until the acceptance matrix
+is executed.
+
 ## Local Notification Contract
 
 The standalone candidate uses runtime-created UMG feedback matching Pal

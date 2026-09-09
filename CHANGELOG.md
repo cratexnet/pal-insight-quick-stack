@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.2 - 2026-09-09
+
+### Fixed
+
+- Fixed workbench material counts sometimes not refreshing after using F5 on
+  dedicated servers. This fix has not yet been tested on a dedicated server.
+
 ## 1.4.1 - 2026-09-08
 
 ### Changed

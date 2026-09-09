@@ -414,12 +414,160 @@ function Palworld.identityFor(controller)
 end
 
 local cachedUtility
+local cachedBaseCampUtility
+local cachedBaseCampItemStackInfoClass
 local cachedVenderDataClass
 
 function Palworld.utility()
     if Palworld.isValid(cachedUtility) then return cachedUtility end
     cachedUtility = Palworld.staticObject("/Script/Pal.Default__PalUtility")
     return cachedUtility
+end
+
+local function baseCampUtility()
+    if Palworld.isValid(cachedBaseCampUtility) then
+        return cachedBaseCampUtility
+    end
+    cachedBaseCampUtility = Palworld.staticObject(
+        "/Script/Pal.Default__PalBaseCampUtility")
+    return cachedBaseCampUtility
+end
+
+local function baseCampItemStackInfoClass()
+    if Palworld.isValid(cachedBaseCampItemStackInfoClass) then
+        return cachedBaseCampItemStackInfoClass
+    end
+    cachedBaseCampItemStackInfoClass = Palworld.staticObject(
+        "/Script/Pal.PalBaseCampModuleItemStackInfo")
+    return cachedBaseCampItemStackInfoClass
+end
+
+function Palworld.startBaseCampItemStackReplication(context)
+    local utility = Palworld.utility()
+    if not Palworld.isValid(utility) then
+        return nil, "PalUtility CDO is unavailable"
+    end
+    local clientConnection
+    local checked, checkError = pcall(function()
+        clientConnection = utility:IsInClientConnection(context)
+    end)
+    if not checked or type(clientConnection) ~= "boolean" then
+        return nil, "client connection state is unavailable: "
+            .. tostring(checkError)
+    end
+    if not clientConnection then return false, nil end
+
+    local baseUtility = baseCampUtility()
+    if not Palworld.isValid(baseUtility) then
+        return nil, "PalBaseCampUtility CDO is unavailable"
+    end
+    local started, startError = pcall(function()
+        baseUtility:RequestStartReplicateLocalPlayerBaseCampItemStackInfo(
+            context)
+    end)
+    if not started then
+        return nil, "base item-stack replication start failed: "
+            .. tostring(startError)
+    end
+    return true, nil
+end
+
+function Palworld.stopBaseCampItemStackReplication(context)
+    local baseUtility = baseCampUtility()
+    if not Palworld.isValid(baseUtility) then
+        return false, "PalBaseCampUtility CDO is unavailable"
+    end
+    local stopped, stopError = pcall(function()
+        baseUtility:RequestEndReplicateLocalPlayerBaseCampItemStackInfo(
+            context)
+    end)
+    if not stopped then
+        return false, "base item-stack replication stop failed: "
+            .. tostring(stopError)
+    end
+    return true, nil
+end
+
+function Palworld.baseCampItemStackSnapshot(base)
+    if not Palworld.isValid(base) then
+        return nil, "base model is invalid"
+    end
+    local itemStackClass = baseCampItemStackInfoClass()
+    if not Palworld.isValid(itemStackClass) then
+        return nil, "base item-stack module class is unavailable"
+    end
+
+    local modules
+    local readable, readError = pcall(function() modules = base.ModuleArray end)
+    local moduleCount = readable and Palworld.arrayLength(modules) or nil
+    if moduleCount == nil then
+        return nil, "base module array is unreadable: " .. tostring(readError)
+    end
+
+    local itemStackModule
+    for index = 1, moduleCount do
+        local module, present = Palworld.arrayValue(modules, index)
+        if not present then return nil, "base module entry is unreadable" end
+        local typed, matches = pcall(function()
+            return Palworld.isValid(module) and module:IsA(itemStackClass)
+        end)
+        if typed and matches == true then
+            if itemStackModule ~= nil then
+                return nil, "base item-stack module is ambiguous"
+            end
+            itemStackModule = module
+        end
+    end
+    if itemStackModule == nil then
+        return nil, "base item-stack module is not ready"
+    end
+
+    local repItems
+    local itemsReadable, itemsError = pcall(function()
+        repItems = itemStackModule.ItemStackRepInfoArray.Items
+    end)
+    local repItemCount = itemsReadable and Palworld.arrayLength(repItems) or nil
+    if repItemCount == nil then
+        return nil, "base item-stack array is unreadable: "
+            .. tostring(itemsError)
+    end
+
+    local totals = {}
+    for repIndex = 1, repItemCount do
+        local repInfo, repReadable = Palworld.arrayValue(repItems, repIndex)
+        if not repReadable then
+            return nil, "base item-stack entry is unreadable"
+        end
+        local stackInfos
+        local infoReadable = pcall(function()
+            stackInfos = repInfo.ItemStackInfos
+        end)
+        local infoCount = infoReadable and Palworld.arrayLength(stackInfos) or nil
+        if infoCount == nil then
+            return nil, "base item-stack values are unreadable"
+        end
+        for infoIndex = 1, infoCount do
+            local stackInfo, stackReadable =
+                Palworld.arrayValue(stackInfos, infoIndex)
+            if not stackReadable then
+                return nil, "base item-stack value is unreadable"
+            end
+            local staticId
+            local stackCount
+            local decoded = pcall(function()
+                staticId = Palworld.nameString(stackInfo.ItemId.StaticId)
+                stackCount = tonumber(stackInfo.StackCount)
+            end)
+            if not decoded or staticId == nil or stackCount == nil
+                or stackCount < 0 then
+                return nil, "base item-stack value cannot be decoded"
+            end
+            if staticId ~= "None" then
+                totals[staticId] = (totals[staticId] or 0) + stackCount
+            end
+        end
+    end
+    return totals, nil
 end
 
 local function venderDataClass()

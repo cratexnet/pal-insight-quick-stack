@@ -21,6 +21,8 @@ local RECHECK_SLOTS_PER_SLICE = 256
 local PLAN_OPERATIONS_PER_SLICE = 64
 local GUILD_REPLICATION_POLL_MS = 100
 local GUILD_REPLICATION_MAX_POLLS = 15
+local BASE_STACK_REPLICATION_POLL_MS = 100
+local BASE_STACK_REPLICATION_MAX_POLLS = 15
 local SALE_SHOP_POLL_MS = 100
 local SALE_SHOP_MAX_POLLS = 20
 local CONTAINER_READ_RETRY_MS = 100
@@ -257,6 +259,7 @@ local function logPerformanceSummary(job, succeeded)
 end
 
 local finishJob
+local waitForBaseStackReplication
 
 local function identityMatches(job)
     return state.job == job and P.identityMatches(job)
@@ -287,6 +290,15 @@ end
 finishJob = function(job, succeeded, message)
     if state.job ~= job then return end
     recordPerformanceSlice(job)
+    if job.baseStackReplicationActive then
+        job.baseStackReplicationActive = false
+        local stopped, stopError =
+            P.stopBaseCampItemStackReplication(job.controller)
+        if not stopped then
+            log("base item-stack replication cleanup failed: "
+                .. tostring(stopError))
+        end
+    end
     for _, concrete in ipairs(job.guildReplicationModels or {}) do
         P.stopGuildChestReplication(concrete)
     end
@@ -1647,6 +1659,7 @@ local function planItemsSlice(job)
     job.submittedItems = 0
     job.failedRequests = 0
     job.submittedByItem = {}
+    job.submittedByStaticId = {}
     scheduleJobStep(job, NEXT_SLICE_MS, processNextRequest, "request")
 end
 
@@ -1903,6 +1916,8 @@ local function submitRecheckedRequest(job)
         for _, source in ipairs(request.sources) do
             job.submittedByItem[source.item] =
                 (job.submittedByItem[source.item] or 0) + source.num
+            job.submittedByStaticId[source.id] =
+                (job.submittedByStaticId[source.id] or 0) + source.num
         end
     end
     closeRequest(job, request)
@@ -1992,14 +2007,31 @@ local function checkCompletion(job)
         return
     end
 
-    local replicated = true
+    local sourceReplicated = true
     for item, submitted in pairs(job.submittedByItem) do
         if not submittedSourceReplicated(job, item, submitted) then
-            replicated = false
+            sourceReplicated = false
             break
         end
     end
-    if replicated then
+    local baseAggregateReplicated = true
+    if sourceReplicated and job.baseStackReplicationActive then
+        local current = P.baseCampItemStackSnapshot(job.base)
+        if current == nil then
+            baseAggregateReplicated = false
+        else
+            for staticId, submitted in pairs(job.submittedByStaticId) do
+                local before = job.baseStackBaseline[staticId] or 0
+                if (current[staticId] or 0) < before + submitted then
+                    baseAggregateReplicated = false
+                    break
+                end
+            end
+        end
+    elseif not sourceReplicated then
+        baseAggregateReplicated = false
+    end
+    if sourceReplicated and baseAggregateReplicated then
         job.completionConfirmed = true
         finishJob(job, true, string.format(
             "confirmed %d destination request(s), %d item(s)",
@@ -2255,13 +2287,47 @@ processNextRequest = function(job)
     scheduleJobStep(job, NEXT_SLICE_MS, scanRecheckSlotsSlice, "recheck")
 end
 
+waitForBaseStackReplication = function(job)
+    if not identityMatches(job) then
+        finishJob(job, false, "local player or base changed")
+        return
+    end
+    local baseline, replicationError =
+        P.baseCampItemStackSnapshot(job.base)
+    if baseline ~= nil then
+        job.baseStackBaseline = baseline
+        scheduleJobStep(job, NEXT_SLICE_MS, scanInventorySlice, "inventory")
+        return
+    end
+    job.baseStackReplicationPolls = job.baseStackReplicationPolls + 1
+    if job.baseStackReplicationPolls >= BASE_STACK_REPLICATION_MAX_POLLS then
+        finishJob(job, false, replicationError)
+        return
+    end
+    scheduleJobStep(job, BASE_STACK_REPLICATION_POLL_MS,
+        waitForBaseStackReplication, "resolve")
+end
+
 local function beginResolvedJob(job)
     local resolved, resolveError = resolveJobRoots(job)
     if not resolved then
         finishJob(job, false, resolveError)
         return
     end
-    scheduleJobStep(job, NEXT_SLICE_MS, scanInventorySlice, "inventory")
+    local started, replicationError =
+        P.startBaseCampItemStackReplication(job.controller)
+    if started == nil then
+        finishJob(job, false, replicationError)
+        return
+    end
+    if not started then
+        scheduleJobStep(job, NEXT_SLICE_MS, scanInventorySlice, "inventory")
+        return
+    end
+    job.baseStackReplicationActive = true
+    job.baseStackReplicationPolls = 0
+    scheduleJobStep(job, BASE_STACK_REPLICATION_POLL_MS,
+        waitForBaseStackReplication, "resolve")
 end
 
 function QuickStack.configure(config, logger, debugLogger)

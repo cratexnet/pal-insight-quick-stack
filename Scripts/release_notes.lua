@@ -6,6 +6,9 @@ local ReleaseNotes = {}
 -- timestamp when its version number is upgraded. Update it later only when
 -- necessary, preserving source precision rather than inventing seconds.
 ReleaseNotes.versions = {
+    { version = "1.4.2", dateUtc = "2026-09-09 13:55:47", groups = {
+        { kind = "fixed", items = { 32 } },
+    } },
     { version = "1.4.1", dateUtc = "2026-09-08 01:52:24", groups = {
         { kind = "changed", items = { 30 } },
         { kind = "fixed", items = { 31 } },
@@ -544,6 +547,60 @@ local PATCH_141 = {
     },
 }
 
+local PATCH_142 = {
+    en = {
+        [32] = "Fixed workbench material counts sometimes not refreshing after using F5 on dedicated servers. This fix has not yet been tested on a dedicated server.",
+    },
+    ["zh-hans"] = {
+        [32] = "修复在专用服务器上使用 F5 后，工作台材料数量有时不刷新的问题。此修复尚未在专用服务器上测试。",
+    },
+    ["zh-hant"] = {
+        [32] = "修正在專用伺服器上使用 F5 後，工作台材料數量有時不會更新的問題。此修正尚未在專用伺服器上測試。",
+    },
+    ja = {
+        [32] = "専用サーバーで F5 を使用した後、作業台の素材数が更新されないことがある問題を修正しました。この修正は専用サーバーではまだテストされていません。",
+    },
+    ko = {
+        [32] = "전용 서버에서 F5 사용 후 작업대 재료 수량이 간혹 갱신되지 않던 문제를 수정했습니다. 이 수정 사항은 아직 전용 서버에서 테스트되지 않았습니다.",
+    },
+    de = {
+        [32] = "Es wurde behoben, dass sich die Materialanzahl an Werkbänken nach der Verwendung von F5 auf dedizierten Servern manchmal nicht aktualisierte. Diese Korrektur wurde noch nicht auf einem dedizierten Server getestet.",
+    },
+    fr = {
+        [32] = "Correction d’un problème où les quantités de matériaux des établis ne s’actualisaient parfois pas après l’utilisation de F5 sur les serveurs dédiés. Ce correctif n’a pas encore été testé sur un serveur dédié.",
+    },
+    it = {
+        [32] = "Corretto un problema per cui le quantità dei materiali nei banchi da lavoro a volte non si aggiornavano dopo l’uso di F5 sui server dedicati. Questa correzione non è ancora stata testata su un server dedicato.",
+    },
+    es = {
+        [32] = "Se corrigió un problema por el que las cantidades de materiales de los bancos de trabajo a veces no se actualizaban tras usar F5 en servidores dedicados. Esta corrección aún no se ha probado en un servidor dedicado.",
+    },
+    ["pt-br"] = {
+        [32] = "Corrigido um problema em que as quantidades de materiais das bancadas às vezes não eram atualizadas após usar F5 em servidores dedicados. Esta correção ainda não foi testada em um servidor dedicado.",
+    },
+    ru = {
+        [32] = "Исправлена ошибка, из-за которой количество материалов на верстаках иногда не обновлялось после использования F5 на выделенных серверах. Это исправление ещё не тестировалось на выделенном сервере.",
+    },
+    tr = {
+        [32] = "Özel sunucularda F5 kullanıldıktan sonra çalışma tezgâhlarındaki malzeme miktarlarının bazen güncellenmemesi sorunu düzeltildi. Bu düzeltme henüz özel bir sunucuda test edilmedi.",
+    },
+    pl = {
+        [32] = "Naprawiono problem, przez który liczba materiałów przy stanowiskach roboczych czasami nie odświeżała się po użyciu F5 na serwerach dedykowanych. Ta poprawka nie została jeszcze przetestowana na serwerze dedykowanym.",
+    },
+    id = {
+        [32] = "Memperbaiki masalah jumlah material di meja kerja yang terkadang tidak diperbarui setelah menggunakan F5 di server dedicated. Perbaikan ini belum diuji di server dedicated.",
+    },
+    ["es-419"] = {
+        [32] = "Se corrigió un problema por el que las cantidades de materiales de las mesas de trabajo a veces no se actualizaban después de usar F5 en servidores dedicados. Esta corrección aún no se ha probado en un servidor dedicado.",
+    },
+    th = {
+        [32] = "แก้ไขปัญหาที่จำนวนวัตถุดิบของโต๊ะทำงานบางครั้งไม่อัปเดตหลังใช้ F5 บนเซิร์ฟเวอร์เฉพาะ การแก้ไขนี้ยังไม่ได้ทดสอบบนเซิร์ฟเวอร์เฉพาะ",
+    },
+    vi = {
+        [32] = "Đã sửa lỗi khiến số lượng nguyên liệu tại bàn chế tạo đôi khi không cập nhật sau khi dùng F5 trên máy chủ chuyên dụng. Bản sửa lỗi này chưa được thử nghiệm trên máy chủ chuyên dụng.",
+    },
+}
+
 for locale, copy in pairs(COMPACT) do
     local row = UI[locale]
     for index, value in pairs(copy) do row[index] = value end
@@ -574,6 +631,11 @@ end
 
 for locale, row in pairs(TEXT) do
     local patch = PATCH_141[locale] or PATCH_141.en
+    for key, value in pairs(patch) do row[key] = value end
+end
+
+for locale, row in pairs(TEXT) do
+    local patch = PATCH_142[locale] or PATCH_142.en
     for key, value in pairs(patch) do row[key] = value end
 end
 

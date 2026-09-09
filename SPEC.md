@@ -70,6 +70,13 @@ navigation resumes. Closing or losing the extension restores the host footer.
 8. Pal Insight is the optional sole in-game settings host. Quick Stack's F5
    action remains standalone, and either load order must converge without
    requiring a game restart.
+9. On a network client, one F5 job owns one bounded current-base item-stack
+   replication lease. Routing begins only after the replicated
+   `PalBaseCampModuleItemStackInfo` snapshot is readable. A submitted move is
+   confirmed only after both its source-slot reduction and the corresponding
+   increase in the replicated base aggregate are observed. Every terminal path
+   ends the lease exactly once. Authority/single-player jobs keep the existing
+   path and do not request client replication.
 
 ## User-Visible Behavior
 
@@ -366,9 +373,10 @@ boundary check, not an atomic guarantee against concurrent server/player edits.
 - Starting a valid job shows a persistent quick-stacking message that asks the
   player not to manipulate inventory until the job finishes.
 - `Quick stack complete` is shown only after the submitted source-slot changes
-  are observed in the replicated common inventory. If replication is not
-  observed within three seconds, the message says that requests were submitted
-  instead of claiming completion.
+  are observed in the replicated common inventory. On a network client, the
+  replicated current-base item-stack aggregate must also reflect the submitted
+  increase. If either observation is not complete within three seconds, the
+  message says that requests were submitted instead of claiming completion.
 - Without a compatible Pal Insight result-dialog bridge, every outcome uses the
   compact notification, including jobs started from Inventory/Equipment.
 - `ResultDisplay = "TextOnly"` disables the detailed card for every trigger
