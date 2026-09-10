@@ -1,4 +1,4 @@
-[h1]Pal Insight: Quick Stack - Guarda los objetos de la mochila con una tecla[/h1]
+[h1]Pal Insight: Quick Stack - Vende y guarda los objetos de la mochila con una tecla[/h1]
 
 [b]Vuelve a la base, pulsa una tecla y continúa tu aventura.[/b]
 
@@ -6,16 +6,12 @@ En tu base actual, pulsa [b]F5[/b]. Quick Stack vende los objetos configurados y
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Novedades de la versión 1.4.0[/h2]
+[h2]Novedades de la versión 1.4.3[/h2]
 
 [list]
-[*][b]Venta automática corregida:[/b] F5 encuentra un mercader disponible en la base actual, vende objetos de valor, munición, Esferas Pal y cebos configurados, y aplica Nobleza y Linaje superior de los Pals del equipo al precio.
-[*][b]Alternativa segura:[/b] una nueva opción activada por defecto conserva en la mochila los objetos de venta si no encuentra un mercader. Desactívala para usar las reglas de almacenamiento normales.
-[*][b]Resultados más claros:[/b] títulos según el estado y una línea por categoría. Automático abre los detalles desde el inventario y muestra texto en otras situaciones.
-[*][b]Rutas y estabilidad:[/b] corregidas las prioridades de pasteles y comida, y un cierre inesperado al cerrar Ajustes con Esc o Atrás del mando, incluso desde Pal Insight.
+[*]En clientes multijugador, Quick Stack ya no se detiene tras solo 1,5 segundos si los datos de almacenamiento de la base actual todavía se están cargando. Ahora sigue esperando dentro del límite total existente.
+[*]Las notificaciones de detención ahora muestran un código breve del motivo para facilitar el diagnóstico de cualquier problema restante.
 [/list]
-
-La versión 1.3.0 añadió prioridad para botiquines, rutas dedicadas de comida y Ajustes con tres pestañas.
 
 [h2]Funciones[/h2]
 
@@ -58,7 +54,7 @@ Todas las categorías empiezan desactivadas. Los 9 objetos de valor se pueden ve
 
 [list]
 [*]Automático abre detalles con F5 desde el inventario y muestra texto en otros casos; Solo texto y Ventana de resultados fuerzan esos modos
-[*]Los títulos y las líneas por categoría muestran ventas, almacenamiento, exclusiones y objetos no procesados
+[*]Colores coherentes: verde para vendidos, azul para guardados, gris para excluidos y amarillo para pendientes
 [*]Los detalles usan iconos nativos y nombres localizados de Palworld
 [*]Pasa a texto si no puede abrirse la ventana detallada
 [/list]
@@ -67,14 +63,15 @@ Todas las categorías empiezan desactivadas. Los 9 objetos de valor se pueden ve
 
 [list]
 [*][b]F5[/b] – ejecutar venta y almacenamiento
-[*][b]F6[/b] – abrir los ajustes de Quick Stack en modo independiente
 [/list]
 
 Las tres pestañas admiten ratón, teclado, mando y flechas laterales. Incubadoras pequeñas y cantidad de Agua sagrada son subopciones. Los ajustes sobreviven a Workshop e importan datos 0.1.x.
 
-Con [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 o posterior[/b][/url], abre los mismos ajustes aquí:
+Con la versión actual de [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight[/b][/url], abre los ajustes aquí:
 
 [b]F6 > Extensiones > Pal Insight: Quick Stack[/b]
+
+Quick Stack sigue gestionando la venta, el movimiento y los ajustes guardados. Sin Pal Insight activo, F5 usa los ajustes guardados o predeterminados y muestra notificaciones de texto; no hay un panel F6 independiente.
 
 [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
 
@@ -104,7 +101,7 @@ Con [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pa
 [list]
 [*]Steam para un jugador: probado
 [*]Integración con Pal Insight 2.0.0: compatible
-[*]Servidor dedicado: un usuario informó de funcionamiento solo en cliente; compilación y plataforma no registradas
+[*]Servidor dedicado: los objetos se mueven solo desde el cliente. Los bancos pueden mostrar datos obsoletos para almacenes lejanos; instalar Quick Stack en el servidor no lo cambia.
 [*]Cooperativo: sin verificar
 [*]Game Pass/WinGDK: paquete verificado estáticamente, aún sin probar en el juego
 [/list]
@@ -114,6 +111,8 @@ Con [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pa
 [b]F5 no responde:[/b] comprueba que estás en una base, UE4SS y Quick Stack están activos, el atajo es correcto y solo hay una copia instalada.
 
 [b]Un objeto no se vende o almacena:[/b] comprueba venta, listas de conservación, [b]Tab > R[/b], mercader de la base actual, rutas, filtros, permisos y capacidad.
+
+[b]Datos obsoletos en el banco de un servidor dedicado:[/b] Los objetos quizá ya se movieron. Acércate una vez al almacén y reabre el banco. La solución completa requiere otro mod de servidor para la relevancia del almacenamiento; Quick Stack no lo incluye ni lo exige.
 
 Incluye plataforma, versiones, ajustes, pasos, resultado esperado y real, registro UE4SS completo y archivos de cierre inesperado.
 

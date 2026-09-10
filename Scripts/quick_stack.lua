@@ -22,7 +22,6 @@ local PLAN_OPERATIONS_PER_SLICE = 64
 local GUILD_REPLICATION_POLL_MS = 100
 local GUILD_REPLICATION_MAX_POLLS = 15
 local BASE_STACK_REPLICATION_POLL_MS = 100
-local BASE_STACK_REPLICATION_MAX_POLLS = 15
 local SALE_SHOP_POLL_MS = 100
 local SALE_SHOP_MAX_POLLS = 20
 local CONTAINER_READ_RETRY_MS = 100
@@ -162,6 +161,7 @@ local function notificationDetails(job)
         excludedTotal = job.excludedTotal or 0,
         full = job.fullItems or {},
         fullTotal = job.fullTotal or 0,
+        stopCode = job.stopCode,
         performanceCapture = job.performance ~= nil,
     }
 end
@@ -265,6 +265,25 @@ local function identityMatches(job)
     return state.job == job and P.identityMatches(job)
 end
 
+local function stoppedCode(job, message)
+    message = tostring(message or "")
+    if message:find("local player or base changed", 1, true) then
+        return "CONTEXT_CHANGED"
+    end
+    if message:find("base item-stack replication start failed", 1, true) then
+        return "BASE_SYNC_FAILED"
+    end
+    if message:find("all destination move requests failed", 1, true) then
+        return "MOVE_REQUEST_FAILED"
+    end
+    if message:find("cannot schedule game-thread step", 1, true) then
+        return "SCHEDULER_UNAVAILABLE"
+    end
+    if job.waitingForBaseStackReplication then return "BASE_DATA_NOT_READY" end
+    if message:find("timed out", 1, true) then return "JOB_TIMEOUT" end
+    return "QUICK_STACK_FAILED"
+end
+
 local function scheduleJobStep(job, delayMs, step, phase)
     if state.job ~= job or type(step) ~= "function" then return false end
     local scheduled = type(ExecuteInGameThreadWithDelay) == "function"
@@ -272,7 +291,12 @@ local function scheduleJobStep(job, delayMs, step, phase)
             delayMs or NEXT_SLICE_MS, function()
         if state.job ~= job then return end
         if os.time() - job.startedAt > JOB_TIMEOUT_SECONDS then
-            finishJob(job, false, "job timed out")
+            local timeoutMessage = "job timed out"
+            if job.waitingForBaseStackReplication then
+                timeoutMessage = job.lastBaseStackReplicationError
+                    or "base item-stack data was not ready before job timeout"
+            end
+            finishJob(job, false, timeoutMessage)
             return
         end
         beginPerformanceSlice(job, phase)
@@ -290,6 +314,7 @@ end
 finishJob = function(job, succeeded, message)
     if state.job ~= job then return end
     recordPerformanceSlice(job)
+    if not succeeded then job.stopCode = stoppedCode(job, message) end
     if job.baseStackReplicationActive then
         job.baseStackReplicationActive = false
         local stopped, stopError =
@@ -335,7 +360,8 @@ finishJob = function(job, succeeded, message)
     if succeeded then
         debugLog(message or "job complete")
     else
-        log("quick stack stopped: " .. tostring(message or "unknown error"))
+        log("quick stack stopped [" .. tostring(job.stopCode) .. "]: "
+            .. tostring(message or "unknown error"))
     end
 end
 
@@ -2295,15 +2321,13 @@ waitForBaseStackReplication = function(job)
     local baseline, replicationError =
         P.baseCampItemStackSnapshot(job.base)
     if baseline ~= nil then
+        job.waitingForBaseStackReplication = false
+        job.lastBaseStackReplicationError = nil
         job.baseStackBaseline = baseline
         scheduleJobStep(job, NEXT_SLICE_MS, scanInventorySlice, "inventory")
         return
     end
-    job.baseStackReplicationPolls = job.baseStackReplicationPolls + 1
-    if job.baseStackReplicationPolls >= BASE_STACK_REPLICATION_MAX_POLLS then
-        finishJob(job, false, replicationError)
-        return
-    end
+    job.lastBaseStackReplicationError = replicationError
     scheduleJobStep(job, BASE_STACK_REPLICATION_POLL_MS,
         waitForBaseStackReplication, "resolve")
 end
@@ -2325,7 +2349,7 @@ local function beginResolvedJob(job)
         return
     end
     job.baseStackReplicationActive = true
-    job.baseStackReplicationPolls = 0
+    job.waitingForBaseStackReplication = true
     scheduleJobStep(job, BASE_STACK_REPLICATION_POLL_MS,
         waitForBaseStackReplication, "resolve")
 end

@@ -1,0 +1,6 @@
+[h1]Pal Insight: Quick Stack 1.4.2[/h1]
+
+[h2]Fixed[/h2]
+[list]
+[*]Fixed workbench material counts sometimes not refreshing after using F5 on dedicated servers. This fix has not yet been tested on a dedicated server.
+[/list]

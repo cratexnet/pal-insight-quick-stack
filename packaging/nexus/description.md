@@ -1,4 +1,4 @@
-[center][size=6][b]Pal Insight: Quick Stack[/b][/size][/center]
+[center][size=6][b]Pal Insight: Quick Stack - Sell and Store Backpack Items with One Key[/b][/size][/center]
 [center][/center]
 [center][b]One key, one clean backpack.[/b][/center]
 [center][/center]
@@ -6,22 +6,18 @@
 [center][/center]
 [center]Quick Stack is a standalone, client-side UE4SS Lua mod. [url=https://www.nexusmods.com/palworld/mods/4638][b]Pal Insight[/b][/url] is optional.[/center]
 
-[center][img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788399721-964224582.png[/img][/center]
+[center][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1788832011-1479075983.png[/img][/center]
 
-[size=5][b]WHAT'S NEW IN 1.4.0[/b][/size]
+[size=5][b]WHAT'S NEW IN 1.4.3[/b][/size]
 
 [list]
-[*][b]Automatic selling fixed:[/b] F5 now finds an available merchant in the current base automatically and applies Noble and Fine Furs passives from party Pals to sale prices for configured valuables, ammunition, Pal Spheres, and fishing bait.[/*]
-[*][b]Safe merchant fallback:[/b] A new default-on option keeps sale items in the backpack when no merchant is found. Disable it to send those items through normal storage rules instead.[/*]
-[*][b]Clearer results:[/b] Results now use status-specific titles and one line per processing category. Automatic mode opens detailed results when F5 is used from the inventory and shows a text notification elsewhere.[/*]
-[*][b]Routing and stability fixes:[/b] Corrected dedicated food routing so the 5 cake types use Breeding Farms and other food uses Pal Food Boxes before cold and ordinary storage, and fixed a crash when closing Quick Stack settings with Esc or controller Back.[/*]
+[*]Quick Stack no longer stops after only 1.5 seconds when current-base storage data is still loading on a multiplayer client. It now continues waiting within the existing bounded job timeout.[/*]
+[*]Stopped notifications now include a short reason code to help diagnose any remaining failures.[/*]
 [/list]
 
-Version 1.3.0 added Medicine Rack priority, dedicated food routing, and General, Automatic Sale, and Special Items settings tabs.
+Dedicated-server player feedback has confirmed that the separate workbench material-count display issue remains. Version 1.4.3 removes one premature 1.5-second base-data readiness stop; it does not force distant storage containers to become network-relevant.
 
-Version 1.2.0 added optional automatic selling for 9 high-value merchant items, 32 ammunition types, 10 Pal Sphere types, and 4 fishing baits, with icon-assisted keep lists and localized release history.
-
-Version 1.1.0 added optional, default-off support for accessible Guild Chests and small Incubators. Large Incubators are used first, and small Incubators containing an egg or an unclaimed Pal are skipped.
+Version 1.4.0 moved in-game settings into Pal Insight's F6 > Extensions page, unified the control guide and status colors, and fixed settings access.
 
 Settings from [b]0.1.x[/b] are migrated automatically.
 
@@ -164,25 +160,23 @@ Automatic mode opens the detailed result window when F5 is triggered from the In
 
 Automatic selling uses the same selected result-display mode as storage.
 
-The detailed panel lists sold, stored, excluded, and unstored items with Palworld's native icons and localized names. It supports mouse, keyboard, and controller input. If the panel cannot open safely, Quick Stack falls back to a text notification.
+The detailed panel and compact notifications use consistent category colors: green for sold, blue for stored, muted gray for excluded, and yellow for unfinished items. The detailed panel uses Palworld's native icons and localized names and supports mouse, keyboard, and controller input. If the panel cannot open safely, Quick Stack falls back to a text notification.
 
 An item is reported as sold or stored only after the backpack confirms that its quantity decreased.
 
 [size=5][b]SETTINGS AND PAL INSIGHT[/b][/size]
 
-Quick Stack owns one complete settings panel and remains fully functional without Pal Insight.
+Quick Stack owns its settings page and saved configuration. Current [url=https://www.nexusmods.com/palworld/mods/4638][b]Pal Insight[/b][/url] provides the in-game settings entry and shared controls.
 
 [list]
-[*][b]Quick Stack alone:[/b] Press F6 to open Quick Stack Settings.[/*]
-[*][b]Pal Insight installed but disabled:[/b] F6 still opens the standalone Quick Stack panel.[/*]
-[*][b]Both mods active:[/b] Pal Insight owns F6. Open [b]F6 > Extensions > Pal Insight: Quick Stack[/b].[/*]
+[*][b]F5:[/b] Run selling and storage, including when Quick Stack runs alone.[/*]
+[*][b]Both mods active:[/b] Open [b]F6 > Extensions > Pal Insight: Quick Stack[/b].[/*]
+[*][b]Without active Pal Insight:[/b] Saved or default settings still apply. There is no standalone F6 settings panel, and results use text notifications.[/*]
 [/list]
 
 Settings are organized into General, Automatic Sale, and Special Items tabs. Use the mouse, keyboard, controller, or the arrow controls on both sides of the tab row to navigate.
 
-Pal Insight opens Quick Stack's own panel; it does not copy the controls, sell or move items, or own Quick Stack's settings.
-
-Use [url=https://www.nexusmods.com/palworld/mods/4638][b]Pal Insight 2.0.0 or later[/b][/url] for current integration.
+Opening Quick Stack settings hides the Pal Insight window and reuses its on-screen control guide. Closing Quick Stack restores the previous Pal Insight page. Quick Stack still owns selling, item movement, and saved settings.
 
 [center][url=https://www.nexusmods.com/palworld/mods/4638][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url][/center]
 
@@ -230,7 +224,7 @@ Avoid other inventory operations while the progress notification is visible.
 [*][b]All 17 Palworld interface languages:[/b] Supported[/*]
 [*][b]Pal Insight 2.0.0 integration:[/b] Supported[/*]
 [*][b]Multiplayer clients:[/b] Not fully verified[/*]
-[*][b]Dedicated-server client:[/b] One community tester reported successful use with Quick Stack installed client-side only. The tester's game build and distribution platform were not recorded, so this does not establish comprehensive dedicated-server compatibility.[/*]
+[*][b]Dedicated-server client:[/b] Item moves work with Quick Stack installed client-side only, but workbench material counts may remain outdated until the storage area becomes network-relevant. The current Quick Stack package has no server-side relevancy component; installing it on the server does not remove this limitation.[/*]
 [*][b]Representative Game Pass runtime acceptance:[/b] Not yet verified[/*]
 [/list]
 
@@ -261,6 +255,12 @@ Avoid other inventory operations while the progress notification is visible.
 Check the Inventory [b]Tab > R[/b] ignore state, Quick Stack's ignored-item and new-item settings, Guild Chest, Medicine Rack, food-routing and small-Incubator settings, Pal Egg and Relic routing, storage filters, permissions, and available capacity.
 
 Items outside the normal backpack are intentionally not handled.
+
+[b]Workbench counts are outdated after F5 on a dedicated server[/b]
+
+The items may already have moved correctly. After entering or fast-travelling to the base, walk near the storage area once, then reopen the workbench.
+
+A permanent fix requires a separate server-side mod that expands storage-container network relevancy. Quick Stack does not provide or require one, and installing the current Quick Stack package on the server does not add this behavior.
 
 [b]Reporting a problem[/b]
 

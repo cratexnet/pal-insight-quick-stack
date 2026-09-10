@@ -1,4 +1,4 @@
-[h1]Pal Insight: Quick Stack – Rucksackgegenstände per Tastendruck einlagern[/h1]
+[h1]Pal Insight: Quick Stack – Rucksackgegenstände per Tastendruck verkaufen und einlagern[/h1]
 
 [b]Kehre zur Basis zurück, drücke eine Taste und setze dein Abenteuer fort.[/b]
 
@@ -6,16 +6,12 @@ Drücke in deiner aktuellen Basis [b]F5[/b]. Quick Stack verkauft konfigurierte 
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Neu in 1.4.0[/h2]
+[h2]Neu in 1.4.3[/h2]
 
 [list]
-[*][b]Automatischer Verkauf korrigiert:[/b] F5 findet einen Händler der aktuellen Basis, verkauft Wertgegenstände, Munition, Pal-Sphären und Angelköder und berücksichtigt Kostbar und Edles Fell von Gruppen-Pals beim Preis.
-[*][b]Sicherer Rückfall:[/b] Eine standardmäßig aktive Option behält Verkaufsgegenstände im Rucksack, wenn kein Händler gefunden wird. Deaktiviert gelten normale Lagerregeln.
-[*][b]Klarere Ergebnisse:[/b] Statusabhängige Titel und eine Zeile je Kategorie. Automatisch öffnet im Inventar Details, andernorts eine Textmeldung.
-[*][b]Routen und Stabilität:[/b] Korrigiert wurden Nahrungsprioritäten und ein möglicher Absturz beim Schließen der Einstellungen mit Esc oder Controller-Zurück, auch über Pal Insight.
+[*]Quick Stack stoppt auf Mehrspieler-Clients nicht mehr nach nur 1,5 Sekunden, wenn die Lagerdaten der aktuellen Basis noch geladen werden. Es wartet nun innerhalb des bestehenden begrenzten Gesamtzeitlimits weiter.
+[*]Abbruchmeldungen enthalten nun einen kurzen Ursachencode, um verbleibende Fehler leichter zu diagnostizieren.
 [/list]
-
-1.3.0 ergänzte Arzneiregal-Priorität, eigene Nahrungsrouten und Einstellungen mit drei Tabs.
 
 [h2]Alle Funktionen[/h2]
 
@@ -60,7 +56,7 @@ Arzneiregale sind standardmäßig aus, Nahrungsrouten an. [b]Tab > R[/b] schütz
 
 [list]
 [*]Automatisch öffnet im Inventar mit F5 Details, andernorts Text; Nur Text und Ergebnisfenster erzwingen den jeweiligen Modus
-[*]Statustitel und Kategoriezeilen zeigen Verkauf, Verstauen, Ausschlüsse und nicht verarbeitete Gegenstände
+[*]Einheitliche Farben: Grün für verkauft, Blau für eingelagert, Grau für ausgeschlossen und Gelb für nicht abgeschlossen
 [*]Native Symbole und lokalisierte Namen in detaillierten Ergebnissen verwenden
 [*]Auf Text zurückfallen, wenn das Detailfenster nicht geöffnet werden kann
 [/list]
@@ -71,16 +67,15 @@ Erst eine bestätigte Mengenabnahme zählt als Verkauf oder Verstauen.
 
 [list]
 [*][b]F5[/b] – Verkauf und Verstauen ausführen
-[*][b]F6[/b] – Quick-Stack-Einstellungen im eigenständigen Betrieb öffnen
 [/list]
 
 Die drei Tabs unterstützen Maus, Tastatur, Controller und Pfeile. Kleine Brutkästen und Weihwassermenge sind Unteroptionen. Einstellungen überstehen Workshop-Updates und übernehmen 0.1.x-Daten.
 
-Mit [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 oder neuer[/b][/url] öffnest du dieselben Einstellungen unter:
+Mit dem aktuellen [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight[/b][/url] öffnest du die Einstellungen unter:
 
 [b]F6 > Erweiterungen > Pal Insight: Quick Stack[/b]
 
-Quick Stack verwaltet Verkauf, Verschiebungen und Einstellungen. Ohne Pal Insight bleibt F6 verfügbar.
+Quick Stack verwaltet Verkauf, Verschiebungen und gespeicherte Einstellungen. Ohne aktives Pal Insight arbeitet F5 mit gespeicherten oder Standardwerten und Textmeldungen weiter; ein eigenständiges F6-Einstellungsfenster gibt es nicht.
 
 [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
 
@@ -112,7 +107,7 @@ Vermeide andere Rucksackaktionen, solange die Fortschrittsmeldung sichtbar ist.
 [list]
 [*]Steam-Einzelspieler: Getestet
 [*]Pal-Insight-2.0.0-Integration: Unterstützt
-[*]Dedizierter Server: Ein erfolgreicher rein clientseitiger Bericht; Spielversion und Plattform nicht erfasst
+[*]Dedizierter Server: Clientseitige Verschiebung funktioniert, Werkbankmengen können veraltet sein. Eine Serverinstallation ändert das nicht.
 [*]Co-op: Nicht verifiziert
 [*]Game Pass/WinGDK: Paket statisch geprüft, noch nicht im Spiel verifiziert
 [/list]
@@ -122,6 +117,8 @@ Vermeide andere Rucksackaktionen, solange die Fortschrittsmeldung sichtbar ist.
 [b]F5 reagiert nicht:[/b] Prüfe Basis, UE4SS, Quick Stack, Tastenkürzel und ob nur eine Mod-Kopie installiert ist.
 
 [b]Nicht verkauft oder verstaut:[/b] Prüfe Verkauf, Behalteliste, [b]Tab > R[/b], Händler der aktuellen Basis, Routen, Filter, Rechte und Kapazität.
+
+[b]Veraltete Werkbankmengen auf einem dedizierten Server:[/b] Gegenstände können bereits verschoben sein. Gehe einmal zum Lager und öffne die Werkbank neu. Dauerhaft hilft nur eine separate Server-Mod für Lager-Relevanz; Quick Stack enthält und benötigt sie nicht.
 
 Fehlerberichte benötigen Plattform, Versionen, Einstellungen, Schritte, Soll/Ist, UE4SS-Protokoll und Absturzdateien.
 

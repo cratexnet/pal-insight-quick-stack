@@ -1,4 +1,4 @@
-[h1]Pal Insight: Quick Stack - Move Backpack Items to Storage with One Key[/h1]
+[h1]Pal Insight: Quick Stack - Sell and Store Backpack Items with One Key[/h1]
 
 [b]Come home, press one key, and get back to the adventure.[/b]
 
@@ -6,16 +6,12 @@ Press [b]F5[/b] inside your current base. Quick Stack can sell selected items, t
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]What's New in 1.4.0[/h2]
+[h2]What's New in 1.4.3[/h2]
 
 [list]
-[*][b]Automatic selling fixed:[/b] F5 finds an available current-base merchant, sells configured valuables, ammunition, Pal Spheres, and bait, and applies Noble and Fine Furs from party Pals.
-[*][b]Safe fallback:[/b] A new default-on option keeps sale items in the backpack when no merchant is found. Disable it to use normal storage rules.
-[*][b]Clearer results:[/b] Status titles and one line per category. Automatic opens details from Inventory and shows text elsewhere.
-[*][b]Routing and stability:[/b] Corrected cake and food priorities and a crash when closing Settings with Esc or controller Back, including from Pal Insight.
+[*]Quick Stack no longer stops after only 1.5 seconds when current-base storage data is still loading on a multiplayer client. It now continues waiting within the existing bounded job timeout.
+[*]Stopped notifications now include a short reason code to help diagnose any remaining failures.
 [/list]
-
-Version 1.3.0 added Medicine Rack priority, dedicated food routing, and three-tab Settings.
 
 [h2]All Features[/h2]
 
@@ -60,7 +56,7 @@ Medicine Rack priority is off by default; food routing is on. [b]Tab > R[/b] exc
 
 [list]
 [*]Automatic opens details from Inventory and text elsewhere; Text Only and Result Window force those modes
-[*]Status titles and category lines show sold, stored, excluded, and unstored items
+[*]Consistent colors show sold items in green, stored items in blue, excluded items in muted gray, and unfinished items in yellow
 [*]Detailed results use native icons and localized names
 [*]Fall back to text when the detailed window is unavailable
 [/list]
@@ -71,16 +67,15 @@ Items count as sold or stored only after the backpack confirms the quantity decr
 
 [list]
 [*][b]F5[/b] — run selling and storage
-[*][b]F6[/b] — open Quick Stack Settings when running standalone
 [/list]
 
 The [b]General[/b], [b]Automatic Sale[/b], and [b]Special Items[/b] tabs support mouse, keyboard, controller, and side arrows. Child options include small Incubators and Holy Water quantity. Settings survive Workshop updates and import existing 0.1.x data.
 
-With [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight 2.0.0 or newer[/b][/url], open the same settings from:
+With current [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][b]Pal Insight[/b][/url] active, open the settings from:
 
 [b]F6 > Extensions > Pal Insight: Quick Stack[/b]
 
-Quick Stack still owns selling, movement, and settings. If Pal Insight is disabled, its standalone F6 panel remains available.
+Quick Stack still owns selling, movement, and saved settings. Without active Pal Insight, F5 uses saved or default settings and text notifications; there is no standalone F6 panel.
 
 [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3778493118][img]https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1786447166-1320978993.jpg[/img][/url]
 
@@ -112,7 +107,7 @@ Avoid other inventory actions while the in-progress message is visible.
 [list]
 [*]Steam single-player: Tested
 [*]Pal Insight 2.0.0 integration: Supported
-[*]Dedicated server: One tester reported successful client-side-only use; build and platform were not recorded
+[*]Dedicated-server client: Item moves work client-side only. Workbench counts may stay stale for distant storage; installing Quick Stack on the server does not change this.
 [*]Co-op: Not verified
 [*]Game Pass/WinGDK: Package verified statically; in-game acceptance not verified
 [/list]
@@ -122,6 +117,8 @@ Avoid other inventory actions while the in-progress message is visible.
 [b]F5 does nothing:[/b] Confirm that you are inside a base, UE4SS and Quick Stack are enabled, the shortcut is correct, and only one Quick Stack copy is installed.
 
 [b]Items were not sold or stored:[/b] Check the sale toggle, keep list, [b]Tab > R[/b], current-base merchant, routing, filters, permissions, and capacity.
+
+[b]Stale workbench counts after F5 on a dedicated server:[/b] Items may already be moved. Approach the storage area once, then reopen the workbench. A complete fix needs a separate server-side storage-relevancy mod; Quick Stack neither provides nor requires one.
 
 Bug reports should include platform, versions, settings, reproduction steps, expected and actual results, the complete UE4SS log, and crash files.
 

@@ -6,6 +6,10 @@ local ReleaseNotes = {}
 -- timestamp when its version number is upgraded. Update it later only when
 -- necessary, preserving source precision rather than inventing seconds.
 ReleaseNotes.versions = {
+    { version = "1.4.3", dateUtc = "2026-09-10 04:47:56", groups = {
+        { kind = "fixed", items = { 33, 34 } },
+        { kind = "changed", items = { 35 } },
+    } },
     { version = "1.4.2", dateUtc = "2026-09-09 13:55:47", groups = {
         { kind = "fixed", items = { 32 } },
     } },
@@ -601,6 +605,94 @@ local PATCH_142 = {
     },
 }
 
+local PATCH_143 = {
+    en = {
+        [33] = "Quick Stack no longer stops after only 1.5 seconds when current-base storage data is still loading on a multiplayer client. It now continues waiting within the existing bounded job timeout.",
+        [34] = "Stopped notifications now include a short reason code to help diagnose any remaining failures.",
+        [35] = "This is a multiplayer synchronization fix candidate. Dedicated-server, co-op, and Game Pass runtime confirmation is still needed.",
+    },
+    ["zh-hans"] = {
+        [33] = "联机客户端的当前基地仓储数据仍在加载时，Quick Stack 不再仅等待 1.5 秒便停止；现在会在现有的任务超时范围内继续等待。",
+        [34] = "停止通知现在会显示简短原因代码，便于诊断仍然存在的问题。",
+        [35] = "这是联机同步修复候选版本，仍需专用服务器、合作模式及 Game Pass 实机验证。",
+    },
+    ["zh-hant"] = {
+        [33] = "連線用戶端的目前基地倉儲資料仍在載入時，Quick Stack 不再只等待 1.5 秒便停止；現在會在既有的工作逾時範圍內繼續等待。",
+        [34] = "停止通知現在會顯示簡短原因代碼，方便診斷仍然存在的問題。",
+        [35] = "這是連線同步修正候選版本，仍需專用伺服器、合作模式及 Game Pass 實機驗證。",
+    },
+    ja = {
+        [33] = "マルチプレイのクライアントで現在の拠点の収納データが読み込み中でも、Quick Stack は 1.5 秒だけで停止しなくなりました。既存の処理全体のタイムアウト範囲内で待機を続けます。",
+        [34] = "停止通知に短い理由コードを表示し、残っている問題を診断しやすくしました。",
+        [35] = "これはマルチプレイ同期修正の候補版です。専用サーバー、協力プレイ、Game Pass での実機確認が引き続き必要です。",
+    },
+    ko = {
+        [33] = "멀티플레이 클라이언트에서 현재 거점 보관 데이터가 아직 로드 중이어도 Quick Stack이 1.5초 만에 중지되지 않습니다. 기존 전체 작업 제한 시간 안에서 계속 기다립니다.",
+        [34] = "중지 알림에 짧은 사유 코드를 표시하여 남은 문제를 진단하기 쉽게 했습니다.",
+        [35] = "멀티플레이 동기화 수정 후보 버전입니다. 전용 서버, 협동 플레이 및 Game Pass 실제 실행 확인이 아직 필요합니다.",
+    },
+    de = {
+        [33] = "Quick Stack stoppt auf Mehrspieler-Clients nicht mehr nach nur 1,5 Sekunden, wenn die Lagerdaten der aktuellen Basis noch geladen werden. Es wartet nun innerhalb des bestehenden begrenzten Gesamtzeitlimits weiter.",
+        [34] = "Abbruchmeldungen enthalten nun einen kurzen Ursachencode, um verbleibende Fehler leichter zu diagnostizieren.",
+        [35] = "Dies ist ein Kandidat zur Behebung der Mehrspieler-Synchronisierung. Laufzeittests auf dedizierten Servern, im Koop und mit Game Pass stehen noch aus.",
+    },
+    fr = {
+        [33] = "Sur un client multijoueur, Quick Stack ne s’arrête plus après seulement 1,5 seconde lorsque les données de stockage de la base actuelle sont encore en cours de chargement. L’attente continue dans la limite globale existante.",
+        [34] = "Les notifications d’arrêt affichent désormais un code de motif court afin de faciliter le diagnostic des problèmes restants.",
+        [35] = "Il s’agit d’un correctif candidat pour la synchronisation multijoueur. Une validation en jeu sur serveur dédié, en coopération et sur Game Pass reste nécessaire.",
+    },
+    it = {
+        [33] = "Sui client multigiocatore, Quick Stack non si interrompe più dopo appena 1,5 secondi se i dati dei depositi della base attuale sono ancora in caricamento. Ora continua ad attendere entro il limite complessivo esistente.",
+        [34] = "Le notifiche di interruzione ora mostrano un breve codice del motivo per facilitare la diagnosi dei problemi rimanenti.",
+        [35] = "Questa è una correzione candidata per la sincronizzazione multigiocatore. Sono ancora necessarie verifiche in gioco su server dedicato, cooperativa e Game Pass.",
+    },
+    es = {
+        [33] = "En clientes multijugador, Quick Stack ya no se detiene tras solo 1,5 segundos si los datos de almacenamiento de la base actual todavía se están cargando. Ahora sigue esperando dentro del límite total existente.",
+        [34] = "Las notificaciones de detención ahora muestran un código breve del motivo para facilitar el diagnóstico de cualquier problema restante.",
+        [35] = "Esta es una corrección candidata para la sincronización multijugador. Aún requiere verificación en servidores dedicados, cooperativo y Game Pass.",
+    },
+    ["pt-br"] = {
+        [33] = "Em clientes multijogador, o Quick Stack não para mais após apenas 1,5 segundo quando os dados de armazenamento da base atual ainda estão carregando. Agora ele continua aguardando dentro do limite total existente.",
+        [34] = "As notificações de interrupção agora mostram um código curto do motivo para facilitar o diagnóstico de problemas restantes.",
+        [35] = "Esta é uma correção candidata para a sincronização multijogador. Ainda é necessária a validação em servidor dedicado, cooperativo e Game Pass.",
+    },
+    ru = {
+        [33] = "На клиенте сетевой игры Quick Stack больше не останавливается всего через 1,5 секунды, если данные хранилищ текущей базы ещё загружаются. Ожидание продолжается в пределах существующего общего тайм-аута задания.",
+        [34] = "В уведомлениях об остановке теперь отображается короткий код причины, упрощающий диагностику оставшихся ошибок.",
+        [35] = "Это кандидат на исправление сетевой синхронизации. Всё ещё требуется проверка на выделенном сервере, в кооперативе и в версии Game Pass.",
+    },
+    tr = {
+        [33] = "Çok oyunculu istemcide mevcut üssün depolama verileri hâlâ yüklenirken Quick Stack artık yalnızca 1,5 saniye sonra durmaz. Mevcut sınırlı toplam görev zaman aşımı içinde beklemeye devam eder.",
+        [34] = "Durdurma bildirimleri artık kalan sorunları tanılamaya yardımcı olan kısa bir neden kodu gösterir.",
+        [35] = "Bu, çok oyunculu eşitleme için aday bir düzeltmedir. Özel sunucu, eşli oyun ve Game Pass çalışma zamanı doğrulaması hâlâ gereklidir.",
+    },
+    pl = {
+        [33] = "Na kliencie gry wieloosobowej Quick Stack nie zatrzymuje się już po zaledwie 1,5 sekundy, gdy dane magazynów bieżącej bazy nadal się wczytują. Oczekiwanie trwa w ramach istniejącego ogólnego limitu czasu zadania.",
+        [34] = "Powiadomienia o zatrzymaniu zawierają teraz krótki kod przyczyny, który ułatwia diagnozowanie pozostałych problemów.",
+        [35] = "To kandydat na poprawkę synchronizacji wieloosobowej. Nadal wymaga sprawdzenia na serwerze dedykowanym, w trybie współpracy i w Game Pass.",
+    },
+    id = {
+        [33] = "Pada klien multipemain, Quick Stack tidak lagi berhenti setelah hanya 1,5 detik saat data penyimpanan markas saat ini masih dimuat. Quick Stack kini terus menunggu dalam batas waktu keseluruhan yang ada.",
+        [34] = "Notifikasi berhenti kini menampilkan kode alasan singkat untuk membantu mendiagnosis masalah yang masih tersisa.",
+        [35] = "Ini adalah kandidat perbaikan sinkronisasi multipemain. Verifikasi runtime di server dedicated, co-op, dan Game Pass masih diperlukan.",
+    },
+    ["es-419"] = {
+        [33] = "En clientes multijugador, Quick Stack ya no se detiene después de solo 1,5 segundos si los datos de almacenamiento de la base actual todavía se están cargando. Ahora sigue esperando dentro del límite total existente.",
+        [34] = "Las notificaciones de detención ahora muestran un código breve del motivo para facilitar el diagnóstico de cualquier problema restante.",
+        [35] = "Esta es una corrección candidata para la sincronización multijugador. Aún requiere verificación en servidores dedicados, cooperativo y Game Pass.",
+    },
+    th = {
+        [33] = "บนไคลเอนต์หลายผู้เล่น Quick Stack จะไม่หยุดหลังจากเพียง 1.5 วินาทีอีกต่อไป หากข้อมูลคลังของฐานปัจจุบันยังโหลดอยู่ โดยจะรอต่อภายในขีดจำกัดเวลารวมของงานที่มีอยู่",
+        [34] = "การแจ้งเตือนเมื่อหยุดจะแสดงรหัสเหตุผลสั้น ๆ เพื่อช่วยวินิจฉัยปัญหาที่ยังเหลืออยู่",
+        [35] = "นี่คือรุ่นทดสอบของการแก้ไขการซิงค์หลายผู้เล่น ยังต้องตรวจสอบจริงบนเซิร์ฟเวอร์เฉพาะ โหมดร่วมมือ และ Game Pass",
+    },
+    vi = {
+        [33] = "Trên máy khách nhiều người chơi, Quick Stack không còn dừng chỉ sau 1,5 giây khi dữ liệu kho của căn cứ hiện tại vẫn đang tải. Giờ đây mod tiếp tục chờ trong giới hạn thời gian tổng hiện có của tác vụ.",
+        [34] = "Thông báo dừng giờ hiển thị mã lý do ngắn để giúp chẩn đoán những lỗi còn lại.",
+        [35] = "Đây là bản sửa lỗi đồng bộ nhiều người chơi dạng ứng viên. Vẫn cần xác nhận thực tế trên máy chủ chuyên dụng, chế độ co-op và Game Pass.",
+    },
+}
+
 for locale, copy in pairs(COMPACT) do
     local row = UI[locale]
     for index, value in pairs(copy) do row[index] = value end
@@ -636,6 +728,11 @@ end
 
 for locale, row in pairs(TEXT) do
     local patch = PATCH_142[locale] or PATCH_142.en
+    for key, value in pairs(patch) do row[key] = value end
+end
+
+for locale, row in pairs(TEXT) do
+    local patch = PATCH_143[locale] or PATCH_143.en
     for key, value in pairs(patch) do row[key] = value end
 end
 

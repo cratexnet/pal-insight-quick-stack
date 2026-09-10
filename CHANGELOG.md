@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.4.3 - 2026-09-10
+
+### Fixed
+
+- Quick Stack no longer stops after only 1.5 seconds when current-base storage
+  data is still loading on a multiplayer client. It now continues waiting
+  within the existing bounded job timeout.
+- Stopped notifications now include a short reason code to help diagnose any
+  remaining failures.
+
+This is a multiplayer synchronization fix candidate. Dedicated-server, co-op,
+and Game Pass runtime confirmation is still needed.
+
 ## 1.4.2 - 2026-09-09
 
 ### Fixed

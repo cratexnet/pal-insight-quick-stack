@@ -1,21 +1,17 @@
-[b][color=#00ff00][size=5]PAL INSIGHT: QUICK STACK 1.4.0 — START HERE[/size][/color][/b]
+[b][color=#00ff00][size=5]PAL INSIGHT: QUICK STACK 1.4.3 — START HERE[/size][/color][/b]
 
 Press [b]F5[/b] inside your current base to sell configured items, then store eligible normal-backpack items.
 
 Quick Stack is a standalone client-side UE4SS Lua mod. Pal Insight is optional.
 
-[b]WHAT'S NEW IN 1.4.0[/b]
+[b]WHAT'S NEW IN 1.4.3[/b]
 
 [list]
-[*]Automatic selling now finds an available current-base merchant and applies Noble and Fine Furs passives from party Pals to sale prices.
-[*]A default-on fallback keeps sale items in the backpack when no merchant is found; disable it to use normal storage rules.
-[*]F5 results now use status titles and one line per category. Automatic mode opens detailed results from the inventory and shows text elsewhere.
-[*]Fixed cake and food destination priorities and a crash when closing Quick Stack settings with Esc or controller Back.
+[*]Quick Stack no longer stops after only 1.5 seconds when current-base storage data is still loading on a multiplayer client. It now continues waiting within the existing bounded job timeout.
+[*]Stopped notifications now include a short reason code to help diagnose any remaining failures.
 [/list]
 
-Version 1.3.0 added Medicine Rack priority, dedicated food routing, and tabbed settings.
-
-Version 1.2.0 added optional selling for 9 high-value items, 32 ammunition types, 10 Pal Spheres, and 4 fishing baits, plus icon keep lists and release history.
+Dedicated-server player reports confirm a separate issue remains: workbench counts may stay stale. 1.4.3 removes one early readiness stop; it cannot change storage network relevancy.
 
 [b]QUICK START[/b]
 
@@ -26,7 +22,7 @@ Version 1.2.0 added optional selling for 9 high-value items, 32 ammunition types
 [*]Enter a base and press [b]F5[/b].
 [/list]
 
-Press [b]F6[/b] for Settings. With Pal Insight active, use [b]F6 > Extensions > Pal Insight: Quick Stack[/b].
+With current Pal Insight active, use [b]F6 > Extensions > Pal Insight: Quick Stack[/b] for settings. Without Pal Insight, F5 uses saved or default settings and text notifications; there is no standalone F6 panel.
 
 [b]Use one installation channel only.[/b] Do not combine Nexus, CurseForge, or Workshop copies, or mix Win64 and WinGDK packages. Close Palworld before updating.
 
@@ -54,21 +50,21 @@ F6 Settings can change these rules. Medicine Rack priority covers 3 current medi
 
 [b]RESULTS AND PAL INSIGHT[/b]
 
-Choose [b]Automatic[/b], [b]Text only[/b], or [b]Result window[/b]. Automatic opens detailed results when F5 is used from the inventory and shows text elsewhere. [url=https://www.nexusmods.com/palworld/mods/4638]Pal Insight 2.0.0 or later[/url] can host the same panel.
-
-Quick Stack alone, or with Pal Insight disabled, uses its own F6 Settings. With both active, Pal Insight owns F6. F5 always runs Quick Stack.
+Choose [b]Automatic[/b], [b]Text only[/b], or [b]Result window[/b]. Automatic opens detailed results when F5 is used from the inventory and shows text elsewhere. Sold items are green, stored items blue, excluded items muted gray, and unfinished items yellow. [url=https://www.nexusmods.com/palworld/mods/4638]Current Pal Insight[/url] provides the in-game settings entry and detailed result window.
 
 Settings are saved outside the mod folder and 0.1.x settings migrate automatically.
 
 [b]PLATFORM STATUS[/b]
 
-Steam single-player, all 17 interface languages, and Pal Insight 2.0.0 integration are supported. Multiplayer/co-op is not fully verified. One dedicated-server tester reported successful client-side-only use, but their build and platform were not recorded. Game Pass/WinGDK packaging is statically verified; in-game acceptance remains unverified.
+Steam single-player, all 17 interface languages, and current Pal Insight are supported. On dedicated-server clients, item moves work client-side only, but workbench counts may stay stale for distant storage. Installing Quick Stack on the server does not change this. Co-op and Game Pass runtime remain unverified.
 
 [b]TROUBLESHOOTING[/b]
 
 If F5 does nothing, confirm that you are inside a base, verify the shortcut and package, install only one copy, and inspect [b]UE4SS.log[/b].
 
 If an item was not sold or stored, check its sale toggle, keep list, [b]Tab > R[/b], available current-base merchant, routing, filters, permissions, capacity, and backpack location.
+
+If dedicated-server workbench counts stay stale after F5, items may already be moved. Approach storage once and reopen the workbench. A complete fix needs a separate server-side storage-relevancy mod; Quick Stack neither provides nor requires one.
 
 [b]REPORTING A PROBLEM[/b]
 

@@ -1392,6 +1392,10 @@ function Notifications.finished(controller, _startToken, outcome,
             message = strings.noop
         else
             message = strings.stopped
+            if type(details.stopCode) == "string"
+                and details.stopCode ~= "" then
+                message = message .. " · " .. details.stopCode
+            end
             messageColor = COLORS.danger
         end
         token = showCompact(controller, title,
