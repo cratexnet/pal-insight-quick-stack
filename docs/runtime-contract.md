@@ -87,21 +87,25 @@ container; the evidence is recorded in
 `docs/research/similar-quick-stack-sync.md`.
 
 Production therefore acquires one item-stack replication lease only when
-`PalUtility.IsInClientConnection` is true. It waits up to fifteen 100 ms polls
-for exactly one readable item-stack module in the frozen current-base
-`ModuleArray`, then snapshots aggregate counts before routing. After direct
-destination RPC submission, completion requires both the existing common-
-inventory source reduction and an aggregate increase of at least the submitted
-amount for every moved static item ID. Success, failure, timeout, and stale
-identity all end the lease exactly once.
+`PalUtility.IsInClientConnection` is true. It polls for exactly one readable
+item-stack module in the frozen current-base `ModuleArray`, then snapshots
+aggregate counts before routing. Readiness has no separate 1.5-second failure
+threshold; the generation-scoped whole-job watchdog is the safety boundary.
+This is a fallback until a signature-compatible cooked callback can bind the
+native ready delegate and pass runtime acceptance. After direct destination RPC
+submission, completion requires both the existing common-inventory source
+reduction and an aggregate increase of at least the submitted amount for every
+moved static item ID. Success, failure, timeout, and stale identity all end the
+lease exactly once.
 
 The native UI uses ready/updated delegates to schedule its own presentation.
-Quick Stack does not need that presentation callback: it observes the same
-replicated fast array directly in its existing bounded job loop. This avoids a
-new cooked callback bridge and avoids fixed-delay completion guesses. The
-reflected fields and lifecycle are source-supported, but their behavior on a
-remote dedicated client remains runtime-unverified until the acceptance matrix
-is executed.
+Quick Stack currently observes the same replicated fast array in its bounded
+job loop because the shipped cooked bridge exposes no UFunction with the ready
+delegate's exact signature. UE4SS `RegisterHook` cannot hook a delegate
+signature directly, so an event-driven replacement requires a dedicated cooked
+callback bridge and runtime validation. The reflected fields and lifecycle are
+source-supported, but their behavior on a remote dedicated client remains
+runtime-unverified until the acceptance matrix is executed.
 
 ## Local Notification Contract
 
@@ -141,6 +145,29 @@ The running state remains visible until the job reaches a terminal outcome. The
 terminal state replaces its text in the same widget and removes it after two
 seconds. UMG creation, update, and removal are guarded; a notification failure
 is logged once and cannot abort or alter the inventory job.
+
+Stopped jobs supply explicit reason codes from the owning failure branch, not
+by searching message text. Known inventory roots/container/slot/ID failures,
+exclusion reads, individual managers, base object reads, item metadata/category
+reads, destination class availability, and move submission are distinguished.
+The `QUICK_STACK_FAILED` fallback is reserved for unexpected exceptions or an
+otherwise unclassified failure. `BASE_DATA_NOT_READY` applies specifically to
+the whole-job timeout while waiting for the initial base aggregate, not every
+exception raised during that wait.
+
+The compact stopped message always shows `CODE / phase`, including after a
+skipped automatic sale. The normal log retains the original reason and caught
+error where available, with a stable prefix and job-local correlation:
+
+```text
+quick stack stopped [INVENTORY_SLOT_UNREADABLE]: phase=inventory; job=7; common inventory slot is unreadable at 3: <original error>
+```
+
+Typical phases are `resolve`, `base_sync`, `inventory`, `sale`, `metadata`,
+`base`, `containers`, `plan`, `recheck`, and `completion`. The code identifies
+the failed operation; the phase identifies where this job was executing.
+These are normal failure reports, not an opt-in probe. Routing, retries,
+cleanup ownership, and destination RPC pacing are unchanged.
 
 “收纳完成” is not tied to the return of
 `RequestMoveToContainer_ToServer`, because that only proves local submission.

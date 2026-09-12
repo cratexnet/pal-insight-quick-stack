@@ -70,7 +70,8 @@ function Palworld.guidParts(value)
     local ok, parts = pcall(function()
         return { A = value.A, B = value.B, C = value.C, D = value.D }
     end)
-    if not ok or parts.A == nil or parts.B == nil
+    if not ok then return nil, parts end
+    if parts.A == nil or parts.B == nil
         or parts.C == nil or parts.D == nil then return nil end
     return parts
 end
@@ -91,19 +92,28 @@ function Palworld.guidKey(parts)
     return string.format("%08X-%08X-%08X-%08X", a, b, c, d)
 end
 
+local function failureMessage(message, cause)
+    if cause == nil then return message end
+    return tostring(message) .. ": " .. tostring(cause)
+end
+
 function Palworld.arrayLength(array)
-    if array == nil then return nil end
+    if array == nil then return nil, "array is nil" end
     local ok, count = pcall(function() return array:GetArrayNum() end)
+    local methodError = not ok and count or nil
     if not ok or type(count) ~= "number" then
         ok, count = pcall(function() return #array end)
     end
-    if not ok or type(count) ~= "number" or count < 0 then return nil end
+    if not ok or type(count) ~= "number" or count < 0 then
+        return nil, failureMessage("array length is unreadable",
+            methodError or (not ok and count or nil))
+    end
     return math.floor(count)
 end
 
 function Palworld.arrayValue(array, index)
     local ok, value = pcall(function() return array[index] end)
-    if not ok then return nil, false end
+    if not ok then return nil, false, value end
     return value, true
 end
 
@@ -113,7 +123,8 @@ function Palworld.nameString(value)
         return value ~= "" and value or nil
     end
     local ok, result = pcall(function() return value:ToString() end)
-    if not ok or type(result) ~= "string" or result == "" then return nil end
+    if not ok then return nil, result end
+    if type(result) ~= "string" or result == "" then return nil end
     return result
 end
 
@@ -140,26 +151,26 @@ local function booleanValue(value)
 end
 
 function Palworld.readNameSet(array)
-    local count = Palworld.arrayLength(array)
-    if count == nil then return nil, "name array is unreadable" end
+    local count, countError = Palworld.arrayLength(array)
+    if count == nil then return nil, failureMessage("name array is unreadable", countError) end
     local out = {}
     for index = 1, count do
-        local raw, readable = Palworld.arrayValue(array, index)
-        if not readable then return nil, "name array entry is unreadable" end
-        local name = Palworld.nameString(Palworld.unwrap(raw))
-        if name == nil then return nil, "name array entry cannot be decoded" end
+        local raw, readable, readError = Palworld.arrayValue(array, index)
+        if not readable then return nil, failureMessage("name array entry is unreadable", readError) end
+        local name, nameError = Palworld.nameString(Palworld.unwrap(raw))
+        if name == nil then return nil, failureMessage("name array entry cannot be decoded", nameError) end
         if name ~= "None" then out[name] = true end
     end
     return out, nil
 end
 
 function Palworld.readEnumSet(array)
-    local count = Palworld.arrayLength(array)
-    if count == nil then return nil, "enum array is unreadable" end
+    local count, countError = Palworld.arrayLength(array)
+    if count == nil then return nil, failureMessage("enum array is unreadable", countError) end
     local out = {}
     for index = 1, count do
-        local raw, readable = Palworld.arrayValue(array, index)
-        if not readable then return nil, "enum array entry is unreadable" end
+        local raw, readable, readError = Palworld.arrayValue(array, index)
+        if not readable then return nil, failureMessage("enum array entry is unreadable", readError) end
         local value = Palworld.enumValue(raw)
         if value == nil then return nil, "enum array entry cannot be decoded" end
         out[value] = true
@@ -173,23 +184,30 @@ end
 
 function Palworld.containerGuid(container)
     local parts
-    local ok = pcall(function() parts = Palworld.guidParts(container.ID.ID) end)
-    if not ok then return nil, nil end
-    return parts, Palworld.guidKey(parts)
+    local partsError
+    local ok, readError = pcall(function()
+        parts, partsError = Palworld.guidParts(container.ID.ID)
+    end)
+    if not ok then return nil, nil, readError end
+    return parts, Palworld.guidKey(parts), partsError
 end
 
 function Palworld.slotGuid(slot)
     local parts
-    local ok = pcall(function() parts = Palworld.guidParts(slot.ContainerId.ID) end)
-    if not ok then return nil, nil end
-    return parts, Palworld.guidKey(parts)
+    local partsError
+    local ok, readError = pcall(function()
+        parts, partsError = Palworld.guidParts(slot.ContainerId.ID)
+    end)
+    if not ok then return nil, nil, readError end
+    return parts, Palworld.guidKey(parts), partsError
 end
 
 function Palworld.slotStaticId(slot)
     local raw
-    local ok = pcall(function() raw = slot.ItemId.StaticId end)
-    if not ok or raw == nil then return nil, nil end
-    return Palworld.nameString(raw), raw
+    local ok, readError = pcall(function() raw = slot.ItemId.StaticId end)
+    if not ok or raw == nil then return nil, nil, readError end
+    local name, nameError = Palworld.nameString(raw)
+    return name, raw, nameError
 end
 
 local function isLocalController(controller)
@@ -445,7 +463,7 @@ end
 function Palworld.startBaseCampItemStackReplication(context)
     local utility = Palworld.utility()
     if not Palworld.isValid(utility) then
-        return nil, "PalUtility CDO is unavailable"
+        return nil, "PalUtility CDO is unavailable", "PAL_UTILITY_UNAVAILABLE"
     end
     local clientConnection
     local checked, checkError = pcall(function()
@@ -453,13 +471,13 @@ function Palworld.startBaseCampItemStackReplication(context)
     end)
     if not checked or type(clientConnection) ~= "boolean" then
         return nil, "client connection state is unavailable: "
-            .. tostring(checkError)
+            .. tostring(checkError), "CLIENT_STATE_UNAVAILABLE"
     end
     if not clientConnection then return false, nil end
 
     local baseUtility = baseCampUtility()
     if not Palworld.isValid(baseUtility) then
-        return nil, "PalBaseCampUtility CDO is unavailable"
+        return nil, "PalBaseCampUtility CDO is unavailable", "BASE_UTILITY_UNAVAILABLE"
     end
     local started, startError = pcall(function()
         baseUtility:RequestStartReplicateLocalPlayerBaseCampItemStackInfo(
@@ -467,7 +485,7 @@ function Palworld.startBaseCampItemStackReplication(context)
     end)
     if not started then
         return nil, "base item-stack replication start failed: "
-            .. tostring(startError)
+            .. tostring(startError), "BASE_SYNC_FAILED"
     end
     return true, nil
 end
@@ -499,18 +517,20 @@ function Palworld.baseCampItemStackSnapshot(base)
 
     local modules
     local readable, readError = pcall(function() modules = base.ModuleArray end)
-    local moduleCount = readable and Palworld.arrayLength(modules) or nil
-    if moduleCount == nil then
-        return nil, "base module array is unreadable: " .. tostring(readError)
+    local moduleCount, moduleCountError = Palworld.arrayLength(modules)
+    if not readable or moduleCount == nil then
+        return nil, failureMessage("base module array is unreadable", readError or moduleCountError)
     end
 
     local itemStackModule
+    local moduleTypeError
     for index = 1, moduleCount do
-        local module, present = Palworld.arrayValue(modules, index)
-        if not present then return nil, "base module entry is unreadable" end
+        local module, present, entryError = Palworld.arrayValue(modules, index)
+        if not present then return nil, failureMessage("base module entry is unreadable", entryError) end
         local typed, matches = pcall(function()
             return Palworld.isValid(module) and module:IsA(itemStackClass)
         end)
+        if not typed then moduleTypeError = matches end
         if typed and matches == true then
             if itemStackModule ~= nil then
                 return nil, "base item-stack module is ambiguous"
@@ -519,48 +539,48 @@ function Palworld.baseCampItemStackSnapshot(base)
         end
     end
     if itemStackModule == nil then
-        return nil, "base item-stack module is not ready"
+        return nil, failureMessage("base item-stack module is not ready", moduleTypeError)
     end
 
     local repItems
     local itemsReadable, itemsError = pcall(function()
         repItems = itemStackModule.ItemStackRepInfoArray.Items
     end)
-    local repItemCount = itemsReadable and Palworld.arrayLength(repItems) or nil
-    if repItemCount == nil then
-        return nil, "base item-stack array is unreadable: "
-            .. tostring(itemsError)
+    local repItemCount, repCountError = Palworld.arrayLength(repItems)
+    if not itemsReadable or repItemCount == nil then
+        return nil, failureMessage("base item-stack array is unreadable", itemsError or repCountError)
     end
 
     local totals = {}
     for repIndex = 1, repItemCount do
-        local repInfo, repReadable = Palworld.arrayValue(repItems, repIndex)
+        local repInfo, repReadable, repError = Palworld.arrayValue(repItems, repIndex)
         if not repReadable then
-            return nil, "base item-stack entry is unreadable"
+            return nil, failureMessage("base item-stack entry is unreadable", repError)
         end
         local stackInfos
-        local infoReadable = pcall(function()
+        local infoReadable, infoError = pcall(function()
             stackInfos = repInfo.ItemStackInfos
         end)
-        local infoCount = infoReadable and Palworld.arrayLength(stackInfos) or nil
-        if infoCount == nil then
-            return nil, "base item-stack values are unreadable"
+        local infoCount, infoCountError = Palworld.arrayLength(stackInfos)
+        if not infoReadable or infoCount == nil then
+            return nil, failureMessage("base item-stack values are unreadable", infoError or infoCountError)
         end
         for infoIndex = 1, infoCount do
-            local stackInfo, stackReadable =
+            local stackInfo, stackReadable, stackError =
                 Palworld.arrayValue(stackInfos, infoIndex)
             if not stackReadable then
-                return nil, "base item-stack value is unreadable"
+                return nil, failureMessage("base item-stack value is unreadable", stackError)
             end
             local staticId
+            local nameError
             local stackCount
-            local decoded = pcall(function()
-                staticId = Palworld.nameString(stackInfo.ItemId.StaticId)
+            local decoded, decodeError = pcall(function()
+                staticId, nameError = Palworld.nameString(stackInfo.ItemId.StaticId)
                 stackCount = tonumber(stackInfo.StackCount)
             end)
             if not decoded or staticId == nil or stackCount == nil
                 or stackCount < 0 then
-                return nil, "base item-stack value cannot be decoded"
+                return nil, failureMessage("base item-stack value cannot be decoded", decodeError or nameError)
             end
             if staticId ~= "None" then
                 totals[staticId] = (totals[staticId] or 0) + stackCount
@@ -1308,31 +1328,41 @@ end
 function Palworld.resolveCommonContainer(playerState)
     local inventory
     local commonGuid
+    local guidError
     local containers
-    local ok = pcall(function()
+    local ok, rootsError = pcall(function()
         inventory = playerState.InventoryData
-        commonGuid = Palworld.guidParts(inventory.MyInventoryInfo.CommonContainerId.ID)
+        commonGuid, guidError = Palworld.guidParts(inventory.MyInventoryInfo.CommonContainerId.ID)
         containers = inventory.InventoryMultiHelper.Containers
     end)
     if not ok or not Palworld.isValid(inventory) then
-        return nil, nil, nil, "common inventory roots are unavailable"
+        return nil, nil, nil, failureMessage("common inventory roots are unavailable", rootsError),
+            "INVENTORY_ROOTS_UNAVAILABLE"
     end
     local commonKey = Palworld.guidKey(commonGuid)
     if commonKey == nil or commonKey == Palworld.ZERO_GUID then
-        return nil, nil, nil, "common container id is unavailable"
+        return nil, nil, nil, failureMessage("common container id is unavailable", guidError),
+            "COMMON_CONTAINER_ID_UNAVAILABLE"
     end
 
-    local count = Palworld.arrayLength(containers)
-    if count == nil then return nil, nil, nil, "owned container list is unreadable" end
+    local count, countError = Palworld.arrayLength(containers)
+    if count == nil then
+        return nil, nil, nil, failureMessage("owned container list is unreadable", countError),
+            "OWNED_CONTAINERS_UNREADABLE"
+    end
     local matched
     local matchedCount = 0
     for index = 1, count do
-        local container, readable = Palworld.arrayValue(containers, index)
+        local container, readable, readError = Palworld.arrayValue(containers, index)
         if not readable or not Palworld.isValid(container) then
-            return nil, nil, nil, "owned container entry is unreadable"
+            return nil, nil, nil, failureMessage("owned container entry is unreadable at " .. index, readError),
+                "OWNED_CONTAINER_UNREADABLE"
         end
-        local _, key = Palworld.containerGuid(container)
-        if key == nil then return nil, nil, nil, "owned container id is unreadable" end
+        local _, key, containerError = Palworld.containerGuid(container)
+        if key == nil then
+            return nil, nil, nil, failureMessage("owned container id is unreadable at " .. index, containerError),
+                "OWNED_CONTAINER_ID_UNREADABLE"
+        end
         if key == commonKey then
             matched = container
             matchedCount = matchedCount + 1
@@ -1340,7 +1370,8 @@ function Palworld.resolveCommonContainer(playerState)
     end
     if matchedCount ~= 1 then
         return nil, nil, nil,
-            "common container match is missing or ambiguous (" .. matchedCount .. ")"
+            "common container match is missing or ambiguous (" .. matchedCount .. ")",
+            matchedCount == 0 and "COMMON_CONTAINER_MISSING" or "COMMON_CONTAINER_AMBIGUOUS"
     end
     return inventory, matched, commonGuid, nil
 end
@@ -1348,14 +1379,17 @@ end
 function Palworld.resolveExclusions(playerState)
     local record
     local exclusions
-    local ok = pcall(function()
+    local ok, readError = pcall(function()
         record = playerState:GetLocalRecordData()
         exclusions = record.Local_ItemQuickMoveExceptionIDList
     end)
     if not ok or not Palworld.isValid(record) or exclusions == nil then
-        return nil, "quick-stack exclusion list is unavailable"
+        return nil, failureMessage("quick-stack exclusion list is unavailable", readError),
+            "EXCLUSIONS_UNAVAILABLE"
     end
-    return Palworld.readNameSet(exclusions)
+    local names, decodeError = Palworld.readNameSet(exclusions)
+    if names == nil then return nil, decodeError, "EXCLUSIONS_UNREADABLE" end
+    return names, nil
 end
 
 local cachedCategorySettingAddress
@@ -1369,23 +1403,23 @@ function Palworld.readCategories(gameSetting)
     end
 
     local preferenceMap
-    local ok = pcall(function()
+    local ok, readError = pcall(function()
         preferenceMap = gameSetting.ItemFilterPreference.PreferenceMap
     end)
     if not ok or preferenceMap == nil then
-        return nil, "item filter preference map is unavailable"
+        return nil, failureMessage("item filter preference map is unavailable", readError)
     end
 
     local categories = {}
     local names = {}
     local decodeError
-    local iterated = pcall(function()
+    local iterated, iterateError = pcall(function()
         preferenceMap:ForEach(function(rawKey, rawValue)
             if decodeError ~= nil then return end
-            local name = Palworld.nameString(Palworld.unwrap(rawKey))
+            local name, nameError = Palworld.nameString(Palworld.unwrap(rawKey))
             local value = Palworld.unwrap(rawValue)
             if name == nil or name == "None" or value == nil or names[name] then
-                decodeError = "item filter category is invalid or duplicated"
+                decodeError = failureMessage("item filter category is invalid or duplicated", nameError)
                 return
             end
             local typeA, typeAError = Palworld.readEnumSet(value.TypeA)
@@ -1406,7 +1440,7 @@ function Palworld.readCategories(gameSetting)
         end)
     end)
     if not iterated or decodeError ~= nil or #categories == 0 then
-        return nil, decodeError or "item filter categories cannot be enumerated"
+        return nil, failureMessage(decodeError or "item filter categories cannot be enumerated", iterateError)
     end
     cachedCategorySettingAddress = settingAddress
     cachedCategories = categories
@@ -1465,7 +1499,7 @@ function Palworld.loadDestinationClasses(job)
         and job.config.PalEggRouting ~= "ManualPlacement" then
         job.smallIncubatorClass = Palworld.staticObject(SMALL_INCUBATOR_CLASS_PATH)
         if job.smallIncubatorClass == nil then
-            return false, "small incubator model class is unavailable"
+            return false, "small incubator model class is unavailable", "SMALL_INCUBATOR_CLASS_UNAVAILABLE"
         end
     end
     local wantsRecycler = true
@@ -1483,7 +1517,7 @@ function Palworld.loadDestinationClasses(job)
             and cachedBreedingFarmClass or nil
         job.foodBoxClass = wantsFoodFacilities and cachedFoodBoxClass or nil
         if job.smallIncubatorClass ~= nil and job.incubatorClass == nil then
-            return false, "large incubator model class is unavailable"
+            return false, "large incubator model class is unavailable", "LARGE_INCUBATOR_CLASS_UNAVAILABLE"
         end
         return true, nil
     end
@@ -1496,7 +1530,7 @@ function Palworld.loadDestinationClasses(job)
         end
     end
     if #cachedStorageClasses == 0 then
-        return false, "storage model classes are unavailable"
+        return false, "storage model classes are unavailable", "STORAGE_CLASSES_UNAVAILABLE"
     end
     cachedIncubatorClass = Palworld.staticObject(INCUBATOR_CLASS_PATH)
     cachedGuildChestClass = Palworld.staticObject(GUILD_CHEST_CLASS_PATH)
@@ -1508,31 +1542,31 @@ function Palworld.loadDestinationClasses(job)
         cachedRecyclerClass = Palworld.staticObject(RECYCLER_CLASS_PATH)
     end
     if cachedGuildChestClass == nil then
-        return false, "guild chest model class is unavailable"
+        return false, "guild chest model class is unavailable", "GUILD_CHEST_CLASS_UNAVAILABLE"
     end
     if cachedMedicineRackClass == nil then
-        return false, "Medicine Rack model class is unavailable"
+        return false, "Medicine Rack model class is unavailable", "MEDICINE_RACK_CLASS_UNAVAILABLE"
     end
     if wantsFoodFacilities and cachedFoodBoxClass == nil then
-        return false, "Pal Food Box model class is unavailable"
+        return false, "Pal Food Box model class is unavailable", "FOOD_BOX_CLASS_UNAVAILABLE"
     end
     if wantsBreedingFarm then
         cachedBreedingFarmClass = Palworld.staticObject(BREEDING_FARM_CLASS_PATH)
         if cachedBreedingFarmClass == nil then
-            return false, "Breeding Farm model class is unavailable"
+            return false, "Breeding Farm model class is unavailable", "BREEDING_FARM_CLASS_UNAVAILABLE"
         end
     end
     job.storageClasses = cachedStorageClasses
     job.incubatorClass = cachedIncubatorClass
     if job.smallIncubatorClass ~= nil and job.incubatorClass == nil then
-        return false, "large incubator model class is unavailable"
+        return false, "large incubator model class is unavailable", "LARGE_INCUBATOR_CLASS_UNAVAILABLE"
     end
     job.guildChestClass = cachedGuildChestClass
     job.medicineRackClass = cachedMedicineRackClass
     job.foodBoxClass = wantsFoodFacilities and cachedFoodBoxClass or nil
     job.breedingFarmClass = wantsBreedingFarm and cachedBreedingFarmClass or nil
     if wantsRecycler and cachedRecyclerClass == nil then
-        return false, "Ancient Relic Recycler model class is unavailable"
+        return false, "Ancient Relic Recycler model class is unavailable", "RECYCLER_CLASS_UNAVAILABLE"
     end
     job.recyclerClass = wantsRecycler and cachedRecyclerClass or nil
     return true, nil

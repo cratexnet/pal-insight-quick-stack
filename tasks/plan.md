@@ -147,6 +147,27 @@ Runtime contract proof
 - [x] Run the narrow existing Lua/static checks. Dedicated-client, co-op, and
   single-player runtime acceptance remain required before release.
 
+### Intermittent replication readiness stop (2026-09-10)
+
+- [x] Remove the separate fifteen-poll startup failure threshold; keep the
+  generation-scoped whole-job watchdog as the bounded fallback.
+- [x] Surface stable stopped reason codes while retaining the detailed reflected
+  error in the UE4SS log.
+- [ ] Replace readiness polling with the native ready/update delegate lifecycle
+  after adding a signature-compatible cooked callback bridge.
+- [ ] Validate the slow-readiness case on a dedicated client, then repeat the
+  single-player and co-op acceptance paths.
+
+### Actionable stopped failures (2026-09-12)
+
+- [x] Replace message-text classification with explicit codes for known
+  terminal failures; retain the unknown-failure fallback only for unknown cases.
+- [x] Preserve caught errors and include job phase/generation in normal failure
+  logs. Show the code and phase even after a skipped automatic sale.
+- [x] Run the narrow Lua syntax and diff checks without building or installing.
+- [ ] Verify failure notifications and logs in a representative game session
+  after separate approval to install/run the candidate.
+
 ### Checkpoint: Standalone candidate
 
 - [ ] Reference and candidate final placement match for the agreed matrix.

@@ -162,6 +162,7 @@ local function notificationDetails(job)
         full = job.fullItems or {},
         fullTotal = job.fullTotal or 0,
         stopCode = job.stopCode,
+        stopPhase = job.phase,
         performanceCapture = job.performance ~= nil,
     }
 end
@@ -265,56 +266,55 @@ local function identityMatches(job)
     return state.job == job and P.identityMatches(job)
 end
 
-local function stoppedCode(job, message)
-    message = tostring(message or "")
-    if message:find("local player or base changed", 1, true) then
-        return "CONTEXT_CHANGED"
-    end
-    if message:find("base item-stack replication start failed", 1, true) then
-        return "BASE_SYNC_FAILED"
-    end
-    if message:find("all destination move requests failed", 1, true) then
-        return "MOVE_REQUEST_FAILED"
-    end
-    if message:find("cannot schedule game-thread step", 1, true) then
-        return "SCHEDULER_UNAVAILABLE"
-    end
-    if job.waitingForBaseStackReplication then return "BASE_DATA_NOT_READY" end
-    if message:find("timed out", 1, true) then return "JOB_TIMEOUT" end
-    return "QUICK_STACK_FAILED"
+local function failureMessage(message, cause)
+    if cause == nil then return message end
+    return tostring(message) .. ": " .. tostring(cause)
 end
 
 local function scheduleJobStep(job, delayMs, step, phase)
     if state.job ~= job or type(step) ~= "function" then return false end
-    local scheduled = type(ExecuteInGameThreadWithDelay) == "function"
-        and pcall(ExecuteInGameThreadWithDelay,
-            delayMs or NEXT_SLICE_MS, function()
+    local function callback()
         if state.job ~= job then return end
+        job.phase = phase or "unknown"
         if os.time() - job.startedAt > JOB_TIMEOUT_SECONDS then
             local timeoutMessage = "job timed out"
+            local timeoutCode = "JOB_TIMEOUT"
             if job.waitingForBaseStackReplication then
                 timeoutMessage = job.lastBaseStackReplicationError
                     or "base item-stack data was not ready before job timeout"
+                timeoutCode = "BASE_DATA_NOT_READY"
             end
-            finishJob(job, false, timeoutMessage)
+            finishJob(job, false, timeoutMessage, timeoutCode)
             return
         end
         beginPerformanceSlice(job, phase)
         local ok, errorMessage = pcall(step, job)
         if not ok then
-            finishJob(job, false, errorMessage)
+            finishJob(job, false, errorMessage, "QUICK_STACK_FAILED")
         else
             recordPerformanceSlice(job)
         end
-    end)
-    if not scheduled then finishJob(job, false, "cannot schedule game-thread step") end
+    end
+    local scheduled, scheduleError = false, "ExecuteInGameThreadWithDelay is unavailable"
+    if type(ExecuteInGameThreadWithDelay) == "function" then
+        scheduled, scheduleError = pcall(ExecuteInGameThreadWithDelay,
+            delayMs or NEXT_SLICE_MS, callback)
+    end
+    if not scheduled then
+        job.phase = phase or "unknown"
+        finishJob(job, false, "cannot schedule game-thread step",
+            "SCHEDULER_UNAVAILABLE", scheduleError)
+    end
     return scheduled == true
 end
 
-finishJob = function(job, succeeded, message)
+finishJob = function(job, succeeded, message, code, cause)
     if state.job ~= job then return end
     recordPerformanceSlice(job)
-    if not succeeded then job.stopCode = stoppedCode(job, message) end
+    if not succeeded then
+        job.stopCode = code or "QUICK_STACK_FAILED"
+        message = failureMessage(message, cause)
+    end
     if job.baseStackReplicationActive then
         job.baseStackReplicationActive = false
         local stopped, stopError =
@@ -361,47 +361,75 @@ finishJob = function(job, succeeded, message)
         debugLog(message or "job complete")
     else
         log("quick stack stopped [" .. tostring(job.stopCode) .. "]: "
-            .. tostring(message or "unknown error"))
+            .. "phase=" .. tostring(job.phase or "unknown")
+            .. "; job=" .. tostring(job.generation)
+            .. "; " .. tostring(message or "unknown error"))
     end
 end
 
 local function resolveJobRoots(job)
-    if not identityMatches(job) then return false, "local player or base changed" end
+    if not identityMatches(job) then
+        return false, "local player or base changed", "CONTEXT_CHANGED"
+    end
 
-    local inventory, commonContainer, commonGuid, inventoryError =
+    local inventory, commonContainer, commonGuid, inventoryError, inventoryCode =
         P.resolveCommonContainer(job.playerState)
-    if inventory == nil then return false, inventoryError end
-    local exclusions, exclusionError = P.resolveExclusions(job.playerState)
-    if exclusions == nil then return false, exclusionError end
+    if inventory == nil then return false, inventoryError, inventoryCode end
+    local exclusions, exclusionError, exclusionCode = P.resolveExclusions(job.playerState)
+    if exclusions == nil then return false, exclusionError, exclusionCode end
 
     local utility = P.utility()
-    if utility == nil then return false, "PalUtility CDO is unavailable" end
+    if utility == nil then
+        return false, "PalUtility CDO is unavailable", "PAL_UTILITY_UNAVAILABLE"
+    end
     local itemManager
     local mapObjectManager
     local gameSetting
     local networkItem
     local repItems
-    local rootsOk = pcall(function()
+    local rootCode = "ITEM_MANAGER_UNAVAILABLE"
+    local rootsOk, rootsError = pcall(function()
         itemManager = utility:GetItemIDManager(job.controller)
+        rootCode = "MAP_MANAGER_UNAVAILABLE"
         mapObjectManager = utility:GetMapObjectManager(job.controller)
+        rootCode = "GAME_SETTING_UNAVAILABLE"
         gameSetting = utility:GetGameSetting(job.controller)
+        rootCode = "ITEM_NETWORK_UNAVAILABLE"
         networkItem = job.controller.Transmitter.Item
+        rootCode = "BASE_OBJECT_LIST_UNREADABLE"
         repItems = job.base.MapObjectCollection
             .MapObjectInstanceIdRepInfoArray.Items
     end)
-    if not rootsOk or not isValid(itemManager) or not isValid(mapObjectManager)
-        or not isValid(gameSetting) or not isValid(networkItem) then
-        return false, "required current-build manager route is unavailable"
+    if not rootsOk then
+        return false, failureMessage("current-build roots read failed", rootsError), rootCode
     end
-    local repCount = arrayLength(repItems)
-    if repCount == nil then return false, "current-base object list is unreadable" end
+    if not isValid(itemManager) then
+        return false, "item manager is unavailable", "ITEM_MANAGER_UNAVAILABLE"
+    end
+    if not isValid(mapObjectManager) then
+        return false, "map object manager is unavailable", "MAP_MANAGER_UNAVAILABLE"
+    end
+    if not isValid(gameSetting) then
+        return false, "game setting is unavailable", "GAME_SETTING_UNAVAILABLE"
+    end
+    if not isValid(networkItem) then
+        return false, "local item network component is unavailable", "ITEM_NETWORK_UNAVAILABLE"
+    end
+    local repCount, repError = arrayLength(repItems)
+    if repCount == nil then
+        return false, failureMessage("current-base object list is unreadable", repError),
+            "BASE_OBJECT_LIST_UNREADABLE"
+    end
 
     local categories, categoryError = P.readCategories(gameSetting)
-    if categories == nil then return false, categoryError end
+    if categories == nil then return false, categoryError, "ITEM_CATEGORIES_UNREADABLE" end
     local slotArray
-    local slotsOk = pcall(function() slotArray = commonContainer.ItemSlotArray end)
-    local slotCount = slotsOk and arrayLength(slotArray) or nil
-    if slotCount == nil then return false, "common inventory slots are unreadable" end
+    local slotsOk, slotsError = pcall(function() slotArray = commonContainer.ItemSlotArray end)
+    local slotCount, countError = arrayLength(slotArray)
+    if not slotsOk or slotCount == nil then
+        return false, failureMessage("common inventory slots are unreadable", slotsError or countError),
+            "INVENTORY_SLOTS_UNREADABLE"
+    end
 
     job.commonKey = guidKey(commonGuid)
     job.exclusions = exclusions
@@ -467,7 +495,7 @@ end
 
 local function scanMetadataSlice(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local stop = math.min(job.metadataIndex + METADATA_ITEMS_PER_SLICE - 1,
@@ -475,24 +503,26 @@ local function scanMetadataSlice(job)
     for index = job.metadataIndex, stop do
         local unique = job.uniqueItems[index]
         local data
-        local ok = pcall(function()
+        local ok, metadataError = pcall(function()
             data = job.itemManager:GetStaticItemData(unique.staticId)
         end)
         if not ok or not isValid(data) then
-            finishJob(job, false, "item metadata is unavailable for " .. unique.id)
+            finishJob(job, false, "item metadata is unavailable for " .. unique.id,
+                "ITEM_METADATA_UNAVAILABLE", metadataError)
             return
         end
         local typeA
         local typeB
         local maxStack
-        local fieldsOk = pcall(function()
+        local fieldsOk, fieldsError = pcall(function()
             typeA = enumValue(data.TypeA)
             typeB = enumValue(data.TypeB)
             maxStack = tonumber(data.MaxStackCount)
         end)
         if not fieldsOk or typeA == nil or typeB == nil
             or maxStack == nil or maxStack < 1 then
-            finishJob(job, false, "item metadata is incomplete for " .. unique.id)
+            finishJob(job, false, "item metadata is incomplete for " .. unique.id,
+                "ITEM_METADATA_INCOMPLETE", fieldsError)
             return
         end
         local metadata = {
@@ -502,7 +532,7 @@ local function scanMetadataSlice(job)
         }
         metadata.category = P.itemCategory(job.categories, metadata)
         if metadata.category == nil then
-            finishJob(job, false, "item category is unavailable for " .. unique.id)
+            finishJob(job, false, "item category is unavailable for " .. unique.id, "ITEM_CATEGORY_UNAVAILABLE")
             return
         end
         job.metadata[unique.id] = metadata
@@ -550,7 +580,7 @@ local pollSaleResult
 
 local function submitSale(job, shop)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     shop = P.revalidateItemShop(job, shop)
@@ -558,9 +588,9 @@ local function submitSale(job, shop)
         routeUnresolvedSaleCandidates(job, "item shop context changed")
         return
     end
-    local exclusions, exclusionError = P.resolveExclusions(job.playerState)
+    local exclusions, exclusionError, exclusionCode = P.resolveExclusions(job.playerState)
     if exclusions == nil then
-        finishJob(job, false, exclusionError)
+        finishJob(job, false, exclusionError, exclusionCode)
         return
     end
 
@@ -608,23 +638,24 @@ end
 
 pollSaleResult = function(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local pending = false
     local states = {}
     for _, item in ipairs(job.sellCandidates) do
         local staticId = slotStaticId(item.slot)
-        local _, containerKey = slotGuid(item.slot)
+        local _, containerKey, containerError = slotGuid(item.slot)
         local slotIndex
         local stackCount
-        local readable = pcall(function()
+        local readable, readError = pcall(function()
             slotIndex = tonumber(item.slot.SlotIndex)
             stackCount = tonumber(item.slot.StackCount)
         end)
         if not readable or containerKey ~= job.commonKey
             or slotIndex ~= item.slotIndex or stackCount == nil then
-            finishJob(job, false, "valuable source became unreadable")
+            finishJob(job, false, "valuable source became unreadable",
+                "SALE_SOURCE_UNREADABLE", readError or containerError)
             return
         end
         stackCount = math.max(0, math.floor(stackCount))
@@ -655,7 +686,7 @@ end
 
 local function pollItemShop(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local venders = job.saleVenders or {}
@@ -685,7 +716,7 @@ end
 
 local function setupNextSaleVender(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local vender = job.saleVenders[job.saleVenderIndex]
@@ -715,7 +746,7 @@ end
 
 local function scanSaleVenders(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local sliceSize = job.saleVenderScanIndex
@@ -786,32 +817,36 @@ end
 
 local function scanInventorySlice(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local stop = math.min(job.inventorySlotIndex + INVENTORY_SLOTS_PER_SLICE - 1,
         job.inventorySlotCount)
     for index = job.inventorySlotIndex, stop do
-        local slot, readable = arrayValue(job.inventorySlots, index)
+        local slot, readable, readError = arrayValue(job.inventorySlots, index)
         if not readable or not isValid(slot) then
-            finishJob(job, false, "common inventory slot is unreadable")
+            finishJob(job, false, "common inventory slot is unreadable at " .. index,
+                "INVENTORY_SLOT_UNREADABLE", readError)
             return
         end
-        local slotParts, slotKey = slotGuid(slot)
+        local slotParts, slotKey, identityError = slotGuid(slot)
         if slotParts == nil or slotKey ~= job.commonKey then
-            finishJob(job, false, "common inventory slot identity changed")
+            finishJob(job, false, "common inventory slot identity changed",
+                "INVENTORY_SLOT_CHANGED", identityError)
             return
         end
-        local staticId, rawStaticId = slotStaticId(slot)
+        local staticId, rawStaticId, idError = slotStaticId(slot)
         if staticId == nil then
-            finishJob(job, false, "common inventory item id is unreadable")
+            finishJob(job, false, "common inventory item id is unreadable",
+                "INVENTORY_ITEM_ID_UNREADABLE", idError)
             return
         end
         if staticId ~= "None" then
             local stackCount
-            local stackOk = pcall(function() stackCount = tonumber(slot.StackCount) end)
+            local stackOk, stackError = pcall(function() stackCount = tonumber(slot.StackCount) end)
             if not stackOk or stackCount == nil or stackCount < 1 then
-                finishJob(job, false, "common inventory item state is incomplete")
+                finishJob(job, false, "common inventory item state is incomplete for " .. staticId,
+                    "INVENTORY_ITEM_STATE_INVALID", stackError)
                 return
             end
             stackCount = math.floor(stackCount)
@@ -831,9 +866,10 @@ local function scanInventorySlice(job)
             end
             if not excludedByUser and not manualPlacement then
                 local slotIndex
-                local slotOk = pcall(function() slotIndex = tonumber(slot.SlotIndex) end)
+                local slotOk, slotError = pcall(function() slotIndex = tonumber(slot.SlotIndex) end)
                 if not slotOk or slotIndex == nil then
-                    finishJob(job, false, "common inventory slot index is unreadable")
+                    finishJob(job, false, "common inventory slot index is unreadable at " .. index,
+                        "INVENTORY_SLOT_INDEX_UNREADABLE", slotError)
                     return
                 end
                 local item = {
@@ -1105,7 +1141,7 @@ end
 
 scanContainerCandidatesSlice = function(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
 
@@ -1272,7 +1308,7 @@ end
 
 local function resolvePendingGuildCandidates(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local unresolved = {}
@@ -1303,21 +1339,23 @@ end
 
 local function scanBaseObjectsSlice(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local stop = math.min(job.baseObjectIndex + BASE_OBJECTS_PER_SLICE - 1,
         job.repCount)
     for index = job.baseObjectIndex, stop do
-        local repInfo, readable = arrayValue(job.repItems, index)
+        local repInfo, readable, readError = arrayValue(job.repItems, index)
         if not readable or repInfo == nil then
-            finishJob(job, false, "current-base object entry is unreadable")
+            finishJob(job, false, "current-base object entry is unreadable at " .. index,
+                "BASE_OBJECT_UNREADABLE", readError)
             return
         end
         local instanceId
-        local idOk = pcall(function() instanceId = repInfo.InstanceId end)
+        local idOk, idError = pcall(function() instanceId = repInfo.InstanceId end)
         if not idOk or instanceId == nil then
-            finishJob(job, false, "current-base object id is unreadable")
+            finishJob(job, false, "current-base object id is unreadable at " .. index,
+                "BASE_OBJECT_ID_UNREADABLE", idError)
             return
         end
         local model
@@ -1353,12 +1391,13 @@ local function scanBaseObjectsSlice(job)
 end
 
 startBaseSnapshot = function(job)
+    job.phase = "base"
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
-    local loaded, classError = P.loadDestinationClasses(job)
-    if not loaded then finishJob(job, false, classError); return end
+    local loaded, classError, classCode = P.loadDestinationClasses(job)
+    if not loaded then finishJob(job, false, classError, classCode); return end
     job.uniqueItemsByTypeA = {}
     job.uniqueItemsByTypeB = {}
     for _, unique in ipairs(job.uniqueItems) do
@@ -1644,7 +1683,7 @@ local beginFallbackPlanning
 
 local function planItemsSlice(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local operations = 0
@@ -1749,7 +1788,7 @@ end
 
 local function planFallbackSlice(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local operations = 0
@@ -1899,10 +1938,11 @@ local function submitRecheckedRequest(job)
 
     local prepareStartedAt = beginPerformanceDetail(job)
     local networkItem
-    local networkOk = pcall(function() networkItem = job.controller.Transmitter.Item end)
+    local networkOk, networkError = pcall(function() networkItem = job.controller.Transmitter.Item end)
     if not networkOk or not isValid(networkItem) then
         recordPerformanceDetail(job, "rpc_prepare", prepareStartedAt)
-        finishJob(job, false, "local item network component became unavailable")
+        finishJob(job, false, "local item network component became unavailable",
+            "ITEM_NETWORK_UNAVAILABLE", networkError)
         return
     end
     local rpcSources = {}
@@ -1935,6 +1975,7 @@ local function submitRecheckedRequest(job)
             job.failedLargeIncubatorRequest = true
         end
         job.failedRequests = job.failedRequests + 1
+        job.lastMoveError = sendError
         log("destination move failed: " .. tostring(sendError))
     else
         job.submittedRequests = job.submittedRequests + 1
@@ -1954,7 +1995,7 @@ end
 
 local function scanRecheckSlotsSlice(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local recheck = job.recheck
@@ -2029,7 +2070,7 @@ end
 
 local function checkCompletion(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
 
@@ -2076,9 +2117,11 @@ local function checkCompletion(job)
 end
 
 beginCompletionWait = function(job)
+    job.phase = "completion"
     if job.submittedRequests == 0 then
         if job.failedRequests > 0 then
-            finishJob(job, false, "all destination move requests failed")
+            finishJob(job, false, "all destination move requests failed",
+                "MOVE_REQUEST_FAILED", job.lastMoveError)
         else
             finishJob(job, true, "nothing was submitted")
         end
@@ -2100,7 +2143,7 @@ end
 
 scanLargeIncubatorGate = function(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     if job.failedLargeIncubatorRequest or job.unresolvedDestinationKinds.incubator then
@@ -2168,7 +2211,7 @@ end
 
 processNextRequest = function(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     if job.requestIndex > #job.requests then
@@ -2239,9 +2282,9 @@ processNextRequest = function(job)
     end
 
     if not job.config.IncludeExcludedItems then
-        local currentExclusions, exclusionError = P.resolveExclusions(job.playerState)
+        local currentExclusions, exclusionError, exclusionCode = P.resolveExclusions(job.playerState)
         if currentExclusions == nil then
-            finishJob(job, false, exclusionError)
+            finishJob(job, false, exclusionError, exclusionCode)
             return
         end
         for _, source in ipairs(request.sources) do
@@ -2315,7 +2358,7 @@ end
 
 waitForBaseStackReplication = function(job)
     if not identityMatches(job) then
-        finishJob(job, false, "local player or base changed")
+        finishJob(job, false, "local player or base changed", "CONTEXT_CHANGED")
         return
     end
     local baseline, replicationError =
@@ -2329,19 +2372,20 @@ waitForBaseStackReplication = function(job)
     end
     job.lastBaseStackReplicationError = replicationError
     scheduleJobStep(job, BASE_STACK_REPLICATION_POLL_MS,
-        waitForBaseStackReplication, "resolve")
+        waitForBaseStackReplication, "base_sync")
 end
 
 local function beginResolvedJob(job)
-    local resolved, resolveError = resolveJobRoots(job)
+    local resolved, resolveError, resolveCode = resolveJobRoots(job)
     if not resolved then
-        finishJob(job, false, resolveError)
+        finishJob(job, false, resolveError, resolveCode)
         return
     end
-    local started, replicationError =
+    job.phase = "base_sync"
+    local started, replicationError, replicationCode =
         P.startBaseCampItemStackReplication(job.controller)
     if started == nil then
-        finishJob(job, false, replicationError)
+        finishJob(job, false, replicationError, replicationCode)
         return
     end
     if not started then
@@ -2351,7 +2395,7 @@ local function beginResolvedJob(job)
     job.baseStackReplicationActive = true
     job.waitingForBaseStackReplication = true
     scheduleJobStep(job, BASE_STACK_REPLICATION_POLL_MS,
-        waitForBaseStackReplication, "resolve")
+        waitForBaseStackReplication, "base_sync")
 end
 
 function QuickStack.configure(config, logger, debugLogger)

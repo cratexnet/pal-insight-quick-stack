@@ -1373,7 +1373,18 @@ function Notifications.finished(controller, _startToken, outcome,
         local message
         local messageColor = COLORS.text
         local saleSkipped = saleSkippedMessage(details, strings)
-        if saleSkipped ~= nil then
+        if outcome == "stopped" then
+            message = strings.stopped
+            if type(details.stopCode) == "string"
+                and details.stopCode ~= "" then
+                message = message .. " · " .. details.stopCode
+            end
+            if type(details.stopPhase) == "string"
+                and details.stopPhase ~= "" then
+                message = message .. " / " .. details.stopPhase
+            end
+            messageColor = COLORS.danger
+        elseif saleSkipped ~= nil then
             message = saleSkipped
             messageColor = RESULT_COLORS.saleSkipped
         elseif outcome == "complete" then
@@ -1392,10 +1403,6 @@ function Notifications.finished(controller, _startToken, outcome,
             message = strings.noop
         else
             message = strings.stopped
-            if type(details.stopCode) == "string"
-                and details.stopCode ~= "" then
-                message = message .. " · " .. details.stopCode
-            end
             messageColor = COLORS.danger
         end
         token = showCompact(controller, title,
