@@ -12,6 +12,7 @@ SettingsUI.releaseNotes = require("release_notes")
 
 local VIS_VISIBLE = 0
 local VIS_COLLAPSED = 1
+local VIS_HIDDEN = 2
 local VIS_HIT_TEST_INVISIBLE = 3
 local ALIGN_FILL = 0
 local ALIGN_LEFT = 1
@@ -352,6 +353,7 @@ local state = {
     nestedDefaultWidth = nil,
     nestedDefaultMaxHeight = nil,
     nestedOptionCapacity = nil,
+    itemPickerUi = {},
     downvoteDialogWidth = nil,
     downvoteDialogMaxHeight = nil,
     modalOptions = {},
@@ -399,6 +401,7 @@ local closeChoiceModal
 local Deferred = {}
 
 local staticObjects = {}
+local itemDisplayNameCache = {}
 local currentStrings
 
 local function log(message)
@@ -775,16 +778,13 @@ local function styleHeaderButton(button, role, focused, hovered, pressed,
         pressForeground = (role == "steamVote" or neutralForeground == true)
             and COLORS.text or roleColor
     end
-    local display = pressed and press or hovered and hover or normal
-    local displayForeground = pressed and pressForeground
-        or hovered and hoverForeground or normalForeground
     return pcall(function()
         local style = button.WidgetStyle
-        style.Normal = tintBrush(style.Normal, display)
+        style.Normal = tintBrush(style.Normal, normal)
         style.Hovered = tintBrush(style.Hovered, hover)
         style.Pressed = tintBrush(style.Pressed, press)
         style.Disabled = tintBrush(style.Disabled, COLORS.controlDisabled)
-        style.NormalForeground = slateColor(displayForeground)
+        style.NormalForeground = slateColor(normalForeground)
         style.HoveredForeground = slateColor(hoverForeground)
         style.PressedForeground = slateColor(pressForeground)
         style.DisabledForeground = slateColor(COLORS.textMuted)
@@ -1278,9 +1278,20 @@ local function refreshTriggerSurfaces()
                     active = P.objectAddress(record.control.widget)
                         == P.objectAddress(record.widget)
                 end
+                if record.itemPickerAction == true then
+                    active = SettingsUI.isItemPicker(state.activeChoice)
+                end
                 local focused = active and type(record.control) == "table"
                     and record.control.focusIndex == state.focusIndex
                     and state.lastInputDevice ~= "mouse"
+                if active and record.itemPickerAction == true
+                    and state.lastInputDevice ~= "mouse" then
+                    local control = state.activeChoice
+                    focused = record.role == "reset"
+                        and state.modalIndex == control.resetIndex
+                        or record.role == "close"
+                        and state.modalIndex == control.closeIndex
+                end
                 if active and ((record == (state.aboutRosterCloseActions or {})[
                             state.aboutRosterMode]
                         and state.aboutRosterOpen == true)
@@ -1355,6 +1366,20 @@ local function refreshTriggerSurfaces()
             end
         end
         pcall(function() state.headerActionHint:SetText(FText(hint)) end)
+    end
+    local itemPickerUi = state.itemPickerUi or {}
+    if P.isValid(itemPickerUi.actionHint) then
+        local hint = ""
+        local control = state.activeChoice
+        if SettingsUI.isItemPicker(control)
+            and state.lastInputDevice ~= "mouse" then
+            if state.modalIndex == control.resetIndex then
+                hint = tostring(currentStrings().reset or "Restore defaults")
+            elseif state.modalIndex == control.closeIndex then
+                hint = tostring(currentStrings().close or "Close")
+            end
+        end
+        pcall(function() itemPickerUi.actionHint:SetText(FText(hint)) end)
     end
 end
 
@@ -1981,15 +2006,40 @@ local function scheduleShortcutFocusRestore(control)
     return true
 end
 
-local function moveFocus(direction, device)
+local function itemPickerNavigationIndex(control, current, direction, horizontal)
+    local positions = type(control) == "table" and control.navPositions or nil
+    local rows = type(control) == "table" and control.navRows or nil
+    local position = type(positions) == "table" and positions[current] or nil
+    if type(position) ~= "table" or type(rows) ~= "table" or #rows < 1 then
+        return nil
+    end
+    if horizontal then
+        return ((current - 1 + direction)
+            % (#control.catalog.items + 2)) + 1
+    end
+    local rowIndex = ((position.row - 1 + direction) % #rows) + 1
+    local row = rows[rowIndex]
+    return type(row) == "table"
+        and row[math.min(position.column, #row)] or nil
+end
+
+local function moveFocus(direction, device, horizontal)
     if state.activeChoice ~= nil then
-        local count = #((state.activeChoice or {}).labels or {})
+        local activeChoice = state.activeChoice or {}
+        local count = #(activeChoice.labels or {})
         if count < 1 then return true end
-        state.modalIndex = ((tonumber(state.modalIndex) or 1) - 1 + direction) % count + 1
+        local current = tonumber(state.modalIndex) or 1
+        state.modalIndex = SettingsUI.isItemPicker(activeChoice)
+            and (itemPickerNavigationIndex(activeChoice, current,
+                direction, horizontal == true) or current)
+            or ((current - 1 + direction) % count + 1)
         local option = (state.modalOptions or {})[state.modalIndex]
         if type(option) == "table" and P.isValid(option.widget) then
             focusNavigationRoot()
-            if P.isValid(state.nestedScroll) and P.isValid(option.box) then
+            local scrollTargetVisible = not SettingsUI.isItemPicker(activeChoice)
+                or state.modalIndex <= #activeChoice.catalog.items
+            if scrollTargetVisible and P.isValid(state.nestedScroll)
+                and P.isValid(option.box) then
                 pcall(function()
                     state.nestedScroll:ScrollWidgetIntoView(
                         option.box, false, 0, 8.0)
@@ -2297,6 +2347,34 @@ local function resetFromDefaults()
     return false
 end
 
+local function applyItemPickerValue(control, value, source)
+    if type(control) ~= "table" or not SettingsUI.isItemPicker(control) then
+        return false
+    end
+    if not applyControlPatch({ [control.key] = value }, source or control.source) then
+        return false
+    end
+    local selected = control.catalog.sellSet(state.config[control.key])
+    for optionIndex, staticId in ipairs(control.catalog.items) do
+        local option = (state.modalOptions or {})[optionIndex]
+        if type(option) == "table" and P.isValid(option.ammoMark) then
+            pcall(function()
+                option.ammoMark:SetVisibility(
+                    selected[staticId] ~= true
+                        and VIS_HIT_TEST_INVISIBLE or VIS_HIDDEN)
+            end)
+        end
+    end
+    if P.isValid(control.text) then
+        pcall(function()
+            control.text:SetText(FText(control.catalog.summary(
+                currentStrings()[control.summaryKey], state.config[control.key])))
+        end)
+    end
+    refreshTriggerSurfaces()
+    return true
+end
+
 local function commitNestedModalSelection(source)
     local control = state.activeChoice
     if type(control) ~= "table" then return false end
@@ -2314,7 +2392,15 @@ local function commitNestedModalSelection(source)
     if control.kind == "steamVoteChecking" then return true end
     if SettingsUI.isItemPicker(control) then
         local catalog = control.catalog
-        if index > #catalog.items then return closeChoiceModal(true) end
+        if index == control.resetIndex then
+            return applyItemPickerValue(control,
+                control.defaultValue ~= nil and control.defaultValue or "",
+                tostring(source or control.source or "item-picker") .. "-reset")
+        elseif index == control.closeIndex then
+            return closeChoiceModal(true)
+        elseif index > #catalog.items then
+            return true
+        end
         local staticId = catalog.items[index]
         local selected = catalog.sellSet(state.config[control.key])
         selected[staticId] = selected[staticId] ~= true and true or nil
@@ -2323,24 +2409,7 @@ local function commitNestedModalSelection(source)
             if selected[candidate] then values[#values + 1] = candidate end
         end
         local value = table.concat(values, ",")
-        if not applyControlPatch({ [control.key] = value },
-                source or control.source) then return false end
-        local option = state.modalOptions[index]
-        if type(option) == "table" and P.isValid(option.ammoMark) then
-            pcall(function()
-                option.ammoMark:SetText(FText(
-                    selected[staticId] ~= true and "✓" or ""))
-            end)
-        end
-        if P.isValid(control.text) then
-            pcall(function()
-                control.text:SetText(FText(catalog.summary(
-                    currentStrings()[control.summaryKey],
-                    state.config[control.key])))
-            end)
-        end
-        refreshTriggerSurfaces()
-        return true
+        return applyItemPickerValue(control, value, source or control.source)
     end
     commitChoice(control, index, source or ("choice:" .. tostring(control.key)))
     closeChoiceModal(true)
@@ -2670,20 +2739,24 @@ local function handlePressed(keyName, device, source, shiftDown)
             return moved
         end
         if (state.activeChoice.kind == "resetConfirmation"
-                or state.activeChoice.kind == "downvoteAcknowledgement")
+                or state.activeChoice.kind == "downvoteAcknowledgement"
+                or SettingsUI.isItemPicker(state.activeChoice))
             and (keyName == "A" or keyName == "Left"
                 or keyName == "Gamepad_DPad_Left"
                 or keyName == "Gamepad_LeftStick_Left") then
-            local moved = moveFocus(-1, device)
+            local moved = moveFocus(-1, device,
+                SettingsUI.isItemPicker(state.activeChoice))
             if moved then startNavigationRepeat(keyName, device) end
             return moved
         end
         if (state.activeChoice.kind == "resetConfirmation"
-                or state.activeChoice.kind == "downvoteAcknowledgement")
+                or state.activeChoice.kind == "downvoteAcknowledgement"
+                or SettingsUI.isItemPicker(state.activeChoice))
             and (keyName == "D" or keyName == "Right"
                 or keyName == "Gamepad_DPad_Right"
                 or keyName == "Gamepad_LeftStick_Right") then
-            local moved = moveFocus(1, device)
+            local moved = moveFocus(1, device,
+                SettingsUI.isItemPicker(state.activeChoice))
             if moved then startNavigationRepeat(keyName, device) end
             return moved
         end
@@ -3382,6 +3455,18 @@ local function hoveredPointerAction()
     end
     if state.activeChoice ~= nil then
         local control = state.activeChoice
+        local itemPickerUi = state.itemPickerUi or {}
+        if SettingsUI.isItemPicker(control) then
+            if type(itemPickerUi.resetAction) == "table"
+                and hoveredWidget(itemPickerUi.resetAction.widget) then
+                return { scope = "choice", index = control.resetIndex,
+                    owner = control }
+            elseif type(itemPickerUi.closeAction) == "table"
+                and hoveredWidget(itemPickerUi.closeAction.widget) then
+                return { scope = "choice", index = control.closeIndex,
+                    owner = control }
+            end
+        end
         for index, option in ipairs(state.modalOptions or {}) do
             if control.labels[index] ~= nil and hoveredWidget(option.widget) then
                 return { scope = "choice", index = index, owner = control }
@@ -4388,6 +4473,7 @@ Deferred.addItemPickerRow = function(tree, body, label, kind, key, catalog,
         kind = kind, key = key, catalog = catalog,
         summaryKey = summaryKey, titleKey = titleKey,
         helperKey = helperKey, source = source,
+        defaultValue = DEFAULTS[key],
         widget = trigger.widget, text = trigger.text,
         label = label, rowFrame = row.surface,
     }
@@ -4543,6 +4629,116 @@ local function addShortcutRow(tree, body, strings)
     return true
 end
 
+Deferred.restoreChoiceOptionLayout = function()
+    local ui = state.itemPickerUi or {}
+    if not P.isValid(ui.optionsList) then return false end
+    pcall(function()
+        if P.isValid(ui.grid) then
+            ui.grid:ClearChildren()
+            ui.grid:SetVisibility(VIS_COLLAPSED)
+        end
+        ui.optionsList:ClearChildren()
+        ui.optionsList:SetVisibility(VIS_VISIBLE)
+        if P.isValid(ui.header) then ui.header:SetVisibility(VIS_COLLAPSED) end
+        if P.isValid(state.nestedTitle) then
+            state.nestedTitle:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+        end
+        for index, option in ipairs(state.modalOptions or {}) do
+            option.box:RemoveFromParent()
+            option.box:SetWidthOverride(state.nestedOptionWidth)
+            option.box:SetHeightOverride(SIZE.modalOption)
+            local slot = ui.optionsList:AddChild(option.box)
+            setPadding(slot, 0, index == 1 and 0 or 4, 0, 0)
+        end
+    end)
+    return true
+end
+
+Deferred.layoutItemPickerOptions = function(control)
+    local ui = state.itemPickerUi or {}
+    if not SettingsUI.isItemPicker(control) or not P.isValid(ui.grid)
+        or not P.isValid(ui.optionsList) then return false end
+    local vw = tonumber(ui.viewportWidth) or 1280.0
+    local vh = tonumber(ui.viewportHeight) or 720.0
+    local width = math.max(480.0, math.min(920.0, vw - 48.0))
+    local maxHeight = math.min(720.0, math.max(360.0, vh - 48.0))
+    local contentWidth = math.max(432.0,
+        width - 32.0 - SIZE.scrollbarGutter)
+    local cellGap = 8.0
+    local columns = math.max(1, math.min(3,
+        math.floor((contentWidth + cellGap) / 239.0)))
+    local cellWidth = math.floor(
+        (contentWidth - columns * cellGap) / columns)
+    local ok = pcall(function()
+        state.nestedCardBox:SetWidthOverride(width)
+        state.nestedCardBox:SetMaxDesiredHeight(maxHeight)
+        ui.optionsList:SetVisibility(VIS_COLLAPSED)
+        ui.grid:ClearChildren()
+        ui.grid:SetVisibility(VIS_VISIBLE)
+        ui.header:SetVisibility(VIS_VISIBLE)
+        ui.title:SetText(FText(currentStrings()[control.titleKey]
+            or control.label or "Items to keep"))
+        ui.actionHint:SetText(FText(""))
+        state.nestedTitle:SetVisibility(VIS_COLLAPSED)
+        setTextWrap(state.nestedMessage, contentWidth - 8.0)
+        for _, option in ipairs(state.modalOptions or {}) do
+            option.box:SetVisibility(VIS_COLLAPSED)
+        end
+        control.navRows = {}
+        control.navPositions = {}
+        local row
+        local rowIndex = 0
+        for index = 1, #control.catalog.items do
+            local column = (index - 1) % columns
+            if column == 0 then
+                rowIndex = rowIndex + 1
+                row = ui.rows[rowIndex]
+                if not P.isValid(row) then
+                    row = construct(state.widgetTree, "/Script/UMG.HorizontalBox")
+                    ui.rows[rowIndex] = row
+                end
+                if not P.isValid(row) then error("item picker row is unavailable") end
+                row:ClearChildren()
+                row:SetVisibility(VIS_VISIBLE)
+                align(ui.grid:AddChild(row), ALIGN_CENTER, ALIGN_CENTER)
+                control.navRows[rowIndex] = {}
+            end
+            local option = state.modalOptions[index]
+            option.box:RemoveFromParent()
+            option.box:SetWidthOverride(cellWidth)
+            option.box:SetHeightOverride(SIZE.modalOption)
+            option.box:SetVisibility(VIS_VISIBLE)
+            option.ammoHost:SetWidthOverride(math.max(140.0, cellWidth - 60.0))
+            local slot = row:AddChild(option.box)
+            setPadding(slot, 4, 0, 4, 8)
+            align(slot, ALIGN_CENTER, ALIGN_CENTER)
+            control.navRows[rowIndex][#control.navRows[rowIndex] + 1] = index
+            control.navPositions[index] = {
+                row = rowIndex,
+                column = #control.navRows[rowIndex],
+            }
+        end
+        control.resetIndex = #control.catalog.items + 1
+        control.closeIndex = #control.catalog.items + 2
+        local actionRow = { control.resetIndex, control.closeIndex }
+        control.navRows[#control.navRows + 1] = actionRow
+        control.navPositions[control.resetIndex] = {
+            row = #control.navRows, column = 1,
+        }
+        control.navPositions[control.closeIndex] = {
+            row = #control.navRows, column = 2,
+        }
+        for index = rowIndex + 1, #(ui.rows or {}) do
+            if P.isValid(ui.rows[index]) then
+                ui.rows[index]:ClearChildren()
+                ui.rows[index]:SetVisibility(VIS_COLLAPSED)
+            end
+        end
+        state.nestedScroll:ScrollToStart()
+    end)
+    return ok == true
+end
+
 closeChoiceModal = function(restoreFocus)
     local control = state.activeChoice
     local blockedClose = type(control) == "table"
@@ -4558,6 +4754,9 @@ closeChoiceModal = function(restoreFocus)
     state.ammoPopulateToken = state.ammoPopulateToken + 1
     if P.isValid(state.nestedOverlay) then
         pcall(function() state.nestedOverlay:SetVisibility(VIS_COLLAPSED) end)
+    end
+    if SettingsUI.isItemPicker(control) then
+        Deferred.restoreChoiceOptionLayout()
     end
     for _, option in ipairs(state.modalOptions or {}) do
         option.selected = false
@@ -4746,11 +4945,18 @@ openChoiceModal = function(control, returnFocusIndex)
     return true
 end
 
-Deferred.resolveAmmoName = function(staticId)
-    return Localization.itemName(staticId)
+Deferred.resolveAmmoName = function(staticId, locale)
+    staticId = tostring(staticId or "")
+    locale = tostring(locale or Localization.localeKey())
+    local key = locale .. "\0" .. staticId
+    local cached = itemDisplayNameCache[key]
+    if cached ~= nil then return cached ~= false and cached or nil end
+    local name = Localization.itemNameForLocale(locale, staticId)
+    itemDisplayNameCache[key] = name or false
+    return name
 end
 
-Deferred.populateAmmoRowsSlice = function(control, startIndex, token)
+Deferred.populateAmmoRowsSlice = function(control, startIndex, token, locale)
     if state.activeChoice ~= control
         or not SettingsUI.isItemPicker(control)
         or state.ammoPopulateToken ~= token then return end
@@ -4758,8 +4964,13 @@ Deferred.populateAmmoRowsSlice = function(control, startIndex, token)
     local stop = math.min(#catalog.items, startIndex + 3)
     for index = startIndex, stop do
         local option = state.modalOptions[index]
-        if type(option) == "table" and P.isValid(option.ammoFallback) then
-            local staticId = catalog.items[index]
+        local staticId = catalog.items[index]
+        local signature = tostring(control.kind) .. "\0"
+            .. tostring(locale) .. "\0" .. tostring(staticId)
+        if type(option) == "table"
+            and option.itemRenderSignature == signature
+            and option.itemRenderReady ~= true
+            and P.isValid(option.ammoIcon) then
             local texturePath = catalog.iconPath(staticId)
             local texture = texturePath ~= nil and staticObject(texturePath) or nil
             if not P.isValid(texture) and texturePath ~= nil
@@ -4769,21 +4980,20 @@ Deferred.populateAmmoRowsSlice = function(control, startIndex, token)
                 texture = P.isValid(loaded) and loaded or staticObject(texturePath)
                 if P.isValid(texture) then staticObjects[texturePath] = texture end
             end
-            local displayName = Deferred.resolveAmmoName(staticId)
             pcall(function()
-                option.ammoFallback:SetText(FText(displayName or staticId))
-                if P.isValid(texture) and P.isValid(option.ammoIcon) then
+                if P.isValid(texture) then
                     option.ammoIcon:SetBrushFromTexture(texture, false)
                     option.ammoIcon:SetVisibility(VIS_HIT_TEST_INVISIBLE)
-                elseif P.isValid(option.ammoIcon) then
-                    option.ammoIcon:SetVisibility(VIS_COLLAPSED)
+                else
+                    option.ammoIcon:SetVisibility(VIS_HIDDEN)
                 end
             end)
+            option.itemRenderReady = true
         end
     end
     if stop >= #catalog.items then return end
     local callback = function()
-        Deferred.populateAmmoRowsSlice(control, stop + 1, token)
+        Deferred.populateAmmoRowsSlice(control, stop + 1, token, locale)
     end
     if type(ExecuteInGameThreadWithDelay) == "function"
         and pcall(ExecuteInGameThreadWithDelay, 1, callback) then return end
@@ -4800,7 +5010,10 @@ Deferred.openAmmoPickerModal = function(control, returnFocusIndex)
     for index, staticId in ipairs(catalog.items) do
         control.labels[index] = staticId
     end
-    control.labels[#catalog.items + 1] = strings.ammoPickerDone or "Done"
+    control.resetIndex = #catalog.items + 1
+    control.closeIndex = #catalog.items + 2
+    control.labels[control.resetIndex] = strings.reset or "Restore defaults"
+    control.labels[control.closeIndex] = strings.close or "Close"
     state.activeChoice = control
     state.choiceReturnFocusIndex = tonumber(returnFocusIndex)
         or control.focusIndex or state.focusIndex
@@ -4818,35 +5031,45 @@ Deferred.openAmmoPickerModal = function(control, returnFocusIndex)
             state.nestedMessage:SetVisibility(VIS_HIT_TEST_INVISIBLE)
         end)
     end
+    if not Deferred.layoutItemPickerOptions(control) then
+        closeChoiceModal(false)
+        return false
+    end
+    local locale = Localization.localeKey()
     local sellSet = catalog.sellSet(state.config[control.key])
     for index, option in ipairs(state.modalOptions or {}) do
         local ammoId = catalog.items[index]
-        local done = index == #catalog.items + 1
-        local visible = ammoId ~= nil or done
+        local visible = ammoId ~= nil
         option.warning = false
         option.visualSignature = nil
         pcall(function()
             option.box:SetVisibility(visible and VIS_VISIBLE or VIS_COLLAPSED)
-            option.text:SetVisibility(done and VIS_HIT_TEST_INVISIBLE
-                or VIS_COLLAPSED)
+            option.text:SetVisibility(VIS_COLLAPSED)
             option.ammoContent:SetVisibility(ammoId ~= nil
                 and VIS_HIT_TEST_INVISIBLE or VIS_COLLAPSED)
             if ammoId ~= nil then
+                local signature = tostring(control.kind) .. "\0"
+                    .. locale .. "\0" .. tostring(ammoId)
                 option.ammoIconBox:SetVisibility(VIS_HIT_TEST_INVISIBLE)
-                option.ammoIcon:SetVisibility(VIS_COLLAPSED)
-                option.ammoFallback:SetText(FText(
-                    Deferred.resolveAmmoName(ammoId) or ammoId))
-                option.ammoMark:SetText(FText(
-                    sellSet[ammoId] ~= true and "✓" or ""))
-            elseif done then
-                option.text:SetText(FText(control.labels[index]))
+                if option.itemRenderSignature ~= signature
+                    or option.itemRenderReady ~= true then
+                    option.itemRenderSignature = signature
+                    option.itemRenderReady = false
+                    option.ammoIcon:SetVisibility(VIS_HIDDEN)
+                    option.ammoFallback:SetText(FText(
+                        Deferred.resolveAmmoName(ammoId, locale) or ammoId))
+                end
+                option.ammoMark:SetVisibility(
+                    sellSet[ammoId] ~= true
+                        and VIS_HIT_TEST_INVISIBLE or VIS_HIDDEN)
             end
         end)
         option.selected = index == state.modalIndex
     end
     pcall(function() state.nestedOverlay:SetVisibility(VIS_VISIBLE) end)
     state.ammoPopulateToken = state.ammoPopulateToken + 1
-    Deferred.populateAmmoRowsSlice(control, 1, state.ammoPopulateToken)
+    Deferred.populateAmmoRowsSlice(
+        control, 1, state.ammoPopulateToken, locale)
     focusNavigationRoot()
     refreshTriggerSurfaces()
     return true
@@ -4909,13 +5132,32 @@ Deferred.buildChoiceModal = function(
     local cardBox = construct(tree, "/Script/UMG.SizeBox")
     local outline = construct(tree, "/Script/UMG.Border")
     local panel = construct(tree, "/Script/UMG.Border")
+    local panelStack = construct(tree, "/Script/UMG.VerticalBox")
+    local pickerHeader = construct(tree, "/Script/UMG.HorizontalBox")
+    local pickerTitle = makeText(tree, "", 18, COLORS.text, TEXT_LEFT)
+    local pickerActionArea = construct(tree, "/Script/UMG.SizeBox")
+    local pickerActionStack = construct(tree, "/Script/UMG.VerticalBox")
+    local pickerActionRow = construct(tree, "/Script/UMG.HorizontalBox")
+    local pickerActionHintBox = construct(tree, "/Script/UMG.SizeBox")
+    local pickerActionHint = makeText(tree, "", 11, COLORS.muted, TEXT_CENTER)
+    local pickerResetAction = makeIconTrigger(tree, "↻",
+        currentStrings().reset or "Restore defaults", "reset")
+    local pickerCloseAction = makeIconTrigger(tree, "×",
+        currentStrings().close or "Close", "close")
     local scroll = construct(tree, "/Script/UMG.ScrollBox")
     local content = construct(tree, "/Script/UMG.VerticalBox")
+    local optionsList = construct(tree, "/Script/UMG.VerticalBox")
+    local itemGrid = construct(tree, "/Script/UMG.VerticalBox")
     local title = makeText(tree, "", 18, COLORS.text, TEXT_LEFT)
     local message = makeText(tree, "", 12, COLORS.muted, TEXT_LEFT)
     if overlay == nil or dim == nil or cardBox == nil or outline == nil
-        or panel == nil
-        or scroll == nil or content == nil or title == nil
+        or panel == nil or panelStack == nil or pickerHeader == nil
+        or pickerTitle == nil or pickerActionArea == nil
+        or pickerActionStack == nil or pickerActionRow == nil
+        or pickerActionHintBox == nil or pickerActionHint == nil
+        or pickerResetAction == nil or pickerCloseAction == nil
+        or scroll == nil or content == nil or optionsList == nil
+        or itemGrid == nil or title == nil
         or message == nil then return false end
     local vw = tonumber(viewportWidth) or 1280.0
     local vh = tonumber(viewportHeight) or 720.0
@@ -4955,8 +5197,40 @@ Deferred.buildChoiceModal = function(
             Left = SIZE.scrollbarPadding, Top = SIZE.scrollbarPadding,
             Right = SIZE.scrollbarPadding, Bottom = SIZE.scrollbarPadding,
         })
+        pickerHeader:SetVisibility(VIS_COLLAPSED)
+        local pickerTitleSlot = pickerHeader:AddChild(pickerTitle)
+        setFill(pickerTitleSlot)
+        align(pickerTitleSlot, ALIGN_LEFT, ALIGN_CENTER)
+        pickerActionArea:SetWidthOverride(
+            SIZE.headerAction * 2.0 + SIZE.headerActionGap)
+        pickerActionArea:SetHeightOverride(52.0)
+        local resetCell = makeHeaderActionCell(tree, pickerResetAction.box)
+        local closeCell = makeHeaderActionCell(tree, pickerCloseAction.box)
+        if resetCell == nil or closeCell == nil then
+            error("item picker header actions are unavailable")
+        end
+        align(pickerActionRow:AddChild(resetCell), ALIGN_CENTER, ALIGN_CENTER)
+        if not addHeaderActionGap(tree, pickerActionRow) then
+            error("item picker header action gap is unavailable")
+        end
+        align(pickerActionRow:AddChild(closeCell), ALIGN_CENTER, ALIGN_CENTER)
+        align(pickerActionStack:AddChild(pickerActionRow), ALIGN_CENTER, ALIGN_CENTER)
+        pickerActionHintBox:SetHeightOverride(16.0)
+        align(pickerActionHintBox:AddChild(pickerActionHint),
+            ALIGN_CENTER, ALIGN_CENTER)
+        align(pickerActionStack:AddChild(pickerActionHintBox),
+            ALIGN_CENTER, ALIGN_CENTER)
+        align(pickerActionArea:AddChild(pickerActionStack),
+            ALIGN_CENTER, ALIGN_FILL)
+        align(pickerHeader:AddChild(pickerActionArea), ALIGN_CENTER, ALIGN_FILL)
+        local pickerHeaderSlot = panelStack:AddChild(pickerHeader)
+        setPadding(pickerHeaderSlot, 4, 0, 4, 8)
+        align(pickerHeaderSlot, ALIGN_FILL, ALIGN_CENTER)
         align(scroll:AddChild(content), ALIGN_FILL, ALIGN_LEFT)
-        align(panel:AddChild(scroll), ALIGN_FILL, ALIGN_FILL)
+        local scrollSlot = panelStack:AddChild(scroll)
+        setFill(scrollSlot)
+        align(scrollSlot, ALIGN_FILL, ALIGN_FILL)
+        align(panel:AddChild(panelStack), ALIGN_FILL, ALIGN_FILL)
         align(outline:AddChild(panel), ALIGN_FILL, ALIGN_FILL)
         local panelSlot = cardBox:AddChild(outline)
         align(panelSlot, ALIGN_FILL, ALIGN_FILL)
@@ -4975,9 +5249,12 @@ Deferred.buildChoiceModal = function(
         message:SetVisibility(VIS_COLLAPSED)
         local messageSlot = content:AddChild(message)
         setPadding(messageSlot, 4, 0, 4, 12)
+        align(content:AddChild(optionsList), ALIGN_FILL, ALIGN_LEFT)
+        itemGrid:SetVisibility(VIS_COLLAPSED)
+        align(content:AddChild(itemGrid), ALIGN_FILL, ALIGN_LEFT)
         state.modalOptions = {}
-        optionCapacity = math.max(1, math.min(#Ammo.items + 1,
-            tonumber(optionCapacity) or #Ammo.items + 1))
+        optionCapacity = math.max(1, math.min(#Ammo.items + 2,
+            tonumber(optionCapacity) or #Ammo.items + 2))
         for index = 1, optionCapacity do
             local option = makeTrigger(tree, "", optionWidth, false, nil,
                 SIZE.modalOption, true)
@@ -4985,7 +5262,7 @@ Deferred.buildChoiceModal = function(
             local optionLayer = construct(tree, "/Script/UMG.Overlay")
             local ammoContent = construct(tree, "/Script/UMG.HorizontalBox")
             local ammoMarkBox = construct(tree, "/Script/UMG.SizeBox")
-            local ammoMark = makeText(tree, "", 16, COLORS.accent, TEXT_CENTER)
+            local ammoMark = makeText(tree, "✓", 16, COLORS.accent, TEXT_CENTER)
             local ammoHost = construct(tree, "/Script/UMG.SizeBox")
             local ammoRow = construct(tree, "/Script/UMG.HorizontalBox")
             local ammoIconBox = construct(tree, "/Script/UMG.SizeBox")
@@ -5000,7 +5277,7 @@ Deferred.buildChoiceModal = function(
             option.widget:ClearChildren()
             local textSlot = optionLayer:AddChildToOverlay(option.text)
             align(textSlot, ALIGN_CENTER, ALIGN_CENTER)
-            ammoMark:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+            ammoMark:SetVisibility(VIS_HIDDEN)
             ammoMarkBox:SetWidthOverride(36.0)
             ammoMarkBox:SetHeightOverride(32.0)
             align(ammoMarkBox:AddChild(ammoMark), ALIGN_CENTER, ALIGN_CENTER)
@@ -5010,6 +5287,7 @@ Deferred.buildChoiceModal = function(
             ammoIconBox:SetWidthOverride(30.0)
             ammoIconBox:SetHeightOverride(30.0)
             ammoIconBox:SetVisibility(VIS_HIT_TEST_INVISIBLE)
+            ammoIcon:SetVisibility(VIS_HIDDEN)
             align(ammoIconBox:AddChild(ammoIcon), ALIGN_FILL, ALIGN_FILL)
             local iconSlot = ammoRow:AddChild(ammoIconBox)
             setPadding(iconSlot, 0, 0, 8, 0)
@@ -5029,7 +5307,7 @@ Deferred.buildChoiceModal = function(
             option.ammoIconBox = ammoIconBox
             option.ammoIcon = ammoIcon
             option.ammoFallback = ammoFallback
-            local optionSlot = content:AddChild(option.box)
+            local optionSlot = optionsList:AddChild(option.box)
             setPadding(optionSlot, 0, index == 1 and 0 or 4, 0, 0)
             option.box:SetVisibility(VIS_COLLAPSED)
             state.modalOptions[index] = option
@@ -5052,11 +5330,25 @@ Deferred.buildChoiceModal = function(
     state.downvoteDialogMaxHeight = math.min(720.0,
         math.max(420.0, vh - 64.0))
     state.nestedOptionCapacity = optionCapacity
+    pickerResetAction.itemPickerAction = true
+    pickerCloseAction.itemPickerAction = true
+    state.itemPickerUi = {
+        header = pickerHeader,
+        title = pickerTitle,
+        actionHint = pickerActionHint,
+        resetAction = pickerResetAction,
+        closeAction = pickerCloseAction,
+        optionsList = optionsList,
+        grid = itemGrid,
+        rows = {},
+        viewportWidth = vw,
+        viewportHeight = vh,
+    }
     return true
 end
 
 ensureChoiceModal = function()
-    return Deferred.ensureChoiceModalCapacity(#Ammo.items + 1)
+    return Deferred.ensureChoiceModalCapacity(#Ammo.items + 2)
 end
 
 Deferred.ensureChoiceModalCapacity = function(requiredCapacity)
@@ -6988,6 +7280,7 @@ local function clearWindowReferences()
     state.nestedDefaultWidth = nil
     state.nestedDefaultMaxHeight = nil
     state.nestedOptionCapacity = nil
+    state.itemPickerUi = {}
     state.downvoteDialogWidth = nil
     state.downvoteDialogMaxHeight = nil
     state.ammoPopulateToken = state.ammoPopulateToken + 1

@@ -1484,8 +1484,14 @@ function Localization.localeKey()
     return localeKeyFromTag(languageTag())
 end
 
+function Localization.itemNameForLocale(locale, staticId)
+    locale = tostring(locale or "en")
+    if not SUPPORTED_LOCALE_SET[locale] then locale = "en" end
+    return ItemNames.get(locale, staticId)
+end
+
 function Localization.itemName(staticId)
-    return ItemNames.get(localeKeyFromTag(languageTag()), staticId)
+    return Localization.itemNameForLocale(Localization.localeKey(), staticId)
 end
 
 function Localization.format(strings, key, ...)

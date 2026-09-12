@@ -679,6 +679,18 @@ reported as an external conflict.
   the extracted current-build localized item-name catalog without constructing
   native item-row widgets, clearly states that checked means kept, and persists
   changes through the same validated settings path as the other controls.
+  All four reuse the Pal Insight passive-skill picker presentation: a wide,
+  viewport-safe modal; a fixed title Header with Restore Defaults and Close
+  icon actions plus the current keyboard/controller action label; and a
+  centered three-column item grid that falls back to two or one column when the
+  viewport cannot preserve readable cells. Only the picker body below the fixed
+  header scrolls. Every cell reserves the same checkmark and icon geometry,
+  keeps its text vertically centered, and distinguishes hover,
+  keyboard/controller focus, pressed, and
+  checked states without altering the game-owned icon or localized item name.
+  Restore Defaults changes only the active picker's allowlist and keeps the
+  picker open; Close returns to the originating settings row. Picker changes
+  continue to save immediately.
 - Automatic Sale begins with one non-interactive, full-width sale-bonus notice
   stating that automatic selling reads the current party Pals' localized
   `Noble` and `Fine Furs` passives and applies them to sale prices. The notice
@@ -704,9 +716,11 @@ reported as an external conflict.
   `自动出售帕鲁球` / `保留的帕鲁球`, `自动出售钓饵` / `保留的钓饵`,
   and their Traditional Chinese equivalents. The fishing-bait wording follows
   the game's official `钓饵` / `釣餌` item names.
-- Both automatic-sale pickers use the same navigation contract as the root
+- All four automatic-sale pickers use the same navigation contract as the root
   settings page. `W`/`S` and Up/Down accept Slate's keyboard-repeat events;
   controller D-pad and left stick use the retained physical-state repeat path.
+  Within the grid, Left/Right advances through the choices and Up/Down preserves
+  the nearest available column; the Header actions form the final navigation row.
   A light press moves exactly once, while a held input continues moving.
 - Escape or controller Back closes only the hosted Quick Stack panel and
   restores Pal Insight plus focus to the originating row. `F6` closes the whole
