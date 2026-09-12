@@ -6,12 +6,12 @@ Nella base attuale premi [b]F5[/b]. Quick Stack vende gli oggetti configurati, p
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Novità della versione 1.3.0[/h2]
+[h2]Novità della versione 1.5.0[/h2]
 
 [list]
-[*][b]Scaffali dei medicinali:[/b] priorità facoltativa per i 3 medicinali attuali. Senza spazio utilizzabile, gli oggetti passano ai depositi normali. Disattivata per impostazione predefinita.
-[*][b]Percorsi del cibo:[/b] le 5 torte vanno prima agli allevamenti e gli altri cibi alle mangiatoie, poi ai depositi refrigerati e normali. Le torte non entrano mai nelle mangiatoie. Attivi per impostazione predefinita.
-[*][b]Impostazioni a schede:[/b] Generale, Vendita automatica e Oggetti speciali supportano mouse, tastiera, controller e frecce laterali. Le incubatrici piccole e la quantità di Acqua Sacra sono sotto-opzioni del rispettivo percorso.
+[*]Riprogettati tutti e quattro gli elenchi da conservare con pannello più ampio, fino a tre colonne stabili, spazi fissi e azioni Ripristina/Chiudi.
+[*]Migliorata la navigazione con mouse, tastiera e gamepad; nomi, icone e controlli vengono riutilizzati alle aperture successive.
+[*]Le interruzioni mostrano codice e fase di elaborazione. Corretto lo spostamento orizzontale tra schede con e senza barra di scorrimento.
 [/list]
 
 [h2]Funzionalità[/h2]

@@ -401,7 +401,7 @@ local closeChoiceModal
 local Deferred = {}
 
 local staticObjects = {}
-local itemDisplayNameCache = {}
+state.itemDisplayNameCache = state.itemDisplayNameCache or {}
 local currentStrings
 
 local function log(message)
@@ -838,7 +838,7 @@ local function makeIconTrigger(tree, glyph, tooltip, role, neutralForeground)
     return record
 end
 
-local function makeHeaderActionCell(tree, buttonBox)
+function SettingsUI.makeHeaderActionCell(tree, buttonBox)
     if not P.isValid(buttonBox) then return nil end
     local cell = construct(tree, "/Script/UMG.SizeBox")
     if cell == nil then return nil end
@@ -850,7 +850,7 @@ local function makeHeaderActionCell(tree, buttonBox)
     return ok and cell or nil
 end
 
-local function addHeaderActionGap(tree, parent)
+function SettingsUI.addHeaderActionGap(tree, parent)
     if not P.isValid(parent) then return false end
     local gap = construct(tree, "/Script/UMG.SizeBox")
     if gap == nil then return false end
@@ -2006,7 +2006,7 @@ local function scheduleShortcutFocusRestore(control)
     return true
 end
 
-local function itemPickerNavigationIndex(control, current, direction, horizontal)
+function SettingsUI.itemPickerNavigationIndex(control, current, direction, horizontal)
     local positions = type(control) == "table" and control.navPositions or nil
     local rows = type(control) == "table" and control.navRows or nil
     local position = type(positions) == "table" and positions[current] or nil
@@ -2030,7 +2030,7 @@ local function moveFocus(direction, device, horizontal)
         if count < 1 then return true end
         local current = tonumber(state.modalIndex) or 1
         state.modalIndex = SettingsUI.isItemPicker(activeChoice)
-            and (itemPickerNavigationIndex(activeChoice, current,
+            and (SettingsUI.itemPickerNavigationIndex(activeChoice, current,
                 direction, horizontal == true) or current)
             or ((current - 1 + direction) % count + 1)
         local option = (state.modalOptions or {})[state.modalIndex]
@@ -2347,7 +2347,7 @@ local function resetFromDefaults()
     return false
 end
 
-local function applyItemPickerValue(control, value, source)
+function SettingsUI.applyItemPickerValue(control, value, source)
     if type(control) ~= "table" or not SettingsUI.isItemPicker(control) then
         return false
     end
@@ -2393,7 +2393,7 @@ local function commitNestedModalSelection(source)
     if SettingsUI.isItemPicker(control) then
         local catalog = control.catalog
         if index == control.resetIndex then
-            return applyItemPickerValue(control,
+            return SettingsUI.applyItemPickerValue(control,
                 control.defaultValue ~= nil and control.defaultValue or "",
                 tostring(source or control.source or "item-picker") .. "-reset")
         elseif index == control.closeIndex then
@@ -2409,7 +2409,7 @@ local function commitNestedModalSelection(source)
             if selected[candidate] then values[#values + 1] = candidate end
         end
         local value = table.concat(values, ",")
-        return applyItemPickerValue(control, value, source or control.source)
+        return SettingsUI.applyItemPickerValue(control, value, source or control.source)
     end
     commitChoice(control, index, source or ("choice:" .. tostring(control.key)))
     closeChoiceModal(true)
@@ -4949,10 +4949,10 @@ Deferred.resolveAmmoName = function(staticId, locale)
     staticId = tostring(staticId or "")
     locale = tostring(locale or Localization.localeKey())
     local key = locale .. "\0" .. staticId
-    local cached = itemDisplayNameCache[key]
+    local cached = state.itemDisplayNameCache[key]
     if cached ~= nil then return cached ~= false and cached or nil end
     local name = Localization.itemNameForLocale(locale, staticId)
-    itemDisplayNameCache[key] = name or false
+    state.itemDisplayNameCache[key] = name or false
     return name
 end
 
@@ -5204,13 +5204,13 @@ Deferred.buildChoiceModal = function(
         pickerActionArea:SetWidthOverride(
             SIZE.headerAction * 2.0 + SIZE.headerActionGap)
         pickerActionArea:SetHeightOverride(52.0)
-        local resetCell = makeHeaderActionCell(tree, pickerResetAction.box)
-        local closeCell = makeHeaderActionCell(tree, pickerCloseAction.box)
+        local resetCell = SettingsUI.makeHeaderActionCell(tree, pickerResetAction.box)
+        local closeCell = SettingsUI.makeHeaderActionCell(tree, pickerCloseAction.box)
         if resetCell == nil or closeCell == nil then
             error("item picker header actions are unavailable")
         end
         align(pickerActionRow:AddChild(resetCell), ALIGN_CENTER, ALIGN_CENTER)
-        if not addHeaderActionGap(tree, pickerActionRow) then
+        if not SettingsUI.addHeaderActionGap(tree, pickerActionRow) then
             error("item picker header action gap is unavailable")
         end
         align(pickerActionRow:AddChild(closeCell), ALIGN_CENTER, ALIGN_CENTER)
@@ -7562,9 +7562,9 @@ local function buildSettingsWindow(controller, mode)
         local closeAction = makeIconTrigger(
             tree, "×", strings.close, "close", true)
         local resetCell = resetAction ~= nil
-            and makeHeaderActionCell(tree, resetAction.box) or nil
+            and SettingsUI.makeHeaderActionCell(tree, resetAction.box) or nil
         local closeCell = closeAction ~= nil
-            and makeHeaderActionCell(tree, closeAction.box) or nil
+            and SettingsUI.makeHeaderActionCell(tree, closeAction.box) or nil
         if headerSize == nil or header == nil or headerRow == nil
             or identity == nil or titleRow == nil or versionBox == nil
             or versionButton == nil or versionBadge == nil
@@ -7623,7 +7623,7 @@ local function buildSettingsWindow(controller, mode)
         headerActionArea:SetHeightOverride(52.0)
         local resetSlot = headerActionRow:AddChild(resetCell)
         align(resetSlot, ALIGN_CENTER, ALIGN_CENTER)
-        if not addHeaderActionGap(tree, headerActionRow) then
+        if not SettingsUI.addHeaderActionGap(tree, headerActionRow) then
             error("settings header reset gap is unavailable")
         end
         local closeSlot = headerActionRow:AddChild(closeCell)
@@ -7737,7 +7737,7 @@ local function buildSettingsWindow(controller, mode)
         local contentLayerSlot = contentBox:AddChild(contentLayer)
         align(contentLayerSlot, ALIGN_FILL, ALIGN_FILL)
         local bodySlot = scroll:AddChild(contentBox)
-        align(bodySlot, ALIGN_FILL, ALIGN_LEFT)
+        align(bodySlot, ALIGN_LEFT, ALIGN_LEFT)
 
         state.buildingPageId = "general"
         if not addSection(tree, generalBody, strings.sectionBasics, 0)

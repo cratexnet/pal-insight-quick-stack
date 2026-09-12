@@ -2,12 +2,14 @@
 
 ![Pal Insight: Quick Stack](https://staticdelivery.nexusmods.com/mods/6063/images/4638/4638-1788832011-1479075983.png)
 
-## What's New in 1.4.3
+## What's New in 1.5.0
 
-*   Quick Stack no longer stops after only 1.5 seconds when current-base storage data is still loading on a multiplayer client. It now continues waiting within the existing bounded job timeout.
-*   Stopped notifications now include a short reason code to help diagnose any remaining failures.
-
-Dedicated-server player feedback confirms that the separate workbench material-count display issue remains. Version 1.4.3 removes one premature 1.5-second base-data readiness stop; it does not force distant storage containers to become network-relevant.
+*   Redesigned all four automatic-sale keep-list pickers—valuables, ammunition, Pal Spheres, and fishing bait—to match Pal Insight's native settings style.
+*   Each picker now uses a wider viewport-safe panel, a stable grid of up to three columns, fixed checkmark/icon/name slots, and header actions for Restore Defaults and Close.
+*   Improved mouse, keyboard, and controller navigation throughout the item grids and header actions. Changes continue to save immediately; Restore Defaults clears the active keep list without closing the picker.
+*   Improved stopped-job diagnostics. Notifications now consistently show a stable reason code and processing phase, while logs retain the detailed underlying cause.
+*   Item names, icons, and picker controls are reused across openings. Icon preparation remains sliced across frames to avoid a large single-frame stall.
+*   Fixed settings content shifting horizontally when switching between tabs with and without a scrollbar.
 
 Version 1.4.0 moved in-game settings into Pal Insight's F6 > Extensions page, unified the control guide and status colors, and fixed settings access.
 

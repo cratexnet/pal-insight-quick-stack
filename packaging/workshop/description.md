@@ -6,11 +6,12 @@ Press [b]F5[/b] inside your current base. Quick Stack can sell selected items, t
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]What's New in 1.4.3[/h2]
+[h2]What's New in 1.5.0[/h2]
 
 [list]
-[*]Quick Stack no longer stops after only 1.5 seconds when current-base storage data is still loading on a multiplayer client. It now continues waiting within the existing bounded job timeout.
-[*]Stopped notifications now include a short reason code to help diagnose any remaining failures.
+[*]Redesigned all four automatic-sale keep-list pickers with a wider panel, up to three stable columns, fixed content slots, and Restore Defaults and Close header actions.
+[*]Improved mouse, keyboard, and controller navigation. Item names, icons, and controls are reused across openings.
+[*]Stopped notifications now show a stable reason code and processing phase. Fixed horizontal layout shifts between tabs with and without a scrollbar.
 [/list]
 
 [h2]All Features[/h2]

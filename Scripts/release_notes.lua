@@ -6,6 +6,11 @@ local ReleaseNotes = {}
 -- timestamp when its version number is upgraded. Update it later only when
 -- necessary, preserving source precision rather than inventing seconds.
 ReleaseNotes.versions = {
+    { version = "1.5.0", dateUtc = "2026-09-12 16:16:11", groups = {
+        { kind = "changed", items = { 36, 37, 38 } },
+        { kind = "performance", items = { 39 } },
+        { kind = "fixed", items = { 40 } },
+    } },
     { version = "1.4.3", dateUtc = "2026-09-10 04:47:56", groups = {
         { kind = "fixed", items = { 33, 34 } },
         { kind = "changed", items = { 35 } },
@@ -693,6 +698,128 @@ local PATCH_143 = {
     },
 }
 
+local PATCH_150 = {
+    en = {
+        [36] = "Redesigned all four automatic-sale keep-list pickers to match Pal Insight: a wider viewport-safe panel, up to three stable columns, fixed checkmark/icon/name slots, and Restore Defaults and Close header actions.",
+        [37] = "Improved mouse, keyboard, and controller navigation in item grids and header actions. Changes save immediately; Restore Defaults clears only the active keep list and keeps the picker open.",
+        [38] = "Stopped-job notifications now consistently show a stable reason code and processing phase, while logs retain the detailed underlying cause.",
+        [39] = "Item names, icons, and picker controls are reused across openings. Icon preparation remains sliced across frames to avoid a large single-frame stall.",
+        [40] = "Fixed settings content shifting horizontally when switching between tabs with and without a scrollbar.",
+    },
+    ["zh-hans"] = {
+        [36] = "重新设计贵重品、弹药、帕鲁球和钓饵四个自动出售保留列表，使其与 Pal Insight 保持一致：面板更宽并适配视口，最多三列稳定排列，勾选标记、图标和名称位置固定，顶部提供恢复默认和关闭操作。",
+        [37] = "完善道具网格和顶部操作区的鼠标、键盘及手柄导航。选择即时保存；恢复默认只清空当前保留列表，并保持选择器打开。",
+        [38] = "停止通知现在会稳定显示原因代码和处理阶段，日志同时保留具体的底层错误原因。",
+        [39] = "再次打开时会复用道具名称、图标和选择器控件；图标继续分帧准备，避免集中在单帧造成明显卡顿。",
+        [40] = "修复在有滚动条和无滚动条的设置分页之间切换时，内容发生横向重排的问题。",
+    },
+    ["zh-hant"] = {
+        [36] = "重新設計貴重品、彈藥、帕魯球和釣餌四個自動出售保留清單，使其與 Pal Insight 保持一致：面板更寬並適應視口，最多三欄穩定排列，勾選標記、圖示和名稱位置固定，頂部提供恢復預設和關閉操作。",
+        [37] = "完善道具網格和頂部操作區的滑鼠、鍵盤及控制器導覽。選擇即時儲存；恢復預設只會清空目前保留清單，並保持選擇器開啟。",
+        [38] = "停止通知現在會穩定顯示原因代碼和處理階段，日誌同時保留具體的底層錯誤原因。",
+        [39] = "再次開啟時會重用道具名稱、圖示和選擇器控制項；圖示繼續分幀準備，避免集中在單幀造成明顯卡頓。",
+        [40] = "修正在有捲動條和無捲動條的設定分頁之間切換時，內容發生橫向重排的問題。",
+    },
+    ja = {
+        [36] = "4 種類すべての自動売却保持リストを Pal Insight に合わせて再設計しました。幅広く画面に収まるパネル、最大 3 列の固定配置、チェック・アイコン・名前の固定領域、初期設定と閉じる操作を備えます。",
+        [37] = "アイテムグリッドとヘッダーのマウス・キーボード・ゲームパッド操作を改善しました。変更は即時保存され、初期設定は現在の保持リストだけを消去して画面を開いたままにします。",
+        [38] = "停止通知に安定した理由コードと処理段階を常に表示し、ログには詳細な原因を保持するようにしました。",
+        [39] = "アイテム名、アイコン、選択画面のコントロールを再利用します。アイコンは引き続きフレームごとに分割して準備し、単一フレームの大きな停止を避けます。",
+        [40] = "スクロールバーの有無が異なる設定タブを切り替えた際に、内容が横へずれる問題を修正しました。",
+    },
+    ko = {
+        [36] = "자동 판매 보관 목록 4종을 Pal Insight 스타일로 다시 설계했습니다. 넓고 화면에 맞는 패널, 최대 3열의 안정적인 배치, 고정된 체크/아이콘/이름 공간, 기본값 복원 및 닫기 상단 동작을 제공합니다.",
+        [37] = "아이템 그리드와 상단 동작의 마우스, 키보드, 게임패드 탐색을 개선했습니다. 변경은 즉시 저장되며 기본값 복원은 현재 보관 목록만 비우고 선택 화면을 유지합니다.",
+        [38] = "중지 알림에 안정적인 사유 코드와 처리 단계를 항상 표시하고, 로그에는 상세한 원인을 보존합니다.",
+        [39] = "다시 열 때 아이템 이름, 아이콘, 선택 화면 컨트롤을 재사용합니다. 아이콘 준비는 한 프레임의 큰 멈춤을 피하도록 계속 여러 프레임에 나눠 처리합니다.",
+        [40] = "스크롤바가 있는 설정 탭과 없는 탭을 전환할 때 내용이 가로로 이동하던 문제를 수정했습니다.",
+    },
+    de = {
+        [36] = "Alle vier Behalten-Listen für den automatischen Verkauf wurden an Pal Insight angepasst: breites, bildschirmsicheres Fenster, bis zu drei stabile Spalten, feste Plätze für Haken/Icon/Name sowie Zurücksetzen und Schließen im Kopfbereich.",
+        [37] = "Maus-, Tastatur- und Controller-Navigation in Raster und Kopfbereich wurde verbessert. Änderungen werden sofort gespeichert; Zurücksetzen leert nur die aktive Behalten-Liste und lässt das Fenster geöffnet.",
+        [38] = "Abbruchmeldungen zeigen nun zuverlässig einen stabilen Ursachencode und die Verarbeitungsphase; das Protokoll behält die genaue Ursache.",
+        [39] = "Gegenstandsnamen, Icons und Auswahl-Steuerelemente werden beim erneuten Öffnen wiederverwendet. Icons werden weiterhin über mehrere Frames vorbereitet, um einen großen Einzelbild-Stillstand zu vermeiden.",
+        [40] = "Behoben: Einstellungsinhalte verschoben sich horizontal beim Wechsel zwischen Tabs mit und ohne Scrollleiste.",
+    },
+    fr = {
+        [36] = "Les quatre listes de conservation de la vente automatique ont été alignées sur Pal Insight : panneau plus large adapté à l’écran, jusqu’à trois colonnes stables, emplacements fixes coche/icône/nom et actions Réinitialiser/Fermer dans l’en-tête.",
+        [37] = "Amélioration de la navigation à la souris, au clavier et à la manette dans les grilles et l’en-tête. Les changements sont immédiats ; Réinitialiser vide seulement la liste active et laisse le sélecteur ouvert.",
+        [38] = "Les notifications d’arrêt affichent désormais systématiquement un code de motif stable et la phase de traitement, tandis que le journal conserve la cause détaillée.",
+        [39] = "Les noms, icônes et contrôles sont réutilisés entre les ouvertures. La préparation des icônes reste répartie sur plusieurs images afin d’éviter un blocage important sur une seule image.",
+        [40] = "Correction du décalage horizontal du contenu lors du passage entre des onglets avec et sans barre de défilement.",
+    },
+    it = {
+        [36] = "Riprogettati tutti e quattro gli elenchi da conservare per la vendita automatica in stile Pal Insight: pannello più ampio e sicuro, fino a tre colonne stabili, spazi fissi per spunta/icona/nome e azioni Ripristina/Chiudi nell’intestazione.",
+        [37] = "Migliorata la navigazione con mouse, tastiera e gamepad nelle griglie e nell’intestazione. Le modifiche vengono salvate subito; Ripristina svuota solo l’elenco attivo e lascia aperto il selettore.",
+        [38] = "Le notifiche di interruzione mostrano sempre un codice motivo stabile e la fase di elaborazione, mentre il registro conserva la causa dettagliata.",
+        [39] = "Nomi, icone e controlli del selettore vengono riutilizzati tra le aperture. La preparazione delle icone resta distribuita su più fotogrammi per evitare un grande blocco in un solo fotogramma.",
+        [40] = "Corretto lo spostamento orizzontale del contenuto passando tra schede con e senza barra di scorrimento.",
+    },
+    es = {
+        [36] = "Se rediseñaron las cuatro listas de conservación de venta automática para igualar Pal Insight: panel más ancho adaptado a la pantalla, hasta tres columnas estables, espacios fijos para marca/icono/nombre y acciones Restaurar/Cerrar en el encabezado.",
+        [37] = "Se mejoró la navegación con ratón, teclado y mando en las cuadrículas y el encabezado. Los cambios se guardan al instante; Restaurar solo vacía la lista activa y mantiene abierto el selector.",
+        [38] = "Las notificaciones de detención ahora muestran siempre un código de motivo estable y la fase de procesamiento, mientras el registro conserva la causa detallada.",
+        [39] = "Los nombres, iconos y controles del selector se reutilizan entre aperturas. Los iconos siguen preparándose durante varios fotogramas para evitar un bloqueo grande en uno solo.",
+        [40] = "Se corrigió el desplazamiento horizontal del contenido al cambiar entre pestañas con y sin barra de desplazamiento.",
+    },
+    ["pt-br"] = {
+        [36] = "Redesenhadas as quatro listas de itens mantidos da venda automática para combinar com o Pal Insight: painel mais largo e seguro, até três colunas estáveis, espaços fixos para marca/ícone/nome e ações Restaurar/Fechar no cabeçalho.",
+        [37] = "Melhorada a navegação por mouse, teclado e controle nas grades e no cabeçalho. As mudanças são salvas imediatamente; Restaurar limpa apenas a lista ativa e mantém o seletor aberto.",
+        [38] = "As notificações de interrupção agora sempre mostram um código de motivo estável e a fase de processamento, enquanto o registro preserva a causa detalhada.",
+        [39] = "Nomes, ícones e controles do seletor são reutilizados entre aberturas. A preparação dos ícones continua dividida entre quadros para evitar uma grande pausa em um único quadro.",
+        [40] = "Corrigido o deslocamento horizontal do conteúdo ao alternar entre abas com e sem barra de rolagem.",
+    },
+    ru = {
+        [36] = "Все четыре списка сохранения для автопродажи переработаны в стиле Pal Insight: более широкое безопасное окно, до трёх стабильных столбцов, фиксированные места флажка/значка/названия и кнопки сброса/закрытия в заголовке.",
+        [37] = "Улучшена навигация мышью, клавиатурой и контроллером по сетке и заголовку. Изменения сохраняются сразу; сброс очищает только активный список и не закрывает окно.",
+        [38] = "Уведомления об остановке теперь всегда показывают стабильный код причины и этап обработки, а журнал сохраняет подробную исходную причину.",
+        [39] = "Названия, значки и элементы окна повторно используются при открытии. Значки по-прежнему готовятся по частям в нескольких кадрах, чтобы избежать большой остановки одного кадра.",
+        [40] = "Исправлено горизонтальное смещение содержимого при переключении между вкладками с полосой прокрутки и без неё.",
+    },
+    tr = {
+        [36] = "Dört otomatik satış saklama listesi Pal Insight ile uyumlu olacak şekilde yenilendi: daha geniş ve ekrana güvenli panel, en fazla üç sabit sütun, sabit onay/ikon/ad alanları ve başlıkta Varsayılanlar/Kapat işlemleri.",
+        [37] = "Izgara ve başlık işlemlerinde fare, klavye ve kontrolcü gezinmesi iyileştirildi. Değişiklikler hemen kaydedilir; Varsayılanlar yalnızca etkin listeyi temizler ve seçiciyi açık tutar.",
+        [38] = "Durdurma bildirimleri artık her zaman kararlı bir neden kodu ve işlem aşaması gösterirken günlük ayrıntılı nedeni korur.",
+        [39] = "Eşya adları, ikonlar ve seçici kontrolleri açılışlar arasında yeniden kullanılır. Tek karede büyük takılmayı önlemek için ikonlar yine karelere bölünerek hazırlanır.",
+        [40] = "Kaydırma çubuğu olan ve olmayan sekmeler arasında geçişte içeriğin yatay kayması düzeltildi.",
+    },
+    pl = {
+        [36] = "Przeprojektowano wszystkie cztery listy zachowywanych przedmiotów na wzór Pal Insight: szerszy panel dopasowany do ekranu, do trzech stabilnych kolumn, stałe miejsca znacznika/ikony/nazwy oraz akcje Przywróć/Zamknij w nagłówku.",
+        [37] = "Ulepszono nawigację myszą, klawiaturą i kontrolerem w siatkach i nagłówku. Zmiany zapisują się natychmiast; Przywróć czyści tylko aktywną listę i pozostawia selektor otwarty.",
+        [38] = "Powiadomienia o zatrzymaniu zawsze pokazują stabilny kod przyczyny i etap przetwarzania, a dziennik zachowuje szczegółową przyczynę.",
+        [39] = "Nazwy, ikony i kontrolki selektora są ponownie używane przy kolejnych otwarciach. Ikony nadal są przygotowywane w kilku klatkach, aby uniknąć dużego zatrzymania jednej klatki.",
+        [40] = "Naprawiono poziome przesuwanie treści przy przełączaniu między kartami z paskiem przewijania i bez niego.",
+    },
+    id = {
+        [36] = "Mendesain ulang keempat daftar simpan penjualan otomatis agar sesuai Pal Insight: panel lebih lebar dan aman untuk layar, hingga tiga kolom stabil, slot centang/ikon/nama tetap, serta tindakan Pulihkan/Tutup di header.",
+        [37] = "Meningkatkan navigasi mouse, keyboard, dan kontroler pada grid serta header. Perubahan langsung disimpan; Pulihkan hanya mengosongkan daftar aktif dan membiarkan pemilih tetap terbuka.",
+        [38] = "Notifikasi berhenti kini selalu menampilkan kode alasan stabil dan tahap pemrosesan, sementara log mempertahankan penyebab terperinci.",
+        [39] = "Nama, ikon, dan kontrol pemilih digunakan ulang antarpembukaan. Persiapan ikon tetap dibagi ke beberapa frame untuk menghindari jeda besar pada satu frame.",
+        [40] = "Memperbaiki konten yang bergeser horizontal saat berpindah antara tab dengan dan tanpa bilah gulir.",
+    },
+    ["es-419"] = {
+        [36] = "Se rediseñaron las cuatro listas de conservación de venta automática para igualar Pal Insight: panel más ancho adaptado a la pantalla, hasta tres columnas estables, espacios fijos para marca/icono/nombre y acciones Restaurar/Cerrar en el encabezado.",
+        [37] = "Se mejoró la navegación con mouse, teclado y control en las cuadrículas y el encabezado. Los cambios se guardan al instante; Restaurar solo vacía la lista activa y mantiene abierto el selector.",
+        [38] = "Las notificaciones de detención ahora muestran siempre un código de motivo estable y la fase de procesamiento, mientras el registro conserva la causa detallada.",
+        [39] = "Los nombres, íconos y controles del selector se reutilizan entre aperturas. Los íconos siguen preparándose durante varios cuadros para evitar un bloqueo grande en uno solo.",
+        [40] = "Se corrigió el desplazamiento horizontal del contenido al cambiar entre pestañas con y sin barra de desplazamiento.",
+    },
+    th = {
+        [36] = "ออกแบบรายการเก็บไว้สำหรับการขายอัตโนมัติทั้งสี่ใหม่ให้ตรงกับ Pal Insight: แผงกว้างและพอดีหน้าจอ สูงสุดสามคอลัมน์ที่คงที่ ช่องเครื่องหมาย/ไอคอน/ชื่อคงที่ และปุ่มคืนค่า/ปิดที่ส่วนหัว",
+        [37] = "ปรับปรุงการนำทางด้วยเมาส์ แป้นพิมพ์ และคอนโทรลเลอร์ในตารางและส่วนหัว การเปลี่ยนแปลงจะบันทึกทันที ส่วนคืนค่าจะล้างเฉพาะรายการปัจจุบันและไม่ปิดตัวเลือก",
+        [38] = "การแจ้งเตือนเมื่อหยุดจะแสดงรหัสเหตุผลที่คงที่และขั้นตอนการประมวลผลเสมอ ขณะที่บันทึกยังเก็บสาเหตุโดยละเอียด",
+        [39] = "ชื่อ ไอคอน และตัวควบคุมจะถูกนำกลับมาใช้เมื่อเปิดอีกครั้ง ไอคอนยังเตรียมแบบแบ่งหลายเฟรมเพื่อหลีกเลี่ยงการหยุดหนักในเฟรมเดียว",
+        [40] = "แก้ไขเนื้อหาเลื่อนในแนวนอนเมื่อสลับระหว่างแท็บที่มีและไม่มีแถบเลื่อน",
+    },
+    vi = {
+        [36] = "Thiết kế lại cả bốn danh sách giữ lại khi tự động bán theo Pal Insight: bảng rộng và vừa màn hình, tối đa ba cột ổn định, vị trí cố định cho dấu chọn/biểu tượng/tên, cùng nút Khôi phục/Đóng ở đầu bảng.",
+        [37] = "Cải thiện điều hướng bằng chuột, bàn phím và tay cầm trong lưới và phần đầu. Thay đổi được lưu ngay; Khôi phục chỉ xóa danh sách hiện tại và giữ bộ chọn mở.",
+        [38] = "Thông báo dừng giờ luôn hiện mã lý do ổn định và giai đoạn xử lý, trong khi nhật ký giữ nguyên nguyên nhân chi tiết.",
+        [39] = "Tên, biểu tượng và điều khiển của bộ chọn được tái sử dụng giữa các lần mở. Biểu tượng vẫn được chuẩn bị qua nhiều khung hình để tránh khựng lớn trong một khung hình.",
+        [40] = "Đã sửa nội dung dịch ngang khi chuyển giữa các thẻ có và không có thanh cuộn.",
+    },
+}
+
 for locale, copy in pairs(COMPACT) do
     local row = UI[locale]
     for index, value in pairs(copy) do row[index] = value end
@@ -733,6 +860,11 @@ end
 
 for locale, row in pairs(TEXT) do
     local patch = PATCH_143[locale] or PATCH_143.en
+    for key, value in pairs(patch) do row[key] = value end
+end
+
+for locale, row in pairs(TEXT) do
+    local patch = PATCH_150[locale] or PATCH_150.en
     for key, value in pairs(patch) do row[key] = value end
 end
 

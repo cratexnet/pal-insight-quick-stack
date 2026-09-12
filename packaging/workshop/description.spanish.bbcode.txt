@@ -6,11 +6,12 @@ En tu base actual, pulsa [b]F5[/b]. Quick Stack vende los objetos configurados y
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Novedades de la versión 1.4.3[/h2]
+[h2]Novedades de la versión 1.5.0[/h2]
 
 [list]
-[*]En clientes multijugador, Quick Stack ya no se detiene tras solo 1,5 segundos si los datos de almacenamiento de la base actual todavía se están cargando. Ahora sigue esperando dentro del límite total existente.
-[*]Las notificaciones de detención ahora muestran un código breve del motivo para facilitar el diagnóstico de cualquier problema restante.
+[*]Se rediseñaron las cuatro listas de conservación con panel más ancho, hasta tres columnas estables, espacios fijos y acciones Restaurar/Cerrar.
+[*]Se mejoró la navegación con ratón, teclado y mando; los nombres, iconos y controles se reutilizan entre aperturas.
+[*]Las detenciones muestran código y fase de procesamiento. Se corrigió el desplazamiento horizontal entre pestañas con y sin barra de desplazamiento.
 [/list]
 
 [h2]Funciones[/h2]

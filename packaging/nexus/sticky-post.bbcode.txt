@@ -1,17 +1,18 @@
-[b][color=#00ff00][size=5]PAL INSIGHT: QUICK STACK 1.4.3 — START HERE[/size][/color][/b]
+[b][color=#00ff00][size=5]PAL INSIGHT: QUICK STACK 1.5.0 — START HERE[/size][/color][/b]
 
 Press [b]F5[/b] inside your current base to sell configured items, then store eligible normal-backpack items.
 
 Quick Stack is a standalone client-side UE4SS Lua mod. Pal Insight is optional.
 
-[b]WHAT'S NEW IN 1.4.3[/b]
+[b]WHAT'S NEW IN 1.5.0[/b]
 
 [list]
-[*]Quick Stack no longer stops after only 1.5 seconds when current-base storage data is still loading on a multiplayer client. It now continues waiting within the existing bounded job timeout.
-[*]Stopped notifications now include a short reason code to help diagnose any remaining failures.
+[*]Redesigned all four automatic-sale keep-list pickers to match Pal Insight, with a wider panel, up to three stable columns, fixed content slots, and Restore Defaults and Close header actions.
+[*]Improved mouse, keyboard, and controller navigation. Changes save immediately, while Restore Defaults clears only the active keep list.
+[*]Item names, icons, and picker controls are reused across openings, with icon work split across frames.
+[*]Stopped notifications now show a stable reason code and processing phase, while logs retain the detailed cause.
+[*]Fixed horizontal layout shifts when switching between settings tabs with and without a scrollbar.
 [/list]
-
-Dedicated-server player reports confirm a separate issue remains: workbench counts may stay stale. 1.4.3 removes one early readiness stop; it cannot change storage network relevancy.
 
 [b]QUICK START[/b]
 

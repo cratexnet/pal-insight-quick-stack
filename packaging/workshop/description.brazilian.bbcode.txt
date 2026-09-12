@@ -6,11 +6,12 @@ Na base atual, pressione [b]F5[/b]. O Quick Stack vende os itens configurados e 
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Novidades da versão 1.4.3[/h2]
+[h2]Novidades da versão 1.5.0[/h2]
 
 [list]
-[*]Em clientes multijogador, o Quick Stack não para mais após apenas 1,5 segundo quando os dados de armazenamento da base atual ainda estão carregando. Agora ele continua aguardando dentro do limite total existente.
-[*]As notificações de interrupção agora mostram um código curto do motivo para facilitar o diagnóstico de problemas restantes.
+[*]Redesenhadas as quatro listas de itens mantidos com painel mais largo, até três colunas estáveis, espaços fixos e ações Restaurar/Fechar.
+[*]Melhorada a navegação por mouse, teclado e controle; nomes, ícones e controles são reutilizados entre aberturas.
+[*]As interrupções mostram código e fase de processamento. Corrigido o deslocamento horizontal entre abas com e sem barra de rolagem.
 [/list]
 
 [h2]Recursos[/h2]

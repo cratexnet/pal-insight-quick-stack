@@ -6,11 +6,12 @@ Drücke in deiner aktuellen Basis [b]F5[/b]. Quick Stack verkauft konfigurierte 
 
 [img]https://staticdelivery.nexusmods.com/mods/6063/images/5474/5474-1788114023-1813187159.jpg[/img]
 
-[h2]Neu in 1.4.3[/h2]
+[h2]Neu in 1.5.0[/h2]
 
 [list]
-[*]Quick Stack stoppt auf Mehrspieler-Clients nicht mehr nach nur 1,5 Sekunden, wenn die Lagerdaten der aktuellen Basis noch geladen werden. Es wartet nun innerhalb des bestehenden begrenzten Gesamtzeitlimits weiter.
-[*]Abbruchmeldungen enthalten nun einen kurzen Ursachencode, um verbleibende Fehler leichter zu diagnostizieren.
+[*]Alle vier Behalten-Listen wurden mit breiterem Fenster, bis zu drei stabilen Spalten, festen Inhaltsplätzen sowie Zurücksetzen und Schließen neu gestaltet.
+[*]Maus-, Tastatur- und Controller-Navigation wurde verbessert; Namen, Icons und Steuerelemente werden beim erneuten Öffnen wiederverwendet.
+[*]Abbruchmeldungen zeigen Ursachencode und Verarbeitungsphase. Horizontale Verschiebungen zwischen Tabs mit und ohne Scrollleiste wurden behoben.
 [/list]
 
 [h2]Alle Funktionen[/h2]

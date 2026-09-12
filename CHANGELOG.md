@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.5.0 - 2026-09-13
+
+### Changed
+
+- Redesigned all four automatic-sale keep-list pickers—valuables, ammunition,
+  Pal Spheres, and fishing bait—to match Pal Insight's native settings style.
+- Each picker now uses a wider viewport-safe panel, a stable grid of up to
+  three columns, fixed checkmark/icon/name slots, and header actions for Restore
+  Defaults and Close.
+- Improved mouse, keyboard, and controller navigation throughout the item grids
+  and header actions. Changes continue to save immediately; Restore Defaults
+  clears the active keep list without closing the picker.
+- Improved stopped-job diagnostics. Notifications now consistently show a
+  stable reason code and processing phase, while logs retain the detailed
+  underlying cause.
+
+### Performance
+
+- Item names, icons, and picker controls are reused across openings. Icon
+  preparation remains sliced across frames to avoid a large single-frame stall.
+
+### Fixed
+
+- Fixed settings content shifting horizontally when switching between tabs
+  with and without a scrollbar.
+
 ## 1.4.3 - 2026-09-10
 
 ### Fixed
