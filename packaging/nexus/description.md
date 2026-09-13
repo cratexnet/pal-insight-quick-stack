@@ -32,7 +32,7 @@ Settings from [b]0.1.x[/b] are migrated automatically.
 [*]Enter one of your bases and press [b]F5[/b].[/*]
 [/list]
 
-Press [b]F6[/b] to open Quick Stack Settings.
+For in-game settings, install and enable current [b]Pal Insight[/b], then open [b]F6 > Extensions > Pal Insight: Quick Stack[/b]. Without Pal Insight, F5 uses saved or default settings and text notifications; there is no standalone F6 settings panel.
 
 [b]Use one installation channel only.[/b] Do not combine Nexus Mods, CurseForge, or Steam Workshop copies, and do not mix Win64 and WinGDK packages.
 
@@ -92,7 +92,7 @@ F5 searches the current base for an available merchant. Sale prices include Nobl
 
 [size=5][b]CONFIGURABLE STORAGE RULES[/b][/size]
 
-From F6 Settings, configure whether Quick Stack may also store or prioritize:
+With current Pal Insight active, open [b]F6 > Extensions > Pal Insight: Quick Stack[/b] to configure whether Quick Stack may also store or prioritize:
 
 [list]
 [*]Items currently marked as ignored[/*]
@@ -224,7 +224,7 @@ Avoid other inventory operations while the progress notification is visible.
 [list]
 [*][b]Core single-player storage flow on Steam:[/b] Tested[/*]
 [*][b]All 17 Palworld interface languages:[/b] Supported[/*]
-[*][b]Pal Insight 2.0.0 integration:[/b] Supported[/*]
+[*][b]Current Pal Insight integration:[/b] Supported[/*]
 [*][b]Multiplayer clients:[/b] Not fully verified[/*]
 [*][b]Dedicated-server client:[/b] Item moves work with Quick Stack installed client-side only, but workbench material counts may remain outdated until the storage area becomes network-relevant. The current Quick Stack package has no server-side relevancy component; installing it on the server does not remove this limitation.[/*]
 [*][b]Representative Game Pass runtime acceptance:[/b] Not yet verified[/*]
@@ -236,7 +236,7 @@ Avoid other inventory operations while the progress notification is visible.
 
 [list]
 [*]Confirm that your character is inside a base.[/*]
-[*]Open F6 Settings and verify the current Quick Stack shortcut.[/*]
+[*]With Pal Insight active, verify the shortcut under [b]F6 > Extensions > Pal Insight: Quick Stack[/b]. Otherwise, close the game and inspect the saved configuration.[/*]
 [*]Make sure the package matches Win64 or WinGDK.[/*]
 [*]Confirm that only one Quick Stack installation channel is present.[/*]
 [*]Check that UE4SS loaded Quick Stack successfully.[/*]

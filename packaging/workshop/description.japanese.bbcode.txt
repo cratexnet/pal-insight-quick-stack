@@ -9,7 +9,7 @@
 [h2]1.5.0の新機能[/h2]
 
 [list]
-[*]4 種類の自動売却保持リストを再設計し、幅広いパネル、最大 3 列の固定配置、固定コンテンツ領域、初期設定と閉じる操作を追加しました。
+[*]4 種類の自動売却保持リストを再設計し、幅広いパネル、最大 3 列の固定配置、チェック・アイコン・名前の固定枠、初期設定と閉じる操作を追加しました。
 [*]マウス、キーボード、ゲームパッド操作を改善し、再表示時にアイテム名、アイコン、コントロールを再利用します。
 [*]停止通知に理由コードと処理段階を表示します。スクロールバーの有無が異なるタブ間の横ずれも修正しました。
 [/list]
@@ -26,7 +26,7 @@
 [*]商人不在時は初期設定で売却対象を保持。通常収納へ送る設定も可能
 [/list]
 
-全カテゴリは初期設定でオフ。高価買取品9種は売却可、他カテゴリはすべて保持します。
+全カテゴリは初期設定でオフ。高価買取品9種は売却可、他カテゴリはすべて保持します。「初期設定」は現在のカテゴリだけを初期状態に戻し、画面は閉じません。
 
 [b]クイック収納[/b]
 
@@ -101,7 +101,7 @@ Quick Stackは売却、移動、保存設定を引き続き担当します。Pal
 
 [list]
 [*]Steamシングルプレイヤー：テスト済み
-[*]Pal Insight 2.0.0連携：対応
+[*]Pal Insight連携：対応
 [*]専用サーバー：クライアントのみで移動は動作。作業台の数は古い場合があり、同じ Quick Stack をサーバーに入れても改善しません。
 [*]Co-op：未検証
 [*]Game Pass/WinGDK：パッケージの静的検証済み。実機検証は未完了
@@ -115,8 +115,6 @@ Quick Stackは売却、移動、保存設定を引き続き担当します。Pal
 
 [b]作業台の数が古い：[/b]移動済みの場合があります。収納へ近づき、作業台を開き直してください。恒久対策には別のサーバー relevancy Mod が必要です。
 
-不具合報告にはプラットフォーム、バージョン、設定、再現手順、期待/実際の結果、完全なUE4SSログ、クラッシュファイルを含めてください。
-
 [h2]Palworld配合計算機[/h2]
 
 CrateX.appの[url=https://cratex.app/games/palworld/breeding][b]Palworld配合計算機[/b][/url]では、セーブから所有パルの配合ルートを比較し、一般的な組み合わせも検索できます。データはブラウザー内で処理され、端末外へ送信されません。
@@ -127,4 +125,4 @@ CrateX.appの[url=https://cratex.app/games/palworld/breeding][b]Palworld配合�
 
 [url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]完全な更新履歴[/b][/url]
 
-完全なクレジットはゲーム内の [b]F6 > About > Special Thanks[/b] を開いてください。
+Pal Insight使用時は [b]F6 > About > Special Thanks[/b] でクレジットを確認できます。

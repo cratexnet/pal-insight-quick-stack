@@ -9,7 +9,7 @@
 [h2]1.5.0의 새로운 기능[/h2]
 
 [list]
-[*]자동 판매 보관 목록 4종을 다시 설계해 넓은 패널, 최대 3열의 안정적인 배치, 고정된 콘텐츠 공간, 기본값 복원 및 닫기 동작을 제공합니다.
+[*]보관 목록 4종을 넓은 패널과 최대 3열, 고정된 체크·아이콘·이름 자리, 복원·닫기 동작으로 개선했습니다.
 [*]마우스, 키보드, 게임패드 탐색을 개선하고 다시 열 때 아이템 이름, 아이콘, 컨트롤을 재사용합니다.
 [*]중지 알림에 안정적인 사유 코드와 처리 단계를 표시합니다. 스크롤바 유무가 다른 탭 사이의 가로 이동도 수정했습니다.
 [/list]
@@ -26,7 +26,7 @@
 [*]상인이 없으면 기본적으로 판매 아이템을 유지하며 일반 보관 처리도 선택 가능
 [/list]
 
-모든 범주는 기본 꺼짐. 고가 매입품 9종은 판매 가능, 나머지는 모두 보관합니다.
+모든 범주는 기본 꺼짐. 고가품 9종은 판매 가능, 나머지는 모두 보관합니다. 복원은 현재 범주의 기본 목록만 되돌리고 창을 닫지 않습니다.
 
 [b]빠른 보관[/b]
 
@@ -105,7 +105,7 @@
 
 [list]
 [*]Steam 싱글 플레이: 테스트 완료
-[*]Pal Insight 2.0.0 연동: 지원
+[*]Pal Insight 연동: 지원
 [*]전용 서버: 클라이언트만으로 이동합니다. 작업대 수량은 이전 값일 수 있고, 같은 Quick Stack을 서버에 설치해도 개선되지 않습니다.
 [*]Co-op: 확인되지 않음
 [*]Game Pass/WinGDK: 패키지 정적 검증 완료, 게임 내 검증은 미완료
@@ -131,4 +131,4 @@ CrateX.app의 [url=https://cratex.app/games/palworld/breeding][b]Palworld 교배
 
 [url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]전체 업데이트 기록[/b][/url]
 
-전체 크레딧은 게임에서 [b]F6 > About > Special Thanks[/b]를 여세요.
+Pal Insight 사용 시 [b]F6 > About > Special Thanks[/b]에서 크레딧을 볼 수 있습니다.

@@ -9,7 +9,7 @@ Press [b]F5[/b] inside your current base. Quick Stack can sell selected items, t
 [h2]What's New in 1.5.0[/h2]
 
 [list]
-[*]Redesigned all four automatic-sale keep-list pickers with a wider panel, up to three stable columns, fixed content slots, and Restore Defaults and Close header actions.
+[*]Redesigned all four automatic-sale keep-list pickers with a wider panel, up to three stable columns, fixed checkmark/icon/name slots, and Restore Defaults and Close header actions.
 [*]Improved mouse, keyboard, and controller navigation. Item names, icons, and controls are reused across openings.
 [*]Stopped notifications now show a stable reason code and processing phase. Fixed horizontal layout shifts between tabs with and without a scrollbar.
 [/list]
@@ -26,7 +26,7 @@ Press [b]F5[/b] inside your current base. Quick Stack can sell selected items, t
 [*]Keep sale items in the backpack when no merchant is found by default, or use normal storage rules
 [/list]
 
-All categories are off by default. High-value items initially allow all 9 items; other categories keep everything.
+All categories default to off. High-value items initially allow all 9; other categories keep everything. Restore Defaults restores that category's default keep list and keeps the picker open.
 
 [b]Quick storage[/b]
 
@@ -107,7 +107,7 @@ Avoid other inventory actions while the in-progress message is visible.
 
 [list]
 [*]Steam single-player: Tested
-[*]Pal Insight 2.0.0 integration: Supported
+[*]Pal Insight integration: Supported
 [*]Dedicated-server client: Item moves work client-side only. Workbench counts may stay stale for distant storage; installing Quick Stack on the server does not change this.
 [*]Co-op: Not verified
 [*]Game Pass/WinGDK: Package verified statically; in-game acceptance not verified
@@ -133,4 +133,4 @@ Use the [url=https://cratex.app/games/palworld/breeding][b]CrateX.app Palworld B
 
 [url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]Complete Changelog[/b][/url]
 
-For credits, open [b]F6 > About > Special Thanks[/b] in game.
+With Pal Insight, open [b]F6 > About > Special Thanks[/b] for credits.

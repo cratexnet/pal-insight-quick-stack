@@ -9,7 +9,7 @@ Drücke in deiner aktuellen Basis [b]F5[/b]. Quick Stack verkauft konfigurierte 
 [h2]Neu in 1.5.0[/h2]
 
 [list]
-[*]Alle vier Behalten-Listen wurden mit breiterem Fenster, bis zu drei stabilen Spalten, festen Inhaltsplätzen sowie Zurücksetzen und Schließen neu gestaltet.
+[*]Alle vier Behalten-Listen wurden mit breiterem Fenster, bis zu drei stabilen Spalten, festen Plätzen für Haken, Icon und Namen sowie Zurücksetzen und Schließen neu gestaltet.
 [*]Maus-, Tastatur- und Controller-Navigation wurde verbessert; Namen, Icons und Steuerelemente werden beim erneuten Öffnen wiederverwendet.
 [*]Abbruchmeldungen zeigen Ursachencode und Verarbeitungsphase. Horizontale Verschiebungen zwischen Tabs mit und ohne Scrollleiste wurden behoben.
 [/list]
@@ -26,7 +26,7 @@ Drücke in deiner aktuellen Basis [b]F5[/b]. Quick Stack verkauft konfigurierte 
 [*]Verkaufsgegenstände ohne Händler standardmäßig behalten oder normalen Lagerregeln übergeben
 [/list]
 
-Alle Kategorien sind zunächst aus. Wertgegenstände erlauben alle 9 Arten; andere Kategorien behalten alles.
+Alle Kategorien sind zunächst aus. Wertgegenstände erlauben alle 9 Arten; andere Kategorien behalten alles. Zurücksetzen stellt nur die Standardliste der aktuellen Kategorie wieder her und lässt das Fenster offen.
 
 [b]Schnelles Verstauen[/b]
 
@@ -107,7 +107,7 @@ Vermeide andere Rucksackaktionen, solange die Fortschrittsmeldung sichtbar ist.
 
 [list]
 [*]Steam-Einzelspieler: Getestet
-[*]Pal-Insight-2.0.0-Integration: Unterstützt
+[*]Pal-Insight-Integration: Unterstützt
 [*]Dedizierter Server: Clientseitige Verschiebung funktioniert, Werkbankmengen können veraltet sein. Eine Serverinstallation ändert das nicht.
 [*]Co-op: Nicht verifiziert
 [*]Game Pass/WinGDK: Paket statisch geprüft, noch nicht im Spiel verifiziert
@@ -133,4 +133,4 @@ Mit dem [url=https://cratex.app/games/palworld/breeding][b]Palworld-Zuchtplaner 
 
 [url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]Vollständiger Änderungsverlauf[/b][/url]
 
-Die vollständigen Credits findest du im Spiel unter [b]F6 > About > Special Thanks[/b].
+Mit Pal Insight findest du die Credits unter [b]F6 > About > Special Thanks[/b].

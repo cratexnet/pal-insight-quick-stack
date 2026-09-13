@@ -9,7 +9,7 @@ Na base atual, pressione [b]F5[/b]. O Quick Stack vende os itens configurados e 
 [h2]Novidades da versão 1.5.0[/h2]
 
 [list]
-[*]Redesenhadas as quatro listas de itens mantidos com painel mais largo, até três colunas estáveis, espaços fixos e ações Restaurar/Fechar.
+[*]Redesenhadas as quatro listas com painel mais largo, até três colunas estáveis, espaços fixos para marca, ícone e nome, e ações Restaurar/Fechar.
 [*]Melhorada a navegação por mouse, teclado e controle; nomes, ícones e controles são reutilizados entre aberturas.
 [*]As interrupções mostram código e fase de processamento. Corrigido o deslocamento horizontal entre abas com e sem barra de rolagem.
 [/list]
@@ -26,7 +26,7 @@ Na base atual, pressione [b]F5[/b]. O Quick Stack vende os itens configurados e 
 [*]Sem comerciante, mantenha por padrão os itens à venda ou use o armazenamento normal
 [/list]
 
-Todas as categorias começam desativadas. Os 9 itens valiosos podem ser vendidos; as demais categorias mantêm tudo inicialmente.
+Todas as categorias começam desativadas. Os 9 itens valiosos podem ser vendidos; as demais mantêm tudo. Restaurar repõe só a lista padrão da categoria atual e mantém o painel aberto.
 
 [b]Armazenamento rápido[/b]
 
@@ -101,7 +101,7 @@ O Quick Stack continua responsável pela venda, movimentação e configurações
 
 [list]
 [*]Steam para um jogador: testado
-[*]Integração com Pal Insight 2.0.0: compatível
+[*]Integração com Pal Insight: compatível
 [*]Servidor dedicado: os itens são movidos só pelo cliente. As bancadas podem mostrar valores antigos para depósitos distantes; instalar Quick Stack no servidor não muda isso.
 [*]Cooperativo: não verificado
 [*]Game Pass/WinGDK: pacote verificado estaticamente, ainda sem teste no jogo
@@ -127,4 +127,4 @@ A [url=https://cratex.app/games/palworld/breeding][b]Calculadora de reprodução
 
 [url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]Histórico completo[/b][/url]
 
-Créditos completos em [b]F6 > Sobre > Agradecimentos[/b].
+Com Pal Insight, veja os créditos em [b]F6 > Sobre > Agradecimentos[/b].

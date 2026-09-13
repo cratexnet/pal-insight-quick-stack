@@ -9,7 +9,7 @@ Dans votre base actuelle, appuyez sur [b]F5[/b]. Quick Stack vend les objets con
 [h2]Nouveautés de la version 1.5.0[/h2]
 
 [list]
-[*]Les quatre listes de conservation ont été repensées avec un panneau plus large, jusqu’à trois colonnes stables, des emplacements fixes et les actions Réinitialiser/Fermer.
+[*]Les quatre listes ont été repensées avec un panneau plus large, jusqu’à trois colonnes stables, des emplacements fixes pour coche, icône et nom, et les actions Réinitialiser/Fermer.
 [*]La navigation souris, clavier et manette a été améliorée ; noms, icônes et contrôles sont réutilisés lors des ouvertures suivantes.
 [*]Les arrêts affichent désormais un code et la phase de traitement. Le décalage horizontal entre onglets avec et sans barre de défilement est corrigé.
 [/list]
@@ -26,7 +26,7 @@ Dans votre base actuelle, appuyez sur [b]F5[/b]. Quick Stack vend les objets con
 [*]Sans marchand, gardez par défaut les objets à vendre ou appliquez le rangement normal
 [/list]
 
-Toutes les catégories sont désactivées par défaut. Les 9 objets de valeur sont vendables ; les autres catégories conservent tout initialement.
+Toutes les catégories sont désactivées. Les 9 objets de valeur sont vendables ; les autres conservent tout. Réinitialiser restaure seulement la liste par défaut de la catégorie active et laisse la fenêtre ouverte.
 
 [b]Rangement rapide[/b]
 
@@ -101,7 +101,7 @@ Quick Stack continue de gérer la vente, les déplacements et les paramètres en
 
 [list]
 [*]Steam solo : testé
-[*]Intégration Pal Insight 2.0.0 : prise en charge
+[*]Intégration avec Pal Insight : prise en charge
 [*]Serveur dédié : déplacement côté client, mais valeurs d’établi parfois obsolètes. Installer Quick Stack sur le serveur n’y change rien.
 [*]Co-op : non vérifié
 [*]Game Pass/WinGDK : paquet vérifié statiquement, pas encore testé en jeu
@@ -127,4 +127,4 @@ Le [url=https://cratex.app/games/palworld/breeding][b]calculateur d’élevage P
 
 [url=https://www.nexusmods.com/palworld/mods/5474][b]Nexus Mods / Game Pass[/b][/url] | [url=https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack][b]CurseForge[/b][/url] | [url=https://www.nexusmods.com/palworld/mods/5474?tab=logs][b]Historique complet[/b][/url]
 
-Crédits complets dans [b]F6 > About > Special Thanks[/b].
+Avec Pal Insight, consultez les crédits dans [b]F6 > About > Special Thanks[/b].
