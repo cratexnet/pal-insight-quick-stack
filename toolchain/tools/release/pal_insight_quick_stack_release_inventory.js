@@ -815,7 +815,10 @@ function assertReleaseMetadata(root, version) {
 
 function assertWorkshopMetadata(root, version) {
   const info = readJson(root, WORKSHOP_INFO);
-  assert.equal(info.ModName, 'Pal Insight: Quick Stack');
+  assert.equal(
+    info.ModName,
+    'Pal Insight: Quick Stack - Sell and Store Backpack Items with One Key',
+  );
   assert.equal(info.PackageName, PACKAGE_NAME);
   assert.equal(info.Thumbnail, 'thumbnail.png');
   assert.equal(info.Version, version);
