@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.1 - 2026-09-13
+
+### Changed
+
+- Overflowing item names in all four automatic-sale keep-list pickers now
+  scroll immediately on mouse hover or keyboard/controller focus, so clipped
+  endings can be read without waiting.
+
+### Fixed
+
+- Fixed Escape sometimes being ignored for several seconds after closing Quick
+  Stack settings. The closing press remains isolated from underlying Pal Insight
+  and game menus, while later presses now respond normally.
+
 ## 1.5.0 - 2026-09-13
 
 ### Changed

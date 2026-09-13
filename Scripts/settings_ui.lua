@@ -20,17 +20,11 @@ local ALIGN_CENTER = 2
 local ALIGN_RIGHT = 3
 local TEXT_LEFT = 0
 local TEXT_CENTER = 1
-local TEXT_RIGHT = 2
 local POLL_MS = 80
 local ITEM_PICKER_MARQUEE_START_DELAY = 0.0
 local ITEM_PICKER_MARQUEE_END_DELAY = 0.80
 local ITEM_PICKER_MARQUEE_SPEED = 36.0
-local ITEM_PICKER_MARQUEE_END_PADDING = 8.0
-local ITEM_PICKER_MARQUEE_CONTENT_WIDTH = 720.0
-local PREVIEW_KEY_FUNCTION = "/Script/UMG.UserWidget:OnPreviewKeyDown"
-local KEY_UP_FUNCTION = "/Script/UMG.UserWidget:OnKeyUp"
 local MOUSE_MOVE_FUNCTION = "/Script/UMG.UserWidget:OnMouseMove"
-local MOUSE_LEAVE_FUNCTION = "/Script/UMG.UserWidget:OnMouseLeave"
 
 local COLORS = {
     white = { R = 1.0, G = 1.0, B = 1.0, A = 1.0 },
@@ -1247,7 +1241,7 @@ local function refreshItemPickerNameMarquee(record, active)
         end
     end
     local overflow = math.max(0.0,
-        desiredWidth + ITEM_PICKER_MARQUEE_END_PADDING
+        desiredWidth + 8.0
             - (tonumber(record.ammoNameWidth) or 0.0))
     if overflow <= 1.0 then
         resetItemPickerNameMarquee(record)
@@ -3844,9 +3838,11 @@ end
 local function installPreviewKeyHook()
     if state.previewKeyHookReady then return true end
     if type(RegisterHook) ~= "function"
-        or staticObject(PREVIEW_KEY_FUNCTION) == nil then return false end
+        or staticObject("/Script/UMG.UserWidget:OnPreviewKeyDown") == nil then
+        return false
+    end
     local ok, preId, postId = pcall(RegisterHook,
-        PREVIEW_KEY_FUNCTION, previewKeyHook)
+        "/Script/UMG.UserWidget:OnPreviewKeyDown", previewKeyHook)
     if not ok or type(preId) ~= "number" then return false end
     state.previewKeyHookReady = true
     state.previewKeyHookPreId = preId
@@ -3857,8 +3853,9 @@ end
 local function installKeyUpHook()
     if state.keyUpHookReady then return true end
     if type(RegisterHook) ~= "function"
-        or staticObject(KEY_UP_FUNCTION) == nil then return false end
-    local ok, preId, postId = pcall(RegisterHook, KEY_UP_FUNCTION, keyUpHook)
+        or staticObject("/Script/UMG.UserWidget:OnKeyUp") == nil then return false end
+    local ok, preId, postId = pcall(
+        RegisterHook, "/Script/UMG.UserWidget:OnKeyUp", keyUpHook)
     if not ok or type(preId) ~= "number" then return false end
     state.keyUpHookReady = true
     state.keyUpHookPreId = preId
@@ -3931,9 +3928,9 @@ local function installPointerHooks()
         state.mouseMoveHookPostId = postId
     end
     if not state.mouseLeaveHookReady then
-        if staticObject(MOUSE_LEAVE_FUNCTION) == nil then return false end
+        if staticObject("/Script/UMG.UserWidget:OnMouseLeave") == nil then return false end
         local ok, preId, postId = pcall(RegisterHook,
-            MOUSE_LEAVE_FUNCTION, mouseLeaveHook)
+            "/Script/UMG.UserWidget:OnMouseLeave", mouseLeaveHook)
         if not ok or type(preId) ~= "number" then return false end
         state.mouseLeaveHookReady = true
         state.mouseLeaveHookPreId = preId
@@ -5391,7 +5388,7 @@ Deferred.buildChoiceModal = function(
             ammoNameHost:SetWidthOverride(ammoNameWidth)
             ammoNameHost:SetHeightOverride(34.0)
             ammoNameHost:SetClipping(1)
-            ammoNameMover:SetWidthOverride(ITEM_PICKER_MARQUEE_CONTENT_WIDTH)
+            ammoNameMover:SetWidthOverride(720.0)
             ammoNameMover:SetHeightOverride(34.0)
             align(ammoNameMover:AddChild(ammoFallback), ALIGN_LEFT, ALIGN_CENTER)
             align(ammoNameHost:AddChild(ammoNameMover), ALIGN_LEFT, ALIGN_CENTER)
@@ -5532,7 +5529,7 @@ state.renderReleaseNotesVersion = function()
         "v" .. tostring(entry.version or ""), 22, COLORS.text)
     local dateValue = tostring(entry.dateUtc or "")
     if dateValue ~= "" then dateValue = dateValue .. " UTC" end
-    local date = makeText(state.widgetTree, dateValue, 13, COLORS.textMuted, TEXT_RIGHT)
+    local date = makeText(state.widgetTree, dateValue, 13, COLORS.textMuted, 2)
     if headingRow == nil or heading == nil or date == nil then return false end
     local headingSlot = headingRow:AddChild(heading)
     setFill(headingSlot)

@@ -59,7 +59,7 @@ local Palworld = require("palworld")
 local SteamVote = require("steam_vote")
 
 local TAG = "[PalInsightQuickStack] "
-local VERSION = "1.5.0"
+local VERSION = "1.5.1"
 local SHARED_API_VERSION = 3
 local SHARED_PREFIX = "PalInsightQuickStack."
 local SETTINGS_HOST_PROTOCOL_VERSION = 3

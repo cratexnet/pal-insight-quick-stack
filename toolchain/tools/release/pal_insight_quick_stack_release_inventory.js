@@ -344,7 +344,7 @@ function assertQuickStackSettings(root) {
     releaseNotes.indexOf('ReleaseNotes.versions = {'),
     releaseNotes.indexOf('\nlocal TEXT = {'));
   const versionBlocks = versionData.split(/\{ version\s*=/).slice(1);
-  assert.equal(versionBlocks.length, 11,
+  assert.equal(versionBlocks.length, 12,
     'version updates must contain the running version and every public Quick Stack release');
   for (const block of versionBlocks) {
     const itemCount = [...block.matchAll(/items\s*=\s*\{([^}]*)\}/g)]
