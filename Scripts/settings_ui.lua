@@ -22,6 +22,11 @@ local TEXT_LEFT = 0
 local TEXT_CENTER = 1
 local TEXT_RIGHT = 2
 local POLL_MS = 80
+local ITEM_PICKER_MARQUEE_START_DELAY = 0.0
+local ITEM_PICKER_MARQUEE_END_DELAY = 0.80
+local ITEM_PICKER_MARQUEE_SPEED = 36.0
+local ITEM_PICKER_MARQUEE_END_PADDING = 8.0
+local ITEM_PICKER_MARQUEE_CONTENT_WIDTH = 720.0
 local PREVIEW_KEY_FUNCTION = "/Script/UMG.UserWidget:OnPreviewKeyDown"
 local KEY_UP_FUNCTION = "/Script/UMG.UserWidget:OnKeyUp"
 local MOUSE_MOVE_FUNCTION = "/Script/UMG.UserWidget:OnMouseMove"
@@ -1211,6 +1216,70 @@ state.refreshSettingsTabs = function()
     end
 end
 
+local function resetItemPickerNameMarquee(record)
+    if type(record) ~= "table" then return end
+    if P.isValid(record.ammoNameMover)
+        and (tonumber(record.itemNameMarqueeOffset) or 0.0) ~= 0.0 then
+        pcall(function()
+            record.ammoNameMover:SetRenderTranslation({ X = 0.0, Y = 0.0 })
+        end)
+    end
+    record.itemNameMarqueeStartedAt = nil
+    record.itemNameMarqueeOffset = 0.0
+end
+
+local function refreshItemPickerNameMarquee(record, active)
+    if type(record) ~= "table" or not P.isValid(record.ammoFallback)
+        or not P.isValid(record.ammoNameHost)
+        or not P.isValid(record.ammoNameMover) then return end
+    if active ~= true then
+        resetItemPickerNameMarquee(record)
+        return
+    end
+    local desiredWidth = tonumber(record.itemNameDesiredWidth) or 0.0
+    if desiredWidth <= 0.0 then
+        pcall(function()
+            local size = record.ammoFallback:GetDesiredSize()
+            desiredWidth = tonumber(size and size.X) or 0.0
+        end)
+        if desiredWidth > 0.0 then
+            record.itemNameDesiredWidth = desiredWidth
+        end
+    end
+    local overflow = math.max(0.0,
+        desiredWidth + ITEM_PICKER_MARQUEE_END_PADDING
+            - (tonumber(record.ammoNameWidth) or 0.0))
+    if overflow <= 1.0 then
+        resetItemPickerNameMarquee(record)
+        return
+    end
+    local now = os.clock()
+    if record.itemNameMarqueeStartedAt == nil then
+        record.itemNameMarqueeStartedAt = now
+    end
+    local travelTime = overflow / ITEM_PICKER_MARQUEE_SPEED
+    local elapsed = now - record.itemNameMarqueeStartedAt
+    local cycleTime = ITEM_PICKER_MARQUEE_START_DELAY + travelTime
+        + ITEM_PICKER_MARQUEE_END_DELAY
+    if elapsed >= cycleTime then
+        record.itemNameMarqueeStartedAt = now
+        elapsed = 0.0
+    end
+    local offset = 0.0
+    if elapsed > ITEM_PICKER_MARQUEE_START_DELAY then
+        offset = math.min(overflow,
+            (elapsed - ITEM_PICKER_MARQUEE_START_DELAY)
+                * ITEM_PICKER_MARQUEE_SPEED)
+    end
+    if math.abs(offset - (tonumber(record.itemNameMarqueeOffset) or 0.0))
+        >= 0.5 then
+        record.itemNameMarqueeOffset = offset
+        pcall(function()
+            record.ammoNameMover:SetRenderTranslation({ X = -offset, Y = 0.0 })
+        end)
+    end
+end
+
 local function refreshTriggerSurfaces()
     for _, record in ipairs(state.triggerSurfaces or {}) do
         if P.isValid(record.widget) and P.isValid(record.surface) then
@@ -1265,6 +1334,21 @@ local function refreshTriggerSurfaces()
                     end
                 end)
             end
+            local marqueeHovered = false
+            pcall(function()
+                marqueeHovered = record.surface:IsHovered() == true
+            end)
+            local pointerAction = state.pointerAction
+            if state.lastInputDevice == "mouse"
+                and type(pointerAction) == "table"
+                and pointerAction.scope == "choice"
+                and pointerAction.index == record.itemPickerIndex then
+                marqueeHovered = true
+            end
+            refreshItemPickerNameMarquee(record,
+                SettingsUI.isItemPicker(state.activeChoice)
+                    and (marqueeHovered or (selected
+                        and state.lastInputDevice ~= "mouse")))
         end
     end
     for _, records in ipairs({
@@ -4708,7 +4792,10 @@ Deferred.layoutItemPickerOptions = function(control)
             option.box:SetWidthOverride(cellWidth)
             option.box:SetHeightOverride(SIZE.modalOption)
             option.box:SetVisibility(VIS_VISIBLE)
-            option.ammoHost:SetWidthOverride(math.max(140.0, cellWidth - 60.0))
+            local ammoHostWidth = math.max(140.0, cellWidth - 60.0)
+            option.ammoHost:SetWidthOverride(ammoHostWidth)
+            option.ammoNameWidth = math.max(1.0, ammoHostWidth - 38.0)
+            option.ammoNameHost:SetWidthOverride(option.ammoNameWidth)
             local slot = row:AddChild(option.box)
             setPadding(slot, 4, 0, 4, 8)
             align(slot, ALIGN_CENTER, ALIGN_CENTER)
@@ -4760,6 +4847,7 @@ closeChoiceModal = function(restoreFocus)
     end
     for _, option in ipairs(state.modalOptions or {}) do
         option.selected = false
+        resetItemPickerNameMarquee(option)
     end
     if P.isValid(state.nestedCardBox) then
         pcall(function()
@@ -5053,6 +5141,8 @@ Deferred.openAmmoPickerModal = function(control, returnFocusIndex)
                 option.ammoIconBox:SetVisibility(VIS_HIT_TEST_INVISIBLE)
                 if option.itemRenderSignature ~= signature
                     or option.itemRenderReady ~= true then
+                    resetItemPickerNameMarquee(option)
+                    option.itemNameDesiredWidth = nil
                     option.itemRenderSignature = signature
                     option.itemRenderReady = false
                     option.ammoIcon:SetVisibility(VIS_HIDDEN)
@@ -5267,10 +5357,13 @@ Deferred.buildChoiceModal = function(
             local ammoRow = construct(tree, "/Script/UMG.HorizontalBox")
             local ammoIconBox = construct(tree, "/Script/UMG.SizeBox")
             local ammoIcon = construct(tree, "/Script/UMG.Image")
+            local ammoNameHost = construct(tree, "/Script/UMG.SizeBox")
+            local ammoNameMover = construct(tree, "/Script/UMG.SizeBox")
             local ammoFallback = makeText(tree, "", 14, COLORS.text, TEXT_LEFT)
             if optionLayer == nil or ammoContent == nil or ammoMarkBox == nil
                 or ammoMark == nil or ammoHost == nil
                 or ammoRow == nil or ammoIconBox == nil or ammoIcon == nil
+                or ammoNameHost == nil or ammoNameMover == nil
                 or ammoFallback == nil then
                 error("ammunition option controls are unavailable")
             end
@@ -5284,6 +5377,7 @@ Deferred.buildChoiceModal = function(
             align(ammoContent:AddChild(ammoMarkBox), ALIGN_CENTER, ALIGN_CENTER)
             ammoHost:SetWidthOverride(math.max(220.0, optionWidth - 60.0))
             ammoHost:SetHeightOverride(34.0)
+            ammoHost:SetClipping(1)
             ammoIconBox:SetWidthOverride(30.0)
             ammoIconBox:SetHeightOverride(30.0)
             ammoIconBox:SetVisibility(VIS_HIT_TEST_INVISIBLE)
@@ -5292,7 +5386,18 @@ Deferred.buildChoiceModal = function(
             local iconSlot = ammoRow:AddChild(ammoIconBox)
             setPadding(iconSlot, 0, 0, 8, 0)
             align(iconSlot, ALIGN_LEFT, ALIGN_CENTER)
-            align(ammoRow:AddChild(ammoFallback), ALIGN_LEFT, ALIGN_CENTER)
+            local ammoNameWidth = math.max(1.0,
+                math.max(220.0, optionWidth - 60.0) - 38.0)
+            ammoNameHost:SetWidthOverride(ammoNameWidth)
+            ammoNameHost:SetHeightOverride(34.0)
+            ammoNameHost:SetClipping(1)
+            ammoNameMover:SetWidthOverride(ITEM_PICKER_MARQUEE_CONTENT_WIDTH)
+            ammoNameMover:SetHeightOverride(34.0)
+            align(ammoNameMover:AddChild(ammoFallback), ALIGN_LEFT, ALIGN_CENTER)
+            align(ammoNameHost:AddChild(ammoNameMover), ALIGN_LEFT, ALIGN_CENTER)
+            local nameSlot = ammoRow:AddChild(ammoNameHost)
+            setFill(nameSlot)
+            align(nameSlot, ALIGN_FILL, ALIGN_CENTER)
             align(ammoHost:AddChild(ammoRow), ALIGN_FILL, ALIGN_CENTER)
             local hostSlot = ammoContent:AddChild(ammoHost)
             setFill(hostSlot)
@@ -5304,6 +5409,10 @@ Deferred.buildChoiceModal = function(
             option.ammoContent = ammoContent
             option.ammoMark = ammoMark
             option.ammoHost = ammoHost
+            option.ammoNameHost = ammoNameHost
+            option.ammoNameMover = ammoNameMover
+            option.ammoNameWidth = ammoNameWidth
+            option.itemPickerIndex = index
             option.ammoIconBox = ammoIconBox
             option.ammoIcon = ammoIcon
             option.ammoFallback = ammoFallback

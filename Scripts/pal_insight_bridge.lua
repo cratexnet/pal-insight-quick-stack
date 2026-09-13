@@ -148,6 +148,11 @@ local function escapeCloseGuardBlocksNativeUI()
         state.escapeCloseGuard = nil
         return false
     end
+    if record.windowClosed == true and record.released ~= true
+        and now >= (tonumber(record.settleUntil) or math.huge) then
+        state.escapeCloseGuard = nil
+        return false
+    end
     return true
 end
 
@@ -1054,7 +1059,7 @@ function Bridge.armEscapeClose(source)
         released = false,
         windowClosed = false,
         settleUntil = nil,
-        expiresAt = os.clock() + 3.0,
+        expiresAt = os.clock() + 0.25,
     }
     return true
 end
@@ -1071,9 +1076,10 @@ end
 function Bridge.noteEscapeWindowClosed()
     local record = state.escapeCloseGuard
     if type(record) ~= "table" then return false end
+    local now = os.clock()
     record.windowClosed = true
-    record.expiresAt = os.clock() + 3.0
-    if record.released == true then record.settleUntil = os.clock() + 0.08 end
+    record.settleUntil = now + 0.08
+    record.expiresAt = now + 0.25
     return true
 end
 
