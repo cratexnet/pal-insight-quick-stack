@@ -178,7 +178,7 @@ local ABOUT_URLS = {
     quickStackCurseForge =
         "https://www.curseforge.com/palworld/lua-code-mods/pal-insight-quick-stack",
     x = "https://x.com/cratexnet",
-    discord = "https://discord.gg/JWhE4TKsBN",
+    discord = "https://discord.gg/F72EfbSCcN",
     bmc = "https://buymeacoffee.com/cratexnet",
 }
 
